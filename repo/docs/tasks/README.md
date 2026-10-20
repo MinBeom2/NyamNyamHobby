@@ -1,8 +1,8 @@
 # 냠냠취미 작업 목록
 
 > 프로젝트 명세서 v0.3 · 디자인 컨셉북 v1.0 · 2026-10-19 · Team SSabby D104  
-> 명세서: https://claude.ai/code/artifact/e1912c90-ddd5-4f14-aebd-708d8c42ba35  
-> 명세서의 기능·비기능 요구사항을 프론트엔드 · 백엔드 · 기획·운영 작업으로 나눈 목록입니다. 진척 집계는 `냠냠취미_요구사항_진척현황.xlsx`에서 합니다.
+> 명세서: [../spec/project-spec-v0.3.md](../spec/project-spec-v0.3.md) · 원본 [Claude Docs](https://claude.ai/code/artifact/e1912c90-ddd5-4f14-aebd-708d8c42ba35)  
+> 명세서의 기능·비기능 요구사항을 프론트엔드 · 백엔드 · 기획·운영 작업으로 나눈 목록입니다. 진척 집계는 `requirements-progress.xlsx`에서 합니다.
 
 ## 파일
 

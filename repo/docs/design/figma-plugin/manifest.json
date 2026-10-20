@@ -1,0 +1,15 @@
+{
+  "name": "냠냠취미 컨셉북 적용",
+  "id": "1426900000000000001",
+  "api": "1.0.0",
+  "main": "code.js",
+  "editorType": [
+    "figma"
+  ],
+  "documentAccess": "dynamic-page",
+  "networkAccess": {
+    "allowedDomains": [
+      "none"
+    ]
+  }
+}

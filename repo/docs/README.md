@@ -8,6 +8,7 @@
 |---|---|---|
 | [spec/project-spec-v0.3.md](spec/project-spec-v0.3.md) | 프로젝트 명세서: 기능 · 비기능 요구사항, 화면, 데이터, API, 배치, 일정, 미결 사항 | [Claude Docs](https://claude.ai/code/artifact/e1912c90-ddd5-4f14-aebd-708d8c42ba35) |
 | [spec/project-spec-v0.3.pdf](spec/project-spec-v0.3.pdf) | 같은 명세서의 PDF 판(ERD · 화면 흐름 · 시스템 구성 · 일정 도식 포함, 81쪽) | 〃 |
+| [spec/api-spec.md](spec/api-spec.md) | REST API 상세 명세서: 공통 봉투, 에러 코드, 도메인별 요청·응답 DTO 및 예시 | 명세서 8장 |
 | [db/V1__init.sql](db/V1__init.sql) | MySQL 8.0 초기 스키마, 테이블 41개. 명세서 7.5와 같은 내용이라 Flyway `V1__init.sql`로 그대로 씁니다 | 명세서 7.5 |
 | [tasks/README.md](tasks/README.md) | 작업 목록 안내: 일정 기준, 영역 × 파트 ID, 먼저 시작할 것, 확인 필요 사항 | — |
 | [tasks/FRONTEND_TASKS.md](tasks/FRONTEND_TASKS.md) | 프론트엔드 작업 72건 (필수 47 · 권장 25) | — |

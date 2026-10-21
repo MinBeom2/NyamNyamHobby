@@ -1,4 +1,6 @@
 -- 냠냠취미 DB 스키마 v0.3 (MySQL 8.0, InnoDB, utf8mb4)
+-- v0.4 메모(기능 요구사항 CSV 10/21 반영): 스키마는 바꾸지 않음. P2(MVP 제외) 기능용 테이블·컬럼
+--       (guest_key, short_saves, interest_selections, notifications, feedbacks, PAUSED 등)은 고도화 대비로 남김
 -- 규칙: 테이블·컬럼 snake_case / PK BIGINT AUTO_INCREMENT / 시간 DATETIME(6) UTC 저장
 --       enum은 VARCHAR + JPA @Enumerated(EnumType.STRING) / 삭제는 status 또는 deleted_at (soft delete)
 
@@ -12,7 +14,7 @@ CREATE TABLE users (
   role              VARCHAR(10)  NOT NULL DEFAULT 'USER'    COMMENT 'USER|ADMIN',
   status            VARCHAR(10)  NOT NULL DEFAULT 'PENDING' COMMENT 'PENDING|ACTIVE|WITHDRAWN',
   email_verified_at DATETIME(6)  NULL,
-  interest_reset_at DATETIME(6)  NULL COMMENT '관심사 초기화 시각. 이후 반응만 점수에 반영',
+  interest_reset_at DATETIME(6)  NULL COMMENT '관심사 초기화 시각. 이후 반응만 점수에 반영 (탐색 초기화는 P2)',
   login_fail_count  INT          NOT NULL DEFAULT 0,
   locked_until      DATETIME(6)  NULL,
   created_at        DATETIME(6)  NOT NULL,
@@ -25,7 +27,7 @@ CREATE TABLE users (
 CREATE TABLE social_accounts (
   id               BIGINT       NOT NULL AUTO_INCREMENT PRIMARY KEY,
   user_id          BIGINT       NOT NULL,
-  provider         VARCHAR(10)  NOT NULL COMMENT 'GOOGLE|KAKAO|NAVER',
+  provider         VARCHAR(10)  NOT NULL COMMENT 'GOOGLE (소셜 로그인은 Google만, P1)',
   provider_user_id VARCHAR(100) NOT NULL,
   created_at       DATETIME(6)  NOT NULL,
   UNIQUE KEY uk_social (provider, provider_user_id),
@@ -187,7 +189,7 @@ CREATE TABLE shorts (
 CREATE TABLE exploration_sessions (
   id           BIGINT      NOT NULL AUTO_INCREMENT PRIMARY KEY,
   user_id      BIGINT      NULL,
-  guest_key    CHAR(36)    NULL COMMENT '비회원 UUID. 이관 후 NULL',
+  guest_key    CHAR(36)    NULL COMMENT '비회원 UUID. 이관 후 NULL (비회원 체험 P2, MVP는 항상 NULL)',
   status       VARCHAR(12) NOT NULL DEFAULT 'IN_PROGRESS' COMMENT 'IN_PROGRESS|COMPLETED|ABANDONED',
   max_count    TINYINT     NOT NULL DEFAULT 12,
   viewed_count TINYINT     NOT NULL DEFAULT 0,
@@ -202,7 +204,7 @@ CREATE TABLE exploration_views (
   id          BIGINT      NOT NULL AUTO_INCREMENT PRIMARY KEY,
   session_id  BIGINT      NOT NULL,
   short_id    BIGINT      NOT NULL,
-  seq         TINYINT     NOT NULL COMMENT '세션 내 노출 순서 1~12',
+  seq         TINYINT     NOT NULL COMMENT '세션 내 노출 순서 1~N (N = exploration.session-size, 기본안 12)',
   play_failed BOOLEAN     NOT NULL DEFAULT FALSE,
   watched_seconds SMALLINT NOT NULL DEFAULT 0 COMMENT '실제 재생 초(영상 길이 상한)',
   watch_ratio DECIMAL(4,3) NULL COMMENT 'watched_seconds ÷ duration_seconds (0~1)',
@@ -217,7 +219,7 @@ CREATE TABLE short_reactions (
   user_id    BIGINT      NULL,
   guest_key  CHAR(36)    NULL,
   short_id   BIGINT      NOT NULL,
-  session_id BIGINT      NULL COMMENT '반응한 탐색 세션(보관함에서 반응 시 NULL)',
+  session_id BIGINT      NULL COMMENT '반응한 탐색 세션(보관함(P2)에서 반응 시 NULL)',
   type       VARCHAR(10) NOT NULL COMMENT 'LIKE|DISLIKE|IRRELEVANT',
   created_at DATETIME(6) NOT NULL,
   updated_at DATETIME(6) NOT NULL,
@@ -228,6 +230,7 @@ CREATE TABLE short_reactions (
   FOREIGN KEY (short_id) REFERENCES shorts (id)
 );
 
+-- 숏폼 보관함: P2(MVP 제외)
 CREATE TABLE short_saves (
   user_id    BIGINT      NOT NULL,
   short_id   BIGINT      NOT NULL,
@@ -238,6 +241,7 @@ CREATE TABLE short_saves (
   FOREIGN KEY (short_id) REFERENCES shorts (id)
 );
 
+-- 관심사 직접 선택: P2(MVP 제외)
 CREATE TABLE interest_selections (
   user_id    BIGINT      NOT NULL,
   hobby_id   BIGINT      NOT NULL,
@@ -293,12 +297,12 @@ CREATE TABLE user_hobbies (
   id          BIGINT      NOT NULL AUTO_INCREMENT PRIMARY KEY,
   user_id     BIGINT      NOT NULL,
   hobby_id    BIGINT      NOT NULL,
-  status      VARCHAR(12) NOT NULL COMMENT 'SAVED|IN_PROGRESS|PAUSED|COMPLETED|STOPPED',
+  status      VARCHAR(12) NOT NULL COMMENT 'SAVED|IN_PROGRESS|PAUSED|COMPLETED|STOPPED (PAUSED·COMPLETED·STOPPED는 P2)',
   skill_level VARCHAR(12) NOT NULL DEFAULT 'BEGINNER' COMMENT 'BEGINNER|NOVICE|INTERMEDIATE',
   saved_at    DATETIME(6) NOT NULL,
   started_at  DATETIME(6) NULL,
   paused_at   DATETIME(6) NULL,
-  paused_days INT         NOT NULL DEFAULT 0 COMMENT '누적 일시중지 일수(주차 계산용)',
+  paused_days INT         NOT NULL DEFAULT 0 COMMENT '누적 일시중지 일수(주차 계산용, 일시중지는 P2)',
   ended_at    DATETIME(6) NULL,
   UNIQUE KEY uk_user_hobby (user_id, hobby_id),
   KEY idx_user_hobby_status (user_id, status),
@@ -385,7 +389,7 @@ CREATE TABLE places (
   source            VARCHAR(50)   NOT NULL COMMENT '대표 출처 PUBLIC_PARK|PUBLIC_SPORTS|KAKAO_LOCAL|ADMIN',
   source_ref        VARCHAR(100)  NULL COMMENT '출처 쪽 ID(중복 수집 방지)',
   source_updated_at DATETIME(6)   NULL,
-  status            VARCHAR(16)   NOT NULL DEFAULT 'PENDING_REVIEW' COMMENT 'PENDING_REVIEW|PUBLISHED|HIDDEN',
+  status            VARCHAR(16)   NOT NULL DEFAULT 'PENDING_REVIEW' COMMENT 'PENDING_REVIEW|PUBLISHED|HIDDEN (검토 단계는 P2, MVP 배치는 PUBLISHED로 저장)',
   created_at        DATETIME(6)   NOT NULL,
   updated_at        DATETIME(6)   NOT NULL,
   UNIQUE KEY uk_place_source (source, source_ref),
@@ -431,7 +435,7 @@ CREATE TABLE feed_items (
   event_start   DATE         NULL,
   event_end     DATE         NULL COMMENT '지나면 종료 배지',
   origin        VARCHAR(20)  NOT NULL COMMENT 'ADMIN|TOUR_API|CULTURE_PORTAL|KOPIS|SEOUL_RESERVATION',
-  status        VARCHAR(16)  NOT NULL DEFAULT 'PENDING_REVIEW' COMMENT 'PENDING_REVIEW|PUBLISHED|HIDDEN',
+  status        VARCHAR(16)  NOT NULL DEFAULT 'PENDING_REVIEW' COMMENT 'PENDING_REVIEW|PUBLISHED|HIDDEN (검토 단계는 P2, MVP 배치는 PUBLISHED로 저장)',
   created_at    DATETIME(6)  NOT NULL,
   updated_at    DATETIME(6)  NOT NULL COMMENT '갱신 시점',
   UNIQUE KEY uk_feed_source (origin, source_ref),
@@ -514,6 +518,7 @@ CREATE TABLE reports (
 );
 
 -- ───────── 알림·문의·공지·로그 ─────────
+-- 웹 알림: P2(MVP 제외)
 CREATE TABLE notifications (
   id         BIGINT       NOT NULL AUTO_INCREMENT PRIMARY KEY,
   user_id    BIGINT       NOT NULL,
@@ -562,6 +567,7 @@ CREATE TABLE notices (
   FOREIGN KEY (admin_id) REFERENCES users (id)
 );
 
+-- 서비스 피드백: P2(MVP 제외)
 CREATE TABLE feedbacks (
   id           BIGINT        NOT NULL AUTO_INCREMENT PRIMARY KEY,
   user_id      BIGINT        NOT NULL,

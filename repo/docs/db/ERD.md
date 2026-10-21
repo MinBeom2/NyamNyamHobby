@@ -2,7 +2,8 @@
 
 > **기준 스키마**: MySQL 8.0 · 41개 테이블 · [V1__init.sql](V1__init.sql)  
 > **프로젝트 명세서**: [spec/project-spec-v0.3.md](../spec/project-spec-v0.3.md) 7장 (데이터 구조)  
-> **아키텍처 특징**: 2대 핵심 허브(`users`, `hobbies`)를 중심으로 7개 도메인이 유기적으로 연결된 구조입니다.
+> **아키텍처 특징**: 2대 핵심 허브(`users`, `hobbies`)를 중심으로 7개 도메인이 유기적으로 연결된 구조입니다.  
+> **기준**: 기능 요구사항 CSV(10/21) 반영 — 스키마는 그대로이며, MVP 제외(P2) 기능(비회원 체험, 관심사 직접 선택·탐색 초기화, 숏폼 보관함, 취미 상태 변경, 내 계획 수정, 알림, 서비스 피드백, 피드·장소 관리자 검토)용 테이블·컬럼은 고도화 대비로 남겨 둡니다. 설명의 `[P2]` 표시는 MVP에서 쓰지 않는다는 뜻입니다.
 
 ---
 
@@ -73,8 +74,8 @@ erDiagram
 ---
 
 ### 2.1 회원 및 프로필 도메인 (Auth & User Profile)
-- **비회원 식별**: `guest_key` (UUID)를 통해 비회원 체험 데이터를 추적하며, 회원가입 시 `users` 계정으로 통합 이관됩니다.
-- **소셜 연동**: 구글/카카오/네이버 계정 식별 정보를 `social_accounts`에서 관리합니다.
+- **비회원 식별** `[P2]`: `guest_key` (UUID)를 통해 비회원 체험 데이터를 추적하며, 회원가입 시 `users` 계정으로 통합 이관됩니다. 비회원 체험이 MVP 제외라 MVP에서는 쓰지 않습니다.
+- **소셜 연동** `[P1]`: 구글 계정 식별 정보를 `social_accounts`에서 관리합니다(소셜 로그인은 Google만).
 
 ```mermaid
 erDiagram
@@ -92,7 +93,7 @@ erDiagram
         varchar role "USER | ADMIN"
         varchar status "PENDING | ACTIVE | WITHDRAWN"
         datetime email_verified_at "이메일 인증 일시"
-        datetime interest_reset_at "관심사 초기화 시각"
+        datetime interest_reset_at "관심사 초기화 시각 [P2]"
         int login_fail_count "연속 로그인 실패 수"
         datetime locked_until "계정 잠금 해제 일시"
         datetime created_at "가입 일시"
@@ -103,7 +104,7 @@ erDiagram
     SOCIAL_ACCOUNTS {
         bigint id PK
         bigint user_id FK "users.id"
-        varchar provider "GOOGLE | KAKAO | NAVER"
+        varchar provider "GOOGLE (Google만)"
         varchar provider_user_id "제공자별 고유 사용자 ID"
         datetime created_at
     }
@@ -212,7 +213,8 @@ erDiagram
 ---
 
 ### 2.3 숏폼 탐색 및 반응 도메인 (Short-form Exploration & Reactions)
-- **생명주기 관리**: 영상은 `CANDIDATE` 수집 후 주간 반영을 거쳐 `ACTIVE`로 전환되며, 사용자 신고 누적 시 `AUTO_HIDDEN` 처리됩니다.
+- **생명주기 관리**: 영상은 `CANDIDATE` 수집 후 주간 반영을 거쳐 `ACTIVE`로 전환되며, 사용자 신고 누적 시 `AUTO_HIDDEN` 처리됩니다. 수집 배치(P0)가 불확실한 영상은 `NEEDS_REVIEW`로 저장하며, 이 영상은 관리자가 승인할 때까지 반영(노출)하지 않습니다(승인 → `CANDIDATE` → 다음 주간 반영 때 `ACTIVE`, 거절 → `REJECTED`). 관리자 숏폼 검수 화면(채널 승인·영상 검토·자동 숨김 복구)은 `[P3]`이고, 그 전에는 DB에서 직접 합니다. 확실한 영상은 관리자 없이 주간 반영으로 노출됩니다.
+- **보관함·직접 선택** `[P2]`: `short_saves`(숏폼 보관함)와 `interest_selections`(관심사 직접 선택)는 MVP에서 쓰지 않습니다.
 - **점수 산출**: 시청 시간(`watched_seconds`)과 반응(`LIKE`/`DISLIKE`)을 통해 실시간 취향 점수를 도출합니다.
 
 ```mermaid
@@ -262,9 +264,9 @@ erDiagram
     EXPLORATION_SESSIONS {
         bigint id PK
         bigint user_id FK "users.id (비회원은 NULL)"
-        char guest_key "guestKey UUID (7일 보관)"
+        char guest_key "guestKey UUID (7일 보관) [P2]"
         varchar status "IN_PROGRESS | COMPLETED | ABANDONED"
-        tinyint max_count "최대 탐색 수 (12)"
+        tinyint max_count "세션 노출 수 N (설정값, 기본안 12)"
         tinyint viewed_count "실제 시청한 영상 수"
         datetime started_at "시작 일시"
         datetime ended_at "종료 일시"
@@ -274,7 +276,7 @@ erDiagram
         bigint id PK
         bigint session_id FK "exploration_sessions.id"
         bigint short_id FK "shorts.id"
-        tinyint seq "노출 순서 (1~12)"
+        tinyint seq "노출 순서 (1~N)"
         smallint watched_seconds "실제 재생 시간(초)"
         boolean play_failed "재생 오류 발생 여부"
         datetime created_at
@@ -283,7 +285,7 @@ erDiagram
     SHORT_REACTIONS {
         bigint id PK
         bigint user_id FK "users.id (비회원은 NULL)"
-        char guest_key "guestKey UUID"
+        char guest_key "guestKey UUID [P2]"
         bigint short_id FK "shorts.id"
         bigint session_id FK "exploration_sessions.id"
         varchar type "LIKE | DISLIKE | IRRELEVANT"
@@ -317,9 +319,9 @@ erDiagram
     RECOMMENDATIONS {
         bigint id PK
         bigint user_id FK "users.id (비회원은 NULL)"
-        char guest_key "guestKey UUID"
+        char guest_key "guestKey UUID [P2]"
         bigint session_id FK "exploration_sessions.id (NULL 가능)"
-        varchar basis "EXPLORATION_SESSION | DIRECT_SELECTION"
+        varchar basis "EXPLORATION_SESSION | DIRECT_SELECTION (직접 선택은 P2)"
         varchar basis_text "추천 근거 요약 문구"
         boolean is_exploratory "데이터 부족 시 탐색용 제안 여부"
         datetime created_at "생성 일시"
@@ -348,7 +350,8 @@ erDiagram
 ---
 
 ### 2.5 내 취미 및 주차별 TODO 도메인 (User Hobby & TODO Plans)
-- **템플릿-인스턴스 분리 (Copy-on-Start)**: 관리자가 작성한 마스터 템플릿(`plan_templates`, `plan_template_items`)을 사용자가 '시작하기'를 누를 때 사용자 전용 사본(`user_plans`, `user_plan_items`)으로 통째로 복사합니다. 이를 통해 원본 변경이나 타 사용자와 무관하게 독립적인 커스텀(활동 추가/삭제/수정)이 가능합니다.
+- **템플릿-인스턴스 분리 (Copy-on-Start)**: 관리자가 작성한 마스터 템플릿(`plan_templates`, `plan_template_items`)을 사용자가 '시작하기'를 누를 때 사용자 전용 사본(`user_plans`, `user_plan_items`)으로 통째로 복사합니다. 이를 통해 원본 변경이나 타 사용자와 무관하게 독립적인 커스텀(활동 추가/삭제/수정, 내 계획 수정은 `[P2]`)이 가능합니다. MVP에서 마스터 템플릿은 관리자 화면(`[P2]`) 대신 시드 SQL로 넣습니다.
+- **취미 상태 변경** `[P2]`: `PAUSED`·`COMPLETED`·`STOPPED`와 일시중지 관련 컬럼은 MVP에서 쓰지 않습니다(MVP는 `SAVED`·`IN_PROGRESS`, 동시 진행 최대 5개).
 
 ```mermaid
 erDiagram
@@ -365,12 +368,12 @@ erDiagram
         bigint id PK
         bigint user_id FK "users.id"
         bigint hobby_id FK "hobbies.id"
-        varchar status "SAVED | IN_PROGRESS | PAUSED | COMPLETED | STOPPED"
+        varchar status "SAVED | IN_PROGRESS | PAUSED | COMPLETED | STOPPED (PAUSED 이후는 P2)"
         varchar skill_level "BEGINNER | NOVICE | INTERMEDIATE"
         datetime started_at "시작 일시"
-        datetime paused_at "일시중지 일시"
-        datetime completed_at "계획 완료 일시"
-        datetime stopped_at "그만둔 일시"
+        datetime paused_at "일시중지 일시 [P2]"
+        datetime completed_at "계획 완료 일시 [P2]"
+        datetime stopped_at "그만둔 일시 [P2]"
         datetime created_at
         datetime updated_at
     }
@@ -434,6 +437,7 @@ erDiagram
 
 ### 2.6 활동 장소 및 정보 피드 도메인 (Places & Feed Items)
 - **장소 중복 병합 (Deduplication)**: 여러 출처(공공체육시설, 공원, 카카오 로컬)에서 수집된 장소 원본은 `place_sources`에 보존하고, 좌표(50m 이내)와 상호명 유사도(0.6 이상)를 검사하여 단일 대표 장소(`places`)로 통합합니다.
+- **공개 상태**: 관리자 검토(`[P2]`)가 MVP 제외라 배치로 들어온 장소·정보 피드는 `PENDING_REVIEW`를 거치지 않고 바로 `PUBLISHED`로 저장합니다(검토 단계는 P2 도입 시).
 
 ```mermaid
 erDiagram
@@ -458,7 +462,7 @@ erDiagram
         varchar source "대표 출처 (PUBLIC_PARK | PUBLIC_SPORTS | KAKAO_LOCAL | ADMIN)"
         varchar source_ref "출처 고유 식별자"
         datetime source_updated_at "출처 데이터 갱신일"
-        varchar status "PENDING_REVIEW | PUBLISHED | HIDDEN"
+        varchar status "PENDING_REVIEW | PUBLISHED | HIDDEN (MVP는 PUBLISHED로 저장)"
         datetime created_at
         datetime updated_at
     }
@@ -495,7 +499,7 @@ erDiagram
         date event_start "행사 시작일"
         date event_end "행사 종료일 (종료 배지 표시 기준)"
         varchar origin "ADMIN | TOUR_API | CULTURE_PORTAL | KOPIS | SEOUL_RESERVATION"
-        varchar status "PENDING_REVIEW | PUBLISHED | HIDDEN"
+        varchar status "PENDING_REVIEW | PUBLISHED | HIDDEN (MVP는 PUBLISHED로 저장)"
         datetime created_at
         datetime updated_at
     }
@@ -506,6 +510,7 @@ erDiagram
 ### 2.7 커뮤니티, 고객센터 및 운영 도메인 (Community & Administration)
 - **다형성 참조**: `likes`(좋아요)와 `reports`(신고)는 특정 테이블에 종속되지 않고 `(target_type, target_id)` 다형성 키로 `POST`, `COMMENT`, `SHORT`를 유연하게 가리킵니다.
 - **대댓글 1단계 제한**: `comments.parent_id`의 자기 참조를 통해 대댓글을 지원하되, 비즈니스 규칙상 1단계까지만 허용합니다.
+- **우선순위**: 게시판·댓글·좋아요는 `[P1]`, 신고·문의·공지는 `[P3]`, `notifications`(웹 알림)와 `feedbacks`(서비스 피드백)는 `[P2]`(MVP 제외)입니다.
 
 ```mermaid
 erDiagram
@@ -656,7 +661,7 @@ erDiagram
     EVENT_LOGS {
         bigint id PK
         bigint user_id FK "users.id (비회원은 NULL)"
-        char guest_key "guestKey UUID"
+        char guest_key "guestKey UUID [P2]"
         varchar event_type "RECO_IMPRESSION | RECO_CLICK | HOBBY_SAVE | HOBBY_START | HOBBY_DISLIKE"
         varchar target_type "대상 유형"
         bigint target_id "대상 ID"
@@ -673,7 +678,7 @@ erDiagram
    - 모든 엔티티의 컬럼명과 타입은 [V1__init.sql](V1__init.sql)의 정의와 100% 일치해야 하며, `ddl-auto: validate` 환경에서 통과하도록 `@Column`, `@Enumerated(EnumType.STRING)` 설정을 엄격히 준수합니다.
 2. **다형성 외래키 처리**:
    - `likes`, `reports`, `event_logs`의 `target_type`과 `target_id`는 물리적 FK가 아닌 애플리케이션 레벨의 복합 유니크 키(`uk_likes_target`, `uk_report_target`)로 정합성을 유지합니다.
-3. **비회원/회원 데이터 모델 통합**:
-   - `exploration_sessions`, `short_reactions`, `recommendations`, `event_logs`는 `user_id`와 `guest_key`를 병행 지원하며, 회원가입 시 1회 이관(Merge) 로직을 거칩니다.
+3. **비회원/회원 데이터 모델 통합** `[P2]`:
+   - `exploration_sessions`, `short_reactions`, `recommendations`, `event_logs`는 `user_id`와 `guest_key`를 병행 지원하며, 회원가입 시 1회 이관(Merge) 로직을 거칩니다. 비회원 체험이 MVP 제외(P2)라 MVP에서는 항상 `user_id`만 채우고, 컬럼은 도입에 대비해 남겨 둡니다.
 4. **TODO 원본과 복제 계획의 생명주기 격리**:
    - 마스터 템플릿(`plan_templates`)이 수정되어도 이미 진행 중인 사용자의 계획(`user_plans`)은 시작 시점의 스냅샷 버전을 유지합니다.

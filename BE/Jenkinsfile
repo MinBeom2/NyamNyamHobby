@@ -28,6 +28,8 @@ pipeline {
             stages {
                 stage('Build image') {
                     steps {
+                        // 배포 단계에 들어왔다는 표시. 알림은 이 값이 있을 때만 보낸다 (docs만 바뀐 푸시는 조용히 끝남)
+                        script { env.BACKEND_DEPLOY = 'true' }
                         sh 'docker build -t $IMAGE:$BUILD_NUMBER -t $IMAGE:latest BE'
                     }
                 }
@@ -59,12 +61,20 @@ pipeline {
 
     post {
         success {
-            mattermostSend color: 'good',
-                message: "✅ 백엔드 배포 성공 · ${env.JOB_NAME} #${env.BUILD_NUMBER} · ${env.BUILD_URL}"
+            script {
+                if (env.BACKEND_DEPLOY == 'true') {
+                    mattermostSend color: 'good',
+                        message: "✅ 백엔드 배포 성공 · ${env.JOB_NAME} #${env.BUILD_NUMBER} · ${env.BUILD_URL}"
+                }
+            }
         }
         failure {
-            mattermostSend color: 'danger',
-                message: "❌ 백엔드 배포 실패 · ${env.JOB_NAME} #${env.BUILD_NUMBER} · 로그: ${env.BUILD_URL}console"
+            script {
+                if (env.BACKEND_DEPLOY == 'true') {
+                    mattermostSend color: 'danger',
+                        message: "❌ 백엔드 배포 실패 · ${env.JOB_NAME} #${env.BUILD_NUMBER} · 로그: ${env.BUILD_URL}console"
+                }
+            }
         }
         always {
             // 태그가 없어진 옛 이미지 정리 (디스크 관리)

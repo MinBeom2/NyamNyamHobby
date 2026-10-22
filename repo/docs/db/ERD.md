@@ -1,6 +1,7 @@
 # 냠냠취미 데이터베이스 ERD (Entity Relationship Diagram)
 
-> **기준 스키마**: MySQL 8.0 · 41개 테이블 · [V1__init.sql](V1__init.sql)  
+> **기준 스키마**: PostgreSQL 17 · 41개 테이블 · [V1__init.sql](V1__init.sql) (백엔드 `BE/src/main/resources/db/migration/V1__init.sql`과 같은 내용)  
+> **타입 표기**: 아래 다이어그램은 PostgreSQL 타입 기준입니다(`timestamp` = TIMESTAMP(6) UTC, `smallint` = MySQL 원안의 TINYINT, `jsonb` = JSON).  
 > **프로젝트 명세서**: [spec/project-spec-v0.3.md](../spec/project-spec-v0.3.md) 7장 (데이터 구조)  
 > **아키텍처 특징**: 2대 핵심 허브(`users`, `hobbies`)를 중심으로 7개 도메인이 유기적으로 연결된 구조입니다.  
 > **기준**: 기능 요구사항 CSV(10/21) 반영 — 스키마는 그대로이며, MVP 제외(P2) 기능(비회원 체험, 관심사 직접 선택·탐색 초기화, 숏폼 보관함, 취미 상태 변경, 내 계획 수정, 알림, 서비스 피드백, 피드·장소 관리자 검토)용 테이블·컬럼은 고도화 대비로 남겨 둡니다. 설명의 `[P2]` 표시는 MVP에서 쓰지 않는다는 뜻입니다.
@@ -92,13 +93,13 @@ erDiagram
         varchar profile_image_url "프로필 이미지 URL"
         varchar role "USER | ADMIN"
         varchar status "PENDING | ACTIVE | WITHDRAWN"
-        datetime email_verified_at "이메일 인증 일시"
-        datetime interest_reset_at "관심사 초기화 시각 [P2]"
+        timestamp email_verified_at "이메일 인증 일시"
+        timestamp interest_reset_at "관심사 초기화 시각 [P2]"
         int login_fail_count "연속 로그인 실패 수"
-        datetime locked_until "계정 잠금 해제 일시"
-        datetime created_at "가입 일시"
-        datetime updated_at "수정 일시"
-        datetime withdrawn_at "탈퇴 일시"
+        timestamp locked_until "계정 잠금 해제 일시"
+        timestamp created_at "가입 일시"
+        timestamp updated_at "수정 일시"
+        timestamp withdrawn_at "탈퇴 일시"
     }
 
     SOCIAL_ACCOUNTS {
@@ -106,7 +107,7 @@ erDiagram
         bigint user_id FK "users.id"
         varchar provider "GOOGLE (Google만)"
         varchar provider_user_id "제공자별 고유 사용자 ID"
-        datetime created_at
+        timestamp created_at
     }
 
     AUTH_TOKENS {
@@ -114,9 +115,9 @@ erDiagram
         bigint user_id FK "users.id"
         varchar type "EMAIL_VERIFY | PASSWORD_RESET | REFRESH"
         char token_hash UK "SHA-256 해시값"
-        datetime expires_at "만료 일시"
-        datetime used_at "사용/폐기 일시"
-        datetime created_at
+        timestamp expires_at "만료 일시"
+        timestamp used_at "사용/폐기 일시"
+        timestamp created_at
     }
 
     REGIONS {
@@ -128,19 +129,19 @@ erDiagram
 
     USER_CONDITIONS {
         bigint user_id PK, FK "users.id (1:1 식별 관계)"
-        tinyint weekly_hours "주당 가능 시간 (0~40)"
+        smallint weekly_hours "주당 가능 시간 (0~40)"
         int monthly_budget "월 예산 (원)"
         varchar place_pref "INDOOR | OUTDOOR | ANY"
         varchar social_pref "ALONE | TOGETHER | ANY"
         bigint region_id FK "regions.id"
-        datetime updated_at
+        timestamp updated_at
     }
 ```
 
 ---
 
 ### 2.2 취미 콘텐츠 및 메타데이터 도메인 (Hobby & Taxonomy)
-- **유사도 매트릭스**: Python 배치 컨테이너가 태그 벡터 기반 코사인 유사도를 계산하여 `hobby_similarity`에 저장합니다.
+- **유사도 매트릭스**: Spring 일 배치(`@Scheduled`)가 태그 벡터 기반 코사인 유사도를 계산하여 `hobby_similarity`에 저장합니다.
 - **외부 데이터 매핑**: 외부 수집 배치(카카오맵, 공공데이터, TourAPI)에서 취미별 검색 키워드를 `hobby_source_mappings`로 정규화합니다.
 
 ```mermaid
@@ -180,8 +181,8 @@ erDiagram
         varchar thumbnail_url "대표 썸네일 URL"
         varchar status "DRAFT | PUBLISHED | HIDDEN"
         int save_count "관심 저장 수 (인기 지표)"
-        datetime created_at
-        datetime updated_at
+        timestamp created_at
+        timestamp updated_at
     }
 
     TAGS {
@@ -198,7 +199,7 @@ erDiagram
         bigint hobby_id PK, FK "hobbies.id"
         bigint related_hobby_id PK, FK "hobbies.id"
         decimal score "0~1 코사인 유사도"
-        datetime computed_at "배치 연산 일시"
+        timestamp computed_at "배치 연산 일시"
     }
 
     HOBBY_SOURCE_MAPPINGS {
@@ -206,7 +207,7 @@ erDiagram
         bigint hobby_id FK "hobbies.id"
         varchar target "KAKAO_KEYWORD | PUBLIC_SPORTS | PUBLIC_PARK | EVENT_KEYWORD | SHORT_KEYWORD"
         varchar keyword "매핑 검색어 (예: 클라이밍장, 인공암벽장)"
-        datetime created_at
+        timestamp created_at
     }
 ```
 
@@ -238,9 +239,9 @@ erDiagram
         varchar status "CANDIDATE | ACTIVE | PAUSED | REJECTED"
         varchar discovered_by "ADMIN | SEARCH"
         int hidden_short_count "자동 숨김된 불량 영상 수"
-        datetime last_collected_at "마지막 수집 일시"
-        datetime created_at
-        datetime updated_at
+        timestamp last_collected_at "마지막 수집 일시"
+        timestamp created_at
+        timestamp updated_at
     }
 
     SHORTS {
@@ -256,9 +257,9 @@ erDiagram
         decimal gpt_confidence "GPT 취미 분류 신뢰도 (0~1)"
         int view_user_count "시청한 고유 사용자 수"
         int irrelevant_count "관련 없음 누적 반응 수"
-        datetime released_at "노출 반영 일시 (주간 릴리즈)"
-        datetime created_at
-        datetime updated_at
+        timestamp released_at "노출 반영 일시 (주간 릴리즈)"
+        timestamp created_at
+        timestamp updated_at
     }
 
     EXPLORATION_SESSIONS {
@@ -266,20 +267,20 @@ erDiagram
         bigint user_id FK "users.id (비회원은 NULL)"
         char guest_key "guestKey UUID (7일 보관) [P2]"
         varchar status "IN_PROGRESS | COMPLETED | ABANDONED"
-        tinyint max_count "세션 노출 수 N (설정값, 기본안 12)"
-        tinyint viewed_count "실제 시청한 영상 수"
-        datetime started_at "시작 일시"
-        datetime ended_at "종료 일시"
+        smallint max_count "세션 노출 수 N (설정값, 기본안 12)"
+        smallint viewed_count "실제 시청한 영상 수"
+        timestamp started_at "시작 일시"
+        timestamp ended_at "종료 일시"
     }
 
     EXPLORATION_VIEWS {
         bigint id PK
         bigint session_id FK "exploration_sessions.id"
         bigint short_id FK "shorts.id"
-        tinyint seq "노출 순서 (1~N)"
+        smallint seq "노출 순서 (1~N)"
         smallint watched_seconds "실제 재생 시간(초)"
         boolean play_failed "재생 오류 발생 여부"
-        datetime created_at
+        timestamp created_at
     }
 
     SHORT_REACTIONS {
@@ -289,15 +290,15 @@ erDiagram
         bigint short_id FK "shorts.id"
         bigint session_id FK "exploration_sessions.id"
         varchar type "LIKE | DISLIKE | IRRELEVANT"
-        datetime created_at
-        datetime updated_at
+        timestamp created_at
+        timestamp updated_at
     }
 
     SHORT_SAVES {
         bigint id PK
         bigint user_id FK "users.id"
         bigint short_id FK "shorts.id"
-        datetime created_at "보관 일시"
+        timestamp created_at "보관 일시"
     }
 ```
 
@@ -324,7 +325,7 @@ erDiagram
         varchar basis "EXPLORATION_SESSION | DIRECT_SELECTION (직접 선택은 P2)"
         varchar basis_text "추천 근거 요약 문구"
         boolean is_exploratory "데이터 부족 시 탐색용 제안 여부"
-        datetime created_at "생성 일시"
+        timestamp created_at "생성 일시"
     }
 
     RECOMMENDATION_ITEMS {
@@ -332,7 +333,7 @@ erDiagram
         bigint recommendation_id FK "recommendations.id"
         bigint hobby_id FK "hobbies.id"
         varchar type "INTEREST (관심) | RELATED (연관)"
-        tinyint rank "추천 순위 (1~3)"
+        smallint rank "추천 순위 (1~3)"
         decimal score "계산된 종합 점수"
         varchar reason "GMS 비동기 생성 추천 사유 (60자)"
         varchar reason_status "PENDING | COMPLETED | FALLBACK"
@@ -343,7 +344,7 @@ erDiagram
     HOBBY_DISLIKES {
         bigint user_id PK, FK "users.id"
         bigint hobby_id PK, FK "hobbies.id"
-        datetime created_at "별로예요 등록 일시"
+        timestamp created_at "별로예요 등록 일시"
     }
 ```
 
@@ -370,12 +371,12 @@ erDiagram
         bigint hobby_id FK "hobbies.id"
         varchar status "SAVED | IN_PROGRESS | PAUSED | COMPLETED | STOPPED (PAUSED 이후는 P2)"
         varchar skill_level "BEGINNER | NOVICE | INTERMEDIATE"
-        datetime started_at "시작 일시"
-        datetime paused_at "일시중지 일시 [P2]"
-        datetime completed_at "계획 완료 일시 [P2]"
-        datetime stopped_at "그만둔 일시 [P2]"
-        datetime created_at
-        datetime updated_at
+        timestamp started_at "시작 일시"
+        timestamp paused_at "일시중지 일시 [P2]"
+        timestamp completed_at "계획 완료 일시 [P2]"
+        timestamp stopped_at "그만둔 일시 [P2]"
+        timestamp created_at
+        timestamp updated_at
     }
 
     PLAN_TEMPLATES {
@@ -384,17 +385,17 @@ erDiagram
         varchar skill_level "BEGINNER | NOVICE | INTERMEDIATE"
         int version "템플릿 버전 (수정 시 +1)"
         varchar title "계획명 (예: 클라이밍 입문 8주 계획)"
-        tinyint total_weeks "전체 주차 수"
+        smallint total_weeks "전체 주차 수"
         varchar status "DRAFT | PUBLISHED | HIDDEN"
-        datetime created_at
-        datetime updated_at
+        timestamp created_at
+        timestamp updated_at
     }
 
     PLAN_TEMPLATE_ITEMS {
         bigint id PK
         bigint template_id FK "plan_templates.id"
-        tinyint week_no "주차 번호 (1~N)"
-        tinyint seq "주차 내 순서"
+        smallint week_no "주차 번호 (1~N)"
+        smallint seq "주차 내 순서"
         varchar title "활동명"
         varchar description "상세 설명"
         smallint expected_minutes "예상 소요 시간(분)"
@@ -408,17 +409,17 @@ erDiagram
         bigint template_id FK "plan_templates.id"
         int template_version "복사 당시 원본 버전"
         varchar title "내 계획명"
-        tinyint total_weeks "총 주차"
+        smallint total_weeks "총 주차"
         varchar status "ACTIVE | ARCHIVED"
-        datetime started_at "계획 시작 일시"
+        timestamp started_at "계획 시작 일시"
     }
 
     USER_PLAN_ITEMS {
         bigint id PK
         bigint user_plan_id FK "user_plans.id"
         bigint template_item_id FK "plan_template_items.id (직접 추가시 NULL)"
-        tinyint week_no "주차 (1~N)"
-        tinyint seq "순서"
+        smallint week_no "주차 (1~N)"
+        smallint seq "순서"
         varchar title "활동 제목"
         varchar description "설명"
         smallint expected_minutes "예상 소요 시간(분)"
@@ -427,9 +428,9 @@ erDiagram
         varchar status "TODO | DONE | SKIPPED"
         varchar memo "사용자 메모 (최대 500자)"
         boolean is_custom "사용자 직접 추가 여부"
-        datetime completed_at "완료 처리 일시"
-        datetime deleted_at "Soft Delete 삭제 일시"
-        datetime updated_at
+        timestamp completed_at "완료 처리 일시"
+        timestamp deleted_at "Soft Delete 삭제 일시"
+        timestamp updated_at
     }
 ```
 
@@ -461,10 +462,10 @@ erDiagram
         varchar external_url "외부 링크 URL (카카오 플레이스 등)"
         varchar source "대표 출처 (PUBLIC_PARK | PUBLIC_SPORTS | KAKAO_LOCAL | ADMIN)"
         varchar source_ref "출처 고유 식별자"
-        datetime source_updated_at "출처 데이터 갱신일"
+        timestamp source_updated_at "출처 데이터 갱신일"
         varchar status "PENDING_REVIEW | PUBLISHED | HIDDEN (MVP는 PUBLISHED로 저장)"
-        datetime created_at
-        datetime updated_at
+        timestamp created_at
+        timestamp updated_at
     }
 
     PLACE_SOURCES {
@@ -476,7 +477,7 @@ erDiagram
         varchar raw_address "원천 주소"
         decimal lat "원천 위도"
         decimal lng "원천 경도"
-        datetime fetched_at "수집 일시"
+        timestamp fetched_at "수집 일시"
     }
 
     HOBBY_PLACES {
@@ -495,13 +496,13 @@ erDiagram
         varchar source_ref "출처 측 식별자"
         varchar thumbnail_url "대표 썸네일 URL"
         bigint region_id FK "regions.id (선택)"
-        datetime published_at "원문 게시일시"
+        timestamp published_at "원문 게시일시"
         date event_start "행사 시작일"
         date event_end "행사 종료일 (종료 배지 표시 기준)"
         varchar origin "ADMIN | TOUR_API | CULTURE_PORTAL | KOPIS | SEOUL_RESERVATION"
         varchar status "PENDING_REVIEW | PUBLISHED | HIDDEN (MVP는 PUBLISHED로 저장)"
-        datetime created_at
-        datetime updated_at
+        timestamp created_at
+        timestamp updated_at
     }
 ```
 
@@ -540,15 +541,15 @@ erDiagram
         int like_count "좋아요 수"
         int comment_count "댓글 수"
         varchar status "ACTIVE | HIDDEN | DELETED"
-        datetime created_at
-        datetime updated_at
+        timestamp created_at
+        timestamp updated_at
     }
 
     POST_IMAGES {
         bigint id PK
         bigint post_id FK "posts.id"
         varchar url "이미지 CDN URL"
-        tinyint seq "노출 순서"
+        smallint seq "노출 순서"
     }
 
     COMMENTS {
@@ -559,8 +560,8 @@ erDiagram
         varchar content "댓글 내용"
         int like_count "좋아요 수"
         varchar status "ACTIVE | HIDDEN | DELETED"
-        datetime created_at
-        datetime updated_at
+        timestamp created_at
+        timestamp updated_at
     }
 
     LIKES {
@@ -568,7 +569,7 @@ erDiagram
         bigint user_id FK "users.id"
         varchar target_type "POST | COMMENT"
         bigint target_id "대상 식별자"
-        datetime created_at
+        timestamp created_at
     }
 
     REPORTS {
@@ -581,8 +582,8 @@ erDiagram
         varchar status "RECEIVED | ACTIONED | DISMISSED"
         varchar action "HIDE | RESTORE | DISMISS"
         varchar admin_note "관리자 처리 메모"
-        datetime actioned_at "조치 일시"
-        datetime created_at
+        timestamp actioned_at "조치 일시"
+        timestamp created_at
     }
 
     INQUIRIES {
@@ -592,8 +593,8 @@ erDiagram
         varchar title "문의 제목"
         text content "문의 내용"
         varchar status "RECEIVED | ANSWERED"
-        datetime created_at
-        datetime updated_at
+        timestamp created_at
+        timestamp updated_at
     }
 
     INQUIRY_ANSWERS {
@@ -601,8 +602,8 @@ erDiagram
         bigint inquiry_id UK, FK "inquiries.id (1:1)"
         bigint admin_id FK "users.id"
         text content "답변 내용"
-        datetime created_at
-        datetime updated_at
+        timestamp created_at
+        timestamp updated_at
     }
 
     NOTICES {
@@ -613,9 +614,9 @@ erDiagram
         text content "공지 본문"
         boolean pinned "상단 고정 여부"
         varchar status "DRAFT | PUBLISHED"
-        datetime published_at "게시 일시"
-        datetime created_at
-        datetime updated_at
+        timestamp published_at "게시 일시"
+        timestamp created_at
+        timestamp updated_at
     }
 
     NOTIFICATIONS {
@@ -627,7 +628,7 @@ erDiagram
         varchar link_url "이동 URL 링크"
         boolean is_read "읽음 여부"
         varchar dedup_key UK "중복 발송 방지 키"
-        datetime created_at
+        timestamp created_at
     }
 
     FEEDBACKS {
@@ -636,13 +637,13 @@ erDiagram
         varchar category "BUG | RECOMMEND | CONTENT | SUGGESTION | ETC"
         varchar content "피드백 내용"
         varchar page_path "제출 당시 화면 경로"
-        json client_info "브라우저 및 클라이언트 메타"
+        jsonb client_info "브라우저 및 클라이언트 메타"
         varchar status "RECEIVED | ANALYZING | ANALYZED | ANALYSIS_FAILED"
         varchar priority "URGENT | HIGH | NORMAL | LOW (AI 분류)"
         varchar ai_category "AI 재분류 카테고리"
         varchar ai_summary "GMS 요약 내용"
-        datetime notified_at "Mattermost 웹훅 통지 일시"
-        datetime created_at
+        timestamp notified_at "Mattermost 웹훅 통지 일시"
+        timestamp created_at
     }
 
     BATCH_RUNS {
@@ -654,8 +655,8 @@ erDiagram
         int rejected "필터링 제외 건수"
         int quota_used "외부 API 쿼터 소모량"
         varchar message "결과 또는 오류 메시지"
-        datetime started_at "시작 일시"
-        datetime finished_at "종료 일시"
+        timestamp started_at "시작 일시"
+        timestamp finished_at "종료 일시"
     }
 
     EVENT_LOGS {
@@ -665,8 +666,8 @@ erDiagram
         varchar event_type "RECO_IMPRESSION | RECO_CLICK | HOBBY_SAVE | HOBBY_START | HOBBY_DISLIKE"
         varchar target_type "대상 유형"
         bigint target_id "대상 ID"
-        json meta "이벤트 메타데이터"
-        datetime created_at
+        jsonb meta "이벤트 메타데이터"
+        timestamp created_at
     }
 ```
 

@@ -647,3 +647,11 @@ certbot/
 
 ### 소스 폴더 예외 (Python 템플릿의 lib/ 무시 해제) ###
 !**/src/lib/
+
+### IntelliJ (BE/ 등 하위 폴더를 프로젝트로 열 때) ###
+**/.idea/*
+!**/.idea/codeStyles
+!**/.idea/runConfigurations
+*.iml
+*.ipr
+HELP.md

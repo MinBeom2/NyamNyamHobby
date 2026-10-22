@@ -1,0 +1,23 @@
+# 줄바꿈 자동 정규화 (저장소에는 LF로 저장)
+* text=auto
+
+# 리눅스(CI·EC2)에서 실행되는 스크립트는 항상 LF
+gradlew text eol=lf
+*.sh text eol=lf
+
+# Windows 배치 파일은 CRLF
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# 바이너리 (줄바꿈 변환 금지)
+*.jar binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.ico binary
+*.pdf binary
+*.xlsx binary
+*.woff binary
+*.woff2 binary

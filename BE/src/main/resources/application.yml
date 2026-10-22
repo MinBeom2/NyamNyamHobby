@@ -1,0 +1,58 @@
+# 공통 설정. 비밀값은 환경변수(${...})로만 받고, 로컬에서는 BE/.env 를 읽는다.
+spring:
+  application:
+    name: nyamnyam
+  config:
+    # BE/.env 가 있으면 읽음 (없어도 오류 없음). 서버에서는 실제 환경변수가 우선.
+    import: optional:file:.env[.properties]
+  profiles:
+    # 프로필을 지정하지 않고 실행하면 local. 서버는 SPRING_PROFILES_ACTIVE=dev|prod 로 지정
+    default: local
+
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate # 스키마는 Flyway가 관리. 엔티티와 다르면 기동 실패
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC # 명세서 규칙: 시간은 UTC 저장
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USER:guest}
+    password: ${RABBITMQ_PASSWORD:guest}
+
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_APP_PASSWORD:}
+    properties:
+      mail.smtp.auth: true
+      mail.smtp.starttls.enable: true
+
+  servlet:
+    multipart:
+      max-file-size: 5MB # NFR-SEC-06: 프로필 2MB · 그 외 5MB (세부 제한은 업로드 API에서)
+      max-request-size: 10MB
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  health:
+    mail:
+      enabled: false # 메일 설정 전에도 health가 DOWN이 되지 않게

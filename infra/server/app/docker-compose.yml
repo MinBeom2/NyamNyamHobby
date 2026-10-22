@@ -1,0 +1,21 @@
+# 백엔드 앱 (서버 위치: /home/ubuntu/app, 같은 폴더 .env 권한 600)
+# Jenkins가 nyam-backend:latest 이미지를 빌드한 뒤 이 파일로 컨테이너를 교체한다
+# 외부 접근은 Nginx의 /api 경로만 (127.0.0.1:18080)
+
+name: nyam-app
+
+services:
+  backend:
+    image: nyam-backend:latest
+    container_name: backend
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      TZ: Asia/Seoul
+    ports:
+      - "127.0.0.1:18080:8080"
+    networks: [backend]
+
+networks:
+  backend:
+    external: true

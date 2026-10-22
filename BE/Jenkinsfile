@@ -1,0 +1,74 @@
+// 백엔드 CI/CD: dev 브랜치에 BE/ 변경이 들어오면 이미지 빌드 → EC2에서 컨테이너 교체 → 헬스 체크 → Mattermost 알림
+// Jenkins 작업 설정: Pipeline script from SCM · 브랜치 */dev · Script Path = BE/Jenkinsfile
+// 서버 준비물: /home/ubuntu/app/docker-compose.yml, /home/ubuntu/app/.env (infra/server/app 참고)
+
+pipeline {
+    agent any
+
+    options {
+        disableConcurrentBuilds()
+        timeout(time: 20, unit: 'MINUTES')
+        buildDiscarder(logRotator(numToKeepStr: '20'))
+    }
+
+    environment {
+        IMAGE   = 'nyam-backend'
+        APP_DIR = '/home/ubuntu/app'
+    }
+
+    stages {
+        stage('Backend') {
+            // 프론트엔드만 바뀐 푸시는 건너뜀. Jenkins에서 직접 [지금 빌드]를 누르면 항상 실행
+            when {
+                anyOf {
+                    changeset 'BE/**'
+                    triggeredBy 'UserIdCause'
+                }
+            }
+            stages {
+                stage('Build image') {
+                    steps {
+                        sh 'docker build -t $IMAGE:$BUILD_NUMBER -t $IMAGE:latest BE'
+                    }
+                }
+                stage('Deploy') {
+                    steps {
+                        sh 'docker compose -f $APP_DIR/docker-compose.yml up -d --force-recreate backend'
+                    }
+                }
+                stage('Health check') {
+                    steps {
+                        // Jenkins와 백엔드가 같은 backend 네트워크에 있어 컨테이너 이름으로 접근
+                        sh '''
+                            for i in $(seq 1 60); do
+                              if curl -fs http://backend:8080/actuator/health | grep -q '"status":"UP"'; then
+                                echo "backend is UP"
+                                exit 0
+                              fi
+                              sleep 3
+                            done
+                            echo "backend did not become healthy in 3 minutes"
+                            docker logs --tail 150 backend
+                            exit 1
+                        '''
+                    }
+                }
+            }
+        }
+    }
+
+    post {
+        success {
+            mattermostSend color: 'good',
+                message: "✅ 백엔드 배포 성공 · ${env.JOB_NAME} #${env.BUILD_NUMBER} · ${env.BUILD_URL}"
+        }
+        failure {
+            mattermostSend color: 'danger',
+                message: "❌ 백엔드 배포 실패 · ${env.JOB_NAME} #${env.BUILD_NUMBER} · 로그: ${env.BUILD_URL}console"
+        }
+        always {
+            // 태그가 없어진 옛 이미지 정리 (디스크 관리)
+            sh 'docker image prune -f || true'
+        }
+    }
+}

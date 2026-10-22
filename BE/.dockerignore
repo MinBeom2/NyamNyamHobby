@@ -1,0 +1,13 @@
+# 이미지 빌드에 보내지 않을 파일 (비밀값·빌드 결과물·IDE 설정)
+.env
+.env.*
+!.env.example
+build/
+.gradle/
+out/
+bin/
+.idea/
+*.iml
+.vscode/
+docker-compose.yml
+Jenkinsfile

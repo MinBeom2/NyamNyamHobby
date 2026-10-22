@@ -13,7 +13,7 @@
 | [spec/project-spec-v0.3.pdf](spec/project-spec-v0.3.pdf) | 같은 명세서의 PDF 판 **v0.3**(ERD · 화면 흐름 · 시스템 구성 · 일정 도식 포함, 81쪽). 우선순위·규칙은 md(v0.4)를 따름 | 〃 |
 | [spec/api-spec.md](spec/api-spec.md) | REST API 상세 명세서: 공통 봉투, 에러 코드, 도메인별 요청·응답 DTO 및 예시 | 명세서 8장 |
 | [db/ERD.md](db/ERD.md) | 데이터베이스 ERD: 전체 도메인 관계도 및 7개 도메인별 상세 Mermaid 다이어그램 | DDL 기반 |
-| [db/V1__init.sql](db/V1__init.sql) | MySQL 8.0 초기 스키마, 테이블 41개. 명세서 7.5와 같은 내용이라 Flyway `V1__init.sql`로 그대로 씁니다 | 명세서 7.5 |
+| [db/V1__init.sql](db/V1__init.sql) | PostgreSQL 17 초기 스키마, 테이블 41개. 백엔드 Flyway 마이그레이션 `BE/src/main/resources/db/migration/V1__init.sql`의 사본이며 명세서 7.5와 같은 내용입니다 | 명세서 7.5 |
 | [tasks/README.md](tasks/README.md) | 작업 목록 안내: 일정 기준, 영역 × 파트 ID, 먼저 시작할 것, 확인 필요 사항 | — |
 | [tasks/FRONTEND_TASKS.md](tasks/FRONTEND_TASKS.md) | 프론트엔드 작업 72건 (필수 32 · 권장 19 · 후순위 8 · 제외 13) | — |
 | [tasks/BACKEND_TASKS.md](tasks/BACKEND_TASKS.md) | 백엔드 작업 91건 (필수 36 · 권장 27 · 후순위 9 · 제외 19) | — |
@@ -32,5 +32,5 @@
 
 - **기능·우선순위**는 `spec/feature-requirements.csv`를 먼저 고치고, 명세서 · API 명세 · 작업 목록을 거기에 맞춥니다.
 - **명세서**는 원래 Claude Docs 원본을 고친 뒤 Markdown · PDF로 다시 내보내 `spec/`의 두 파일을 바꿉니다. v0.4는 md만 직접 고쳤으므로(PDF·원본은 v0.3), 원본을 다시 내보낼 때는 md의 v0.4 변경을 원본에 먼저 옮깁니다. 링크 유지를 위해 md 파일 이름은 v0.3 그대로 둡니다.
-- **DDL**은 명세서 7.5와 같이 고칩니다. 백엔드 저장소로 옮긴 뒤부터는 Flyway 마이그레이션(`V2__...sql`)을 추가하는 방식으로 바꿉니다.
+- **DDL**은 백엔드 `BE/src/main/resources/db/migration/`이 기준입니다. V1은 이미 적용됐으므로 고치지 않고 Flyway 마이그레이션(`V2__...sql`)을 추가하며, 바뀐 내용은 명세서 7장 · `db/` 문서에도 반영합니다.
 - **진척**은 `requirements-progress.xlsx`의 진행표기가 기준입니다. MD 체크박스는 MR을 올릴 때 같이 체크합니다.

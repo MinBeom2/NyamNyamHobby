@@ -1,7 +1,7 @@
 # 냠냠취미 REST API 상세 명세서 (v0.4)
 
-> **기준 문서**: 프로젝트 명세서 v0.4 ([project-spec-v0.3.md](./project-spec-v0.3.md), 파일 이름 유지) · 기능 요구사항 CSV(10/21) 반영 ([feature-requirements.csv](./feature-requirements.csv)) · DB 스키마 ([V1__init.sql](../db/V1__init.sql))  
-> **최종 수정일**: 2026-10-21  
+> **기준 문서**: 프로젝트 명세서 v0.4 ([project-spec-v0.3.md](./project-spec-v0.3.md), 파일 이름 유지) · 기능 요구사항 CSV(10/21) 반영 ([feature-requirements.csv](./feature-requirements.csv)) · DB 스키마 (PostgreSQL 17, [V1__init.sql](../db/V1__init.sql))  
+> **최종 수정일**: 2026-10-22  
 > **작성자**: 김재현  
 > **단일 진실 공급원(SSOT)**: 런타임 상세 스펙은 Spring Boot 서버의 Swagger UI (`/swagger-ui/index.html`)를 기준으로 하며, 본 문서는 프론트엔드-백엔드 간 계약 및 기능 구현을 위한 표준 상세 명세서입니다.
 
@@ -22,7 +22,7 @@
 ## 1. 공통 규약 및 아키텍처 규칙
 
 ### 1.1 Base URL & 헤더 규격
-- **Base URL**: `https://api.{domain}/api/v1` (소셜 로그인의 경우 `/oauth2/**`, `/login/oauth2/**` — `[P1]`, 제공자는 **Google만**)
+- **Base URL**: `https://k15d104.p.ssafy.io/api/v1` (EC2 Nginx가 `/api/`를 백엔드 컨테이너로 전달, 로컬은 `http://localhost:8080/api/v1`) (소셜 로그인의 경우 `/oauth2/**`, `/login/oauth2/**` — `[P1]`, 제공자는 **Google만**)
 - **인증 헤더**: `Authorization: Bearer {accessToken}`
 - **요청 추적 헤더**: `X-Request-Id` (UUID, 모든 응답에 포함)
 - **요청량 제한 헤더 (Rate Limit)** (CSV에 없는 비기능 — 고도화(P3 수준, 여유 시)):

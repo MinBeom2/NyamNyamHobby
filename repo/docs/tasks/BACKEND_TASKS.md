@@ -42,7 +42,7 @@
 필수 9 · 권장 5 · 후순위 1 · 제외 1 · 프론트엔드 짝: SYS-F01~F13
 
 - [ ] **SYS-B01 프로젝트·로컬 환경 구성** · `필수` · 환경
-  - Java 17 · Spring Boot 3 프로젝트, local·dev·prod 프로필, Docker Compose(MySQL 8·Redis 7·RabbitMQ), Flyway V1__init.sql(7.5 DDL, 테이블 41개), JPA ddl-auto: validate.
+  - Java 17 · Spring Boot 4.1(Gradle 9.8) 프로젝트, local·dev·prod 프로필, Docker Compose(PostgreSQL 17·Redis 7·RabbitMQ), Flyway V1__init.sql(7.5 DDL, 테이블 41개), JPA ddl-auto: validate.
   - API·배치: 7.5 DDL
   - 근거: 9.2 · 9.5
   - 비고: 개발 시작 전 1순위
@@ -92,11 +92,11 @@
   - 근거: 5.1 · NFR-SEC-08
   - 비고: 고도화(P3 수준, 여유 시): CSV에 없는 비기능
 - [ ] **SYS-B12 배포 파이프라인** · `필수` · 배포
-  - GitLab CI → Docker 이미지 → EC2에서 docker compose pull && up -d, Nginx TLS(Let's Encrypt)·HTTP→HTTPS, api.{팀 도메인}, 비밀값은 .env·CI 변수.
+  - Jenkins(EC2 Docker 컨테이너, BE/Jenkinsfile): dev 병합 → GitLab 웹훅 → Docker 이미지 빌드(BE/Dockerfile) → EC2에서 backend 컨테이너 교체 → /actuator/health 확인 → Mattermost 알림, Nginx TLS(Let's Encrypt)·HTTP→HTTPS, https://k15d104.p.ssafy.io/api → 127.0.0.1:18080, 비밀값은 .env·Jenkins Credentials.
   - API·배치: —
   - 근거: 9.5 · NFR-OPS-01 · NFR-SEC-01
 - [ ] **SYS-B13 백업·로그** · `권장` · 운영
-  - MySQL 일 1회 덤프(7일 보관), 개인정보 마스킹, ERROR 스택 트레이스.
+  - PostgreSQL 일 1회 덤프(pg_dump, 7일 보관), 개인정보 마스킹, ERROR 스택 트레이스.
   - API·배치: —
   - 근거: NFR-OPS-02 · NFR-LOG-01
 - [ ] **SYS-B14 Swagger·단위 테스트** · `필수` · 품질
@@ -281,8 +281,8 @@
   - API·배치: /hobbies/{id}/dislike · hobby_dislikes
   - 근거: FR-RECO-03
   - 비고: 11장 #6
-- [ ] **RECO-B06 취미 유사도 배치(Python)** · `필수` · 유사도
-  - 태그 벡터 코사인 유사도를 hobby_similarity에 저장. 매일 03:00(관리자 수동 실행은 [P2]), Python 컨테이너 cron.
+- [ ] **RECO-B06 취미 유사도 배치(Spring)** · `필수` · 유사도
+  - 태그 벡터 코사인 유사도를 hobby_similarity에 저장. 매일 03:00(관리자 수동 실행은 [P2]), Spring @Scheduled.
   - API·배치: hobby_similarity
   - 근거: FR-RECO-01 · 9.4
   - 비고: 11장 #8
@@ -417,7 +417,7 @@
 필수 0 · 권장 5 · 후순위 0 · 제외 0 · 프론트엔드 짝: BOARD-F01~F06
 
 - [ ] **BOARD-B01 게시판 목록 API** · `권장` · 목록
-  - GET /hobbies/{id}/posts: 유형·키워드(FULLTEXT ngram)·정렬(최신·좋아요)·20개, HIDDEN·DELETED 제외.
+  - GET /hobbies/{id}/posts: 유형·키워드(검색 인덱스는 PostgreSQL 방식으로 V2에서 추가, 예: pg_trgm)·정렬(최신·좋아요)·20개, HIDDEN·DELETED 제외.
   - API·배치: /hobbies/{id}/posts · posts
   - 근거: FR-BOARD-01
   - 비고: FR-BOARD P1

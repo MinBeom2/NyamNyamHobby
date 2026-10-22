@@ -9,6 +9,12 @@ spring:
     # 프로필을 지정하지 않고 실행하면 local. 서버는 SPRING_PROFILES_ACTIVE=dev|prod 로 지정
     default: local
 
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:nyamnyam}
+    username: ${DB_USER:nyamnyam}
+    password: ${DB_PASSWORD:}
+    driver-class-name: org.postgresql.Driver
+
   jpa:
     open-in-view: false
     hibernate:
@@ -47,6 +53,25 @@ spring:
     multipart:
       max-file-size: 5MB # NFR-SEC-06: 프로필 2MB · 그 외 5MB (세부 제한은 업로드 API에서)
       max-request-size: 10MB
+
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: ${GOOGLE_CLIENT_ID:dummy-google-client-id}
+            client-secret: ${GOOGLE_CLIENT_SECRET:dummy-google-client-secret}
+            scope:
+              - email
+              - profile
+
+jwt:
+  secret: ${JWT_SECRET:nyamnyam-secret-key-must-be-at-least-256-bits-long-for-hmac-sha256}
+  access-token-validity-in-seconds: 1800 # 30분
+  refresh-token-validity-in-seconds: 1209600 # 14일
+
+app:
+  frontend-url: ${FRONTEND_URL:http://localhost:5173}
 
 management:
   endpoints:

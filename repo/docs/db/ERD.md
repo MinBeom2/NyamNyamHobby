@@ -1,6 +1,6 @@
 # 냠냠취미 데이터베이스 ERD (Entity Relationship Diagram)
 
-> **기준 스키마**: PostgreSQL 17 · 41개 테이블 · [V1__init.sql](V1__init.sql) (백엔드 `BE/src/main/resources/db/migration/V1__init.sql`과 같은 내용)  
+> **기준 스키마**: PostgreSQL 17 · 41개 테이블 · [V1__init.sql](V1__init.sql) (백엔드 `BE/src/main/resources/db/migration/V1__init.sql`과 같은 내용) + V2(`tags.tag_group` 추가)  
 > **타입 표기**: 아래 다이어그램은 PostgreSQL 타입 기준입니다(`timestamp` = TIMESTAMP(6) UTC, `smallint` = MySQL 원안의 TINYINT, `jsonb` = JSON).  
 > **프로젝트 명세서**: [spec/project-spec-v0.3.md](../spec/project-spec-v0.3.md) 7장 (데이터 구조)  
 > **아키텍처 특징**: 2대 핵심 허브(`users`, `hobbies`)를 중심으로 7개 도메인이 유기적으로 연결된 구조입니다.  
@@ -141,7 +141,8 @@ erDiagram
 ---
 
 ### 2.2 취미 콘텐츠 및 메타데이터 도메인 (Hobby & Taxonomy)
-- **유사도 매트릭스**: Spring 일 배치(`@Scheduled`)가 태그 벡터 기반 코사인 유사도를 계산하여 `hobby_similarity`에 저장합니다.
+- **태그 체계**: 취미마다 태그 5개 = 성향 3(장소·사교·활동성) + 주제 2(소재·얻는 것). 태그가 어느 질문의 답인지는 `tags.tag_group`(V2)에 저장하고, 질문마다 태그는 1개입니다. 장소·사교 태그는 `hobbies.place_type`·`social_type`에서 자동으로 만듭니다. 기준은 [취미태그_유사도기준표.xlsx](../spec/취미태그_유사도기준표.xlsx)입니다.
+- **유사도 매트릭스**: Spring 일 배치(`@Scheduled`)가 태그 벡터 기반 코사인 유사도(주제 가중치 2, 성향 1)를 계산하여 `hobby_similarity`에 저장합니다.
 - **외부 데이터 매핑**: 외부 수집 배치(카카오맵, 공공데이터, TourAPI)에서 취미별 검색 키워드를 `hobby_source_mappings`로 정규화합니다.
 
 ```mermaid
@@ -187,7 +188,8 @@ erDiagram
 
     TAGS {
         bigint id PK
-        varchar name UK "태그명 (#실내, #활동적 등)"
+        varchar name UK "태그명 (실내, 활동적, 스포츠 등)"
+        varchar tag_group "PLACE | SOCIAL | ACTIVITY | SUBJECT | GAIN (V2)"
     }
 
     HOBBY_TAGS {

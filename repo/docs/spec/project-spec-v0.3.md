@@ -904,6 +904,10 @@ export const theme = createTheme({
 
 DB는 PostgreSQL 17 하나이며 테이블은 41개입니다(요청량 제한 버킷은 Redis에 둡니다). 아래 DDL은 백엔드 Flyway 마이그레이션 `BE/src/main/resources/db/migration/V1__init.sql`과 같은 내용이고, JPA 엔티티는 이 DDL에 맞춥니다(`ddl-auto: validate`). 이후 스키마 변경은 V1을 고치지 않고 `V2__...sql`을 추가합니다.
 
+| 버전 | 파일 | 변경 |
+| --- | --- | --- |
+| V2 | `V2__add_tag_group.sql` | `tags.tag_group` 추가(`PLACE`·`SOCIAL`·`ACTIVITY`·`SUBJECT`·`GAIN`, 태그가 어느 질문의 답인지), `tags.name`·`hobby_similarity.score` 주석 정리. 근거: [취미태그_유사도기준표.xlsx](취미태그_유사도기준표.xlsx) T7 |
+
 ### 7.1 ERD
 
 > **도식: 도메인 단위 ERD · 허브 2개(users, hobbies) + 도메인 6개** — Markdown에서는 그림이 빠집니다. [PDF 판](project-spec-v0.3.pdf) 41쪽을 보세요.

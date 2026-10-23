@@ -1,4 +1,4 @@
--- V4: 초기 시드 데이터 (6개 분류, 24개 태그, 30개 취미, 태그 매핑, 숏폼 샘플 영상)
+-- V3: 초기 시드 데이터 (6개 분류, 24개 태그, 30개 취미, 태그 매핑, 숏폼 샘플 영상)
 
 -- 1. 분류 (categories)
 INSERT INTO categories (id, name) VALUES (1, '운동') ON CONFLICT (name) DO NOTHING;

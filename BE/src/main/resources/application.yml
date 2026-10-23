@@ -81,3 +81,9 @@ management:
   health:
     mail:
       enabled: false # 메일 설정 전에도 health가 DOWN이 되지 않게
+
+gms:
+  base-url: ${GMS_BASE_URL:https://api.openai.com}
+  api-key: ${GMS_API_KEY:}
+  model: ${GMS_MODEL:gpt-4o}
+

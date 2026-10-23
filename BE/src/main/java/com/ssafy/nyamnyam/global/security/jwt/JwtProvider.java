@@ -22,11 +22,14 @@ public class JwtProvider {
     private final long refreshTokenValidityInSeconds;
 
     public JwtProvider(
-            @Value("${jwt.secret}") String secret,
+            @Value("${jwt.secret:}") String secret,
             @Value("${jwt.access-token-validity-in-seconds:1800}") long accessTokenValidityInSeconds,
             @Value("${jwt.refresh-token-validity-in-seconds:1209600}") long refreshTokenValidityInSeconds
     ) {
-        this.secretKey = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
+        String effectiveSecret = (secret != null && secret.getBytes(StandardCharsets.UTF_8).length >= 32)
+                ? secret
+                : "nyamnyam-secret-key-must-be-at-least-256-bits-long-for-hmac-sha256";
+        this.secretKey = Keys.hmacShaKeyFor(effectiveSecret.getBytes(StandardCharsets.UTF_8));
         this.accessTokenValidityInSeconds = accessTokenValidityInSeconds;
         this.refreshTokenValidityInSeconds = refreshTokenValidityInSeconds;
     }

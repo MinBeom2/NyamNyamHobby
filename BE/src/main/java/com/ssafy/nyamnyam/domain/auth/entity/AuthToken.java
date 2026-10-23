@@ -29,7 +29,8 @@ public class AuthToken {
     @Column(nullable = false, length = 20)
     private TokenType type;
 
-    @Column(name = "token_hash", nullable = false, unique = true, length = 64)
+    @org.hibernate.annotations.JdbcTypeCode(java.sql.Types.CHAR)
+    @Column(name = "token_hash", columnDefinition = "char(64)", nullable = false, unique = true, length = 64)
     private String tokenHash;
 
     @Column(name = "expires_at", nullable = false)

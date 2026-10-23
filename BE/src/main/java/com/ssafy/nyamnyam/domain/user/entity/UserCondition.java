@@ -23,8 +23,8 @@ public class UserCondition {
     @JoinColumn(name = "user_id")
     private User user;
 
-    @Column(name = "weekly_hours")
-    private Integer weeklyHours;
+    @Column(name = "weekly_hours", columnDefinition = "smallint")
+    private Short weeklyHours;
 
     @Column(name = "monthly_budget")
     private Integer monthlyBudget;
@@ -42,7 +42,7 @@ public class UserCondition {
     private LocalDateTime updatedAt;
 
     @Builder
-    public UserCondition(User user, Integer weeklyHours, Integer monthlyBudget, String placePref, String socialPref, Long regionId) {
+    public UserCondition(User user, Short weeklyHours, Integer monthlyBudget, String placePref, String socialPref, Long regionId) {
         this.user = user;
         this.userId = user != null ? user.getId() : null;
         this.weeklyHours = weeklyHours;

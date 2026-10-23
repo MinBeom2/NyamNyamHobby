@@ -16,7 +16,7 @@ EC2 한 대에 Nginx(호스트)와 Docker 컨테이너들을 올린다. 외부�
 ## 서버 폴더와 이 저장소 파일
 | 서버 경로 | 저장소 파일 | 내용 |
 |---|---|---|
-| `/home/ubuntu/infra/` | `server/infra/` | PostgreSQL · Redis · RabbitMQ |
+| `/home/ubuntu/infra/` | `server/infra/` | PostgreSQL 17 + pgvector · Redis · RabbitMQ |
 | `/home/ubuntu/jenkins/` | `server/jenkins/` | Jenkins (Docker CLI 포함 이미지) |
 | `/home/ubuntu/app/` | `server/app/` | 백엔드 컨테이너 (Jenkins가 배포) |
 | `/etc/nginx/snippets/` | `server/nginx/` | `/jenkins/`, `/api/` 프록시 설정 |
@@ -37,6 +37,14 @@ sudo cp server/docker/daemon.json /etc/docker/daemon.json
 sudo systemctl restart docker   # 모든 컨테이너가 잠깐 재시작됨 (restart: unless-stopped라 다시 올라옴)
 ```
 설정은 새로 만드는 컨테이너부터 적용된다. 기존 컨테이너는 각 폴더에서 `docker compose up -d --force-recreate`로 한 번 다시 만든다.
+
+## DB 구성 (2026-10-23 변경)
+
+- 로컬(`BE/docker-compose.yml`)과 운영 설정 원본(`infra/server/infra/docker-compose.yml`)의 DB 이미지는 모두 `pgvector/pgvector:pg17`을 사용합니다. PostgreSQL 17에 pgvector 확장 파일을 포함한 이미지입니다.
+- 기존 서비스 이름, 포트, 계정 설정, 볼륨과 데이터 경로는 유지합니다. 이미지 변경만으로 DB에 `vector` 확장이 활성화되지는 않습니다.
+- 대상 DB의 확장 활성화(`CREATE EXTENSION IF NOT EXISTS vector;`)와 임베딩 테이블·인덱스는 이후 신규 Flyway 마이그레이션으로 추가합니다. 기존 `V1__init.sql`은 수정하지 않습니다.
+- 이 변경은 저장소 설정 기준입니다. 현재 Jenkins는 백엔드만 배포하므로 운영 DB에는 자동 반영되지 않습니다. 운영 반영 시 서버 `/home/ubuntu/infra/docker-compose.yml`을 동기화한 뒤, 백업과 기존 볼륨을 확인하고 DB 컨테이너를 재생성해야 합니다. 볼륨을 삭제하지 않습니다.
+- 벡터를 사용하는 백엔드 마이그레이션은 운영 DB 이미지 교체 후 배포합니다. 이미지 교체 중에는 DB 연결이 일시 중단됩니다.
 
 ## 보안 규칙
 - UFW는 항상 켜 둔다. 22번 규칙은 지우지 않는다.

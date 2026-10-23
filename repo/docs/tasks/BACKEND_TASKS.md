@@ -42,7 +42,8 @@
 필수 9 · 권장 5 · 후순위 1 · 제외 1 · 프론트엔드 짝: SYS-F01~F13
 
 - [ ] **SYS-B01 프로젝트·로컬 환경 구성** · `필수` · 환경
-  - Java 17 · Spring Boot 4.1(Gradle 9.8) 프로젝트, local·dev·prod 프로필, Docker Compose(PostgreSQL 17·Redis 7·RabbitMQ), Flyway V1__init.sql(7.5 DDL, 테이블 41개), JPA ddl-auto: validate.
+  - Java 17 · Spring Boot 4.1(Gradle 9.8) 프로젝트, local·dev·prod 프로필, Docker Compose(PostgreSQL 17 + pgvector, 이미지 `pgvector/pgvector:pg17`·Redis 7·RabbitMQ), Flyway V1__init.sql(7.5 DDL, 테이블 41개), JPA ddl-auto: validate.
+  - DB 이미지 변경(2026-10-23): 로컬·운영 설정 원본을 `pgvector/pgvector:pg17`로 통일. 운영 DB 이미지 교체를 먼저 수행하고, `vector` 확장 활성화와 임베딩 스키마는 신규 Flyway 마이그레이션으로 추가한다. 기존 V1은 유지하며 Jenkins의 백엔드 배포만으로 운영 DB 이미지는 바뀌지 않는다.
   - API·배치: 7.5 DDL
   - 근거: 9.2 · 9.5
   - 비고: 개발 시작 전 1순위

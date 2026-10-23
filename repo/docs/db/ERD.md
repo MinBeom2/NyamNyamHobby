@@ -1,6 +1,8 @@
 # 냠냠취미 데이터베이스 ERD (Entity Relationship Diagram)
 
-> **기준 스키마**: PostgreSQL 17 · 41개 테이블 · [V1__init.sql](V1__init.sql) (백엔드 `BE/src/main/resources/db/migration/V1__init.sql`과 같은 내용) + V2(`tags.tag_group` 추가)  
+> **기준 스키마**: PostgreSQL 17 + pgvector (`pgvector/pgvector:pg17`) · 41개 테이블 · [V1__init.sql](V1__init.sql) (백엔드 `BE/src/main/resources/db/migration/V1__init.sql`과 같은 내용) + V2(`V2__add_tag_group.sql`: `tags.tag_group` 추가 및 태그·유사도 주석 정리)
+> **DB 이미지 변경(2026-10-23)**: pgvector 포함 이미지로 통일합니다. 테이블 수는 41개로 유지하며, 아래 ERD는 V1 + V2 적용 후 스키마를 반영합니다. `vector` 확장 활성화 및 임베딩 스키마는 이후 신규 Flyway 마이그레이션에서 추가합니다.
+>
 > **타입 표기**: 아래 다이어그램은 PostgreSQL 타입 기준입니다(`timestamp` = TIMESTAMP(6) UTC, `smallint` = MySQL 원안의 TINYINT, `jsonb` = JSON).  
 > **프로젝트 명세서**: [spec/project-spec-v0.3.md](../spec/project-spec-v0.3.md) 7장 (데이터 구조)  
 > **아키텍처 특징**: 2대 핵심 허브(`users`, `hobbies`)를 중심으로 7개 도메인이 유기적으로 연결된 구조입니다.  

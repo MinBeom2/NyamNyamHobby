@@ -1,6 +1,6 @@
 # 냠냠취미 REST API 상세 명세서 (v0.4)
 
-> **기준 문서**: 프로젝트 명세서 v0.4 ([project-spec-v0.3.md](./project-spec-v0.3.md), 파일 이름 유지) · 기능 요구사항 CSV(10/21) 반영 ([feature-requirements.csv](./feature-requirements.csv)) · DB 스키마 (PostgreSQL 17, [V1__init.sql](../db/V1__init.sql))  
+> **기준 문서**: 프로젝트 명세서 v0.4 ([project-spec-v0.3.md](./project-spec-v0.3.md), 파일 이름 유지) · 기능 요구사항 CSV(10/21) 반영 ([feature-requirements.csv](./feature-requirements.csv)) · DB 스키마 (PostgreSQL 17 + pgvector, 이미지 `pgvector/pgvector:pg17`; 확장·임베딩 스키마는 후속 마이그레이션, [V1__init.sql](../db/V1__init.sql))
 > **최종 수정일**: 2026-10-22  
 > **작성자**: 김재현  
 > **단일 진실 공급원(SSOT)**: 런타임 상세 스펙은 Spring Boot 서버의 Swagger UI (`/swagger-ui/index.html`)를 기준으로 하며, 본 문서는 프론트엔드-백엔드 간 계약 및 기능 구현을 위한 표준 상세 명세서입니다.

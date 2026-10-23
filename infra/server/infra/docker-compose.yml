@@ -1,4 +1,4 @@
-# EC2 공용 인프라: PostgreSQL · Redis · RabbitMQ
+# EC2 공용 인프라: PostgreSQL 17 + pgvector · Redis · RabbitMQ
 # 서버 위치: /home/ubuntu/infra (같은 폴더에 .env, 권한 600)
 # 포트는 모두 127.0.0.1에만 공개. 앱·Jenkins는 backend 네트워크에서 컨테이너 이름(postgres, redis, rabbitmq)과 내부 포트로 접속
 
@@ -6,7 +6,7 @@ name: nyam-infra
 
 services:
   postgres:
-    image: postgres:17
+    image: pgvector/pgvector:pg17
     container_name: postgres
     restart: unless-stopped
     environment:

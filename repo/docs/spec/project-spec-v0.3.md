@@ -34,6 +34,7 @@ Oct 16, 2026 · @Sihoo
 | v0.3 | 2026-10-19 | SSabby | 디자인 컨셉북 v1.0 반영: 색·서체·모서리·간격 토큰과 MUI 테마(6.5), 문구·용어 규칙(6.6), 숏폼 반응 버튼(좋아요·별로예요·보관·다음)과 보관함 분리(테이블 1개·API 2개 추가), 접근성·반응형 기준, Figma 토큰·컴포넌트 갱신과 사용자 화면(00\~09 · C) 화면 가이드 적용, 6.4 화면 표를 컨셉북 화면 가이드로 갱신, 11장 결정할 것 31\~36 추가 |
 | v0.4 | 2026-10-21 | SSabby | 기능 요구사항 CSV(10/21) 반영(md만 수정, PDF·원본은 v0.3): 우선순위 4등급(P0 필수 · P1 권장 · P3 후순위 · P2 MVP 제외) 도입과 기능별 재분류, 소셜 로그인 Google만, 비회원 체험·관심사 직접 선택·보관함·취미 상태 변경·내 계획 수정·알림·피드백·관리자 화면 대부분 P2, 신고·문의·공지 P3, 키보드 단축키 삭제, 탐색 노출 수 설정값화, 관심 주제 상위 3개, 동시 진행 5개, 11장 상태 갱신과 11.1 확인 필요 사항 추가. 팀 결정(10/21): 관리자 숏폼 검수(신뢰 채널 등록·승인, 후보 영상 검토·승인, 자동 숨김 복구·제외)는 P2 → P3, `CANDIDATE`·`NEEDS_REVIEW` 저장 구조는 P0 배치에서 미리 구현(11.1 A4 해결) |
 | v0.4 | 2026-10-22 | SSabby | 확정된 기술 스택 반영(md만 수정): DB MySQL 8.0 → PostgreSQL 17(7장 DDL을 백엔드 Flyway `V1__init.sql`과 같게), Spring Boot 4.1 · Gradle 9.8, Redis 사용 확정(11장 #21 변경), CI/CD GitLab CI → Jenkins(EC2), 취미 유사도 계산 Python 배치 → Spring 배치(11장 #8 변경, Python은 오프라인 분석만), 9.5 배포·도메인 갱신 |
+| v0.4 | 2026-10-23 | SSabby | 로컬·운영 DB 이미지 원본을 `pgvector/pgvector:pg17`(PostgreSQL 17 + pgvector)로 통일. 기존 V1 DDL은 유지하고 확장 활성화·임베딩 스키마는 후속 마이그레이션으로 추가. 운영 DB 교체는 Jenkins 백엔드 배포와 별도 |
 
 ## 1. 개요 및 목적
 
@@ -902,7 +903,7 @@ export const theme = createTheme({
 
 ## 7. 데이터 구조
 
-DB는 PostgreSQL 17 하나이며 테이블은 41개입니다(요청량 제한 버킷은 Redis에 둡니다). 아래 DDL은 백엔드 Flyway 마이그레이션 `BE/src/main/resources/db/migration/V1__init.sql`과 같은 내용이고, JPA 엔티티는 이 DDL에 맞춥니다(`ddl-auto: validate`). 이후 스키마 변경은 V1을 고치지 않고 `V2__...sql`을 추가합니다.
+DB는 PostgreSQL 17 + pgvector(`pgvector/pgvector:pg17`) 하나이며 테이블은 41개입니다(요청량 제한 버킷은 Redis에 둡니다). 7.5의 초기 DDL은 백엔드 Flyway 마이그레이션 `BE/src/main/resources/db/migration/V1__init.sql`과 같은 내용이며, 현재 스키마는 V1에 아래 V2 변경을 적용한 상태를 기준으로 합니다. JPA 엔티티는 마이그레이션 적용 후 스키마에 맞춥니다(`ddl-auto: validate`). 이후 스키마 변경은 기존 마이그레이션을 고치지 않고 새 버전의 Flyway 마이그레이션을 추가합니다. pgvector 이미지 변경은 확장 파일 설치만 제공하며, `CREATE EXTENSION IF NOT EXISTS vector;`와 임베딩 테이블·인덱스는 후속 마이그레이션으로 추가합니다. 운영 DB 이미지 교체는 Jenkins 백엔드 배포와 별도로 먼저 진행합니다(절차: `infra/README.md`).
 
 | 버전 | 파일 | 변경 |
 | --- | --- | --- |
@@ -912,7 +913,7 @@ DB는 PostgreSQL 17 하나이며 테이블은 41개입니다(요청량 제한 �
 
 > **도식: 도메인 단위 ERD · 허브 2개(users, hobbies) + 도메인 6개** — Markdown에서는 그림이 빠집니다. [PDF 판](project-spec-v0.3.pdf) 41쪽을 보세요.
 
-컬럼과 FK의 기준은 7.5 DDL입니다. `likes` · `reports`는 `target_type` + `target_id`로 게시글 · 댓글 · 사용자를 가리키는 다형 참조라 FK 대신 유니크 키로 중복을 막습니다.
+컬럼과 FK의 기준은 7.5의 V1 DDL과 위 마이그레이션 목록입니다. `likes` · `reports`는 `target_type` + `target_id`로 게시글 · 댓글 · 사용자를 가리키는 다형 참조라 FK 대신 유니크 키로 중복을 막습니다.
 
 ### 7.2 테이블 목록
 
@@ -969,6 +970,8 @@ DB는 PostgreSQL 17 하나이며 테이블은 41개입니다(요청량 제한 �
 | `BatchJob` | `SHORT_COLLECT`, `SHORT_CHECK`, `SHORT_RELEASE`, `CHANNEL_DISCOVER`, `PLACE_PUBLIC`, `PLACE_KAKAO`, `FEED_COLLECT`, `CLASS_COLLECT` | batch\_runs.job |
 
 ### 7.5 DDL
+
+아래는 변경하지 않은 V1 초기 DDL입니다. 현재 스키마에는 7장 도입부의 V2(`tags.tag_group` 추가, 태그·유사도 주석 정리)도 적용합니다. V1의 Python 배치 주석은 V2에서 Spring 일 배치로 정정됩니다.
 
 ```sql
 -- 냠냠취미 DB 스키마 v0.3 (PostgreSQL 16+, MySQL 8.0 원본에서 변환)
@@ -2060,7 +2063,7 @@ X-RateLimit-Remaining: 0
 | --- | --- | --- |
 | 프론트엔드 | React, Material UI(테마는 6.5, 아이콘은 @mui/icons-material Rounded, 글꼴은 Pretendard · 배민 주아체 웹폰트) (제안: Vite, React Router, TanStack Query, Axios) | 화면, 서버 상태 캐시, 토큰 재발급 인터셉터 |
 | 백엔드 | Java 17, Spring Boot 4.1, Gradle 9.8, Spring Security(OAuth2 Client, JWT), Spring Data JPA, Flyway, springdoc-openapi | REST API, 인증·권한, Swagger, 스키마 마이그레이션 |
-| DB | PostgreSQL 17 | 서비스 데이터 전체 |
+| DB | PostgreSQL 17 + pgvector (`pgvector/pgvector:pg17`) | 서비스 데이터 및 향후 영상 임베딩 저장·검색 |
 | 캐시·요청 제한 | Redis 7.4 (Spring Data Redis, Bucket4j) | 토큰 버킷 Rate Limit (고도화, P3 수준) |
 | 메시지 큐 | RabbitMQ | 추천 이유 생성, 피드 요약, 알림 생성(\[P2\]), 피드백 분석(\[P2\]), 재시도(지연 큐·DLQ) |
 | 추천 분석 | Python 3, pandas, scikit-learn | 오프라인 분석 전용: 성향 검사·추천 검증, 반응 데이터 분석·가중치 튜닝(서비스 배치는 돌리지 않음. 취미 유사도는 Spring, 9.4) |
@@ -2109,7 +2112,7 @@ X-RateLimit-Remaining: 0
 
 ### 9.5 환경·배포
 
-- **환경** `local`(`BE/docker-compose.yml`로 PostgreSQL·Redis·RabbitMQ 실행) · `dev` · `prod`. 비밀값은 서버 `.env`와 Jenkins Credentials에만 둔다. OAuth 키는 Google만 발급하고(Kakao·Naver OAuth 키는 두지 않음), 카카오 앱 키는 지도·로컬 API 용도로만 둔다.
+- **환경** `local`(`BE/docker-compose.yml`로 PostgreSQL 17 + pgvector·Redis·RabbitMQ 실행) · `dev` · `prod`. 비밀값은 서버 `.env`와 Jenkins Credentials에만 둔다. OAuth 키는 Google만 발급하고(Kakao·Naver OAuth 키는 두지 않음), 카카오 앱 키는 지도·로컬 API 용도로만 둔다.
 - **브랜치** `master`(운영) ← `dev`(통합·기본 브랜치, 보호) ← `feature/{JIRA키}-{설명}`. `dev`에는 직접 푸시하지 않고 MR로만 병합하며, MR은 1명 이상 승인 후 병합. MR 설명에 `Closes {JIRA키}`를 적으면 병합 시 Jira 이슈가 완료된다.
 - **배포** 백엔드는 `dev`에 `BE/` 변경이 병합되면 GitLab 웹훅 → Jenkins(`BE/Jenkinsfile`)가 테스트(임시 PostgreSQL로 `./gradlew test`, 실패 시 배포 중단) → Docker 이미지 빌드(`BE/Dockerfile`) → EC2 `/home/ubuntu/app`에서 `docker compose up -d --force-recreate backend` → `/actuator/health` 확인(실패 시 이전 이미지로 롤백) → Mattermost 알림. 프론트는 Vercel이 `main`을 자동 배포하고, MR마다 미리보기 URL을 만든다.
 - **도메인** 프론트는 Vercel 배포 주소, API는 `https://k15d104.p.ssafy.io/api`(Nginx가 `/api/`를 백엔드 컨테이너 `127.0.0.1:18080`으로 전달, `/actuator`는 외부에 열지 않음). 프론트와 API의 도메인이 달라 Refresh 쿠키 속성(SameSite·Secure)은 따로 확인한다.

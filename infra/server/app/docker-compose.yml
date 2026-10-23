@@ -11,7 +11,9 @@ services:
     restart: unless-stopped
     env_file: .env
     environment:
-      TZ: Asia/Seoul
+      # 명세서 규칙: DB에는 UTC로 저장. JVM 기본 시간대를 UTC로 두어 LocalDateTime.now()가 UTC가 되게 함
+      # (주차·배치 시각처럼 한국 시간이 필요한 계산은 코드에서 Asia/Seoul을 명시)
+      TZ: UTC
     ports:
       - "127.0.0.1:18080:8080"
     networks: [backend]

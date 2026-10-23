@@ -20,11 +20,23 @@ EC2 한 대에 Nginx(호스트)와 Docker 컨테이너들을 올린다. 외부�
 | `/home/ubuntu/jenkins/` | `server/jenkins/` | Jenkins (Docker CLI 포함 이미지) |
 | `/home/ubuntu/app/` | `server/app/` | 백엔드 컨테이너 (Jenkins가 배포) |
 | `/etc/nginx/snippets/` | `server/nginx/` | `/jenkins/`, `/api/` 프록시 설정 |
+| `/etc/docker/daemon.json` | `server/docker/daemon.json` | 컨테이너 로그 크기 제한 (파일당 10MB × 3개) |
 
 `.env` 파일은 서버에만 있고 커밋하지 않는다(권한 600). 형식은 각 폴더의 `.env.example`을 본다.
+저장소의 `server/` 파일을 고치면 서버의 같은 경로에도 직접 복사해야 반영된다(Jenkins는 서버의 `/home/ubuntu/app/docker-compose.yml`을 읽는다).
 
 ## 배포 흐름
-`dev`에 `BE/` 변경이 머지되면 GitLab 웹훅 → Jenkins(`BE/Jenkinsfile`) → 이미지 빌드(`BE/Dockerfile`) → `/home/ubuntu/app`에서 컨테이너 교체 → `/actuator/health` 확인 → Mattermost 알림.
+`dev`에 `BE/` 변경이 MR로 머지되면 GitLab 웹훅 → Jenkins(`BE/Jenkinsfile`) → 테스트(임시 PostgreSQL로 `./gradlew test`) → 이미지 빌드(`BE/Dockerfile`) → `/home/ubuntu/app`에서 컨테이너 교체 → `/actuator/health` 확인 → Mattermost 알림.
+- 테스트가 실패하면 이미지를 만들지 않고 서버는 그대로 둔다.
+- 헬스 체크가 실패하면 직전에 돌던 이미지(`nyam-backend:previous`)로 되돌린다.
+- `dev`는 보호 브랜치라 직접 푸시하지 않는다. `feature/{JIRA키}-{설명}` 브랜치에서 MR을 올리고, MR 설명에 `Closes {JIRA키}`를 적으면 머지할 때 Jira 이슈가 완료된다.
+
+## 로그 크기 제한 적용 (최초 1회)
+```bash
+sudo cp server/docker/daemon.json /etc/docker/daemon.json
+sudo systemctl restart docker   # 모든 컨테이너가 잠깐 재시작됨 (restart: unless-stopped라 다시 올라옴)
+```
+설정은 새로 만드는 컨테이너부터 적용된다. 기존 컨테이너는 각 폴더에서 `docker compose up -d --force-recreate`로 한 번 다시 만든다.
 
 ## 보안 규칙
 - UFW는 항상 켜 둔다. 22번 규칙은 지우지 않는다.

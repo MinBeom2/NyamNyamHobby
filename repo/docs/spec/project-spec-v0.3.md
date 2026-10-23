@@ -2106,8 +2106,8 @@ X-RateLimit-Remaining: 0
 ### 9.5 환경·배포
 
 - **환경** `local`(`BE/docker-compose.yml`로 PostgreSQL·Redis·RabbitMQ 실행) · `dev` · `prod`. 비밀값은 서버 `.env`와 Jenkins Credentials에만 둔다. OAuth 키는 Google만 발급하고(Kakao·Naver OAuth 키는 두지 않음), 카카오 앱 키는 지도·로컬 API 용도로만 둔다.
-- **브랜치** `main`(배포) ← `develop`(통합) ← `feature/{JIRA키}-{설명}`. MR은 1명 이상 승인 후 병합.
-- **배포** 백엔드는 `dev`에 `BE/` 변경이 병합되면 GitLab 웹훅 → Jenkins(`BE/Jenkinsfile`)가 Docker 이미지 빌드(`BE/Dockerfile`) → EC2 `/home/ubuntu/app`에서 `docker compose up -d --force-recreate backend` → `/actuator/health` 확인 → Mattermost 알림. 프론트는 Vercel이 `main`을 자동 배포하고, MR마다 미리보기 URL을 만든다.
+- **브랜치** `master`(운영) ← `dev`(통합·기본 브랜치, 보호) ← `feature/{JIRA키}-{설명}`. `dev`에는 직접 푸시하지 않고 MR로만 병합하며, MR은 1명 이상 승인 후 병합. MR 설명에 `Closes {JIRA키}`를 적으면 병합 시 Jira 이슈가 완료된다.
+- **배포** 백엔드는 `dev`에 `BE/` 변경이 병합되면 GitLab 웹훅 → Jenkins(`BE/Jenkinsfile`)가 테스트(임시 PostgreSQL로 `./gradlew test`, 실패 시 배포 중단) → Docker 이미지 빌드(`BE/Dockerfile`) → EC2 `/home/ubuntu/app`에서 `docker compose up -d --force-recreate backend` → `/actuator/health` 확인(실패 시 이전 이미지로 롤백) → Mattermost 알림. 프론트는 Vercel이 `main`을 자동 배포하고, MR마다 미리보기 URL을 만든다.
 - **도메인** 프론트는 Vercel 배포 주소, API는 `https://k15d104.p.ssafy.io/api`(Nginx가 `/api/`를 백엔드 컨테이너 `127.0.0.1:18080`으로 전달, `/actuator`는 외부에 열지 않음). 프론트와 API의 도메인이 달라 Refresh 쿠키 속성(SameSite·Secure)은 따로 확인한다.
 
 ## 10. 개발 범위·우선순위·일정

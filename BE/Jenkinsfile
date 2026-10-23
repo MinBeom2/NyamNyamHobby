@@ -38,7 +38,7 @@ pipeline {
                             docker build --target build -t $IMAGE-test:latest BE
                             docker network create $TEST_NET
                             docker run -d --name $TEST_DB --network $TEST_NET \
-                              -e POSTGRES_DB=nyamnyam -e POSTGRES_USER=test -e POSTGRES_PASSWORD=test postgres:17
+                              -e POSTGRES_DB=nyamnyam -e POSTGRES_USER=test -e POSTGRES_PASSWORD=test pgvector/pgvector:pg17
                             # 초기화 중 임시 서버는 TCP를 열지 않으므로 127.0.0.1로 확인해야 진짜 준비 완료
                             for i in $(seq 1 30); do
                               if docker exec $TEST_DB pg_isready -h 127.0.0.1 -U test -d nyamnyam > /dev/null 2>&1; then break; fi

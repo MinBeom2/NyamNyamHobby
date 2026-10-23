@@ -34,7 +34,7 @@ class HobbyRecommendationIntegrationTest {
                 "SELECT id FROM hobbies WHERE category_id <> ?", Long.class, category));
         var result = service.recommendSimilarToHobby(base, 100, excluded);
         assertThat(result).extracting(r -> r.hobbyId()).containsExactly(identical, outdoor);
-        assertThat(result.getFirst().similarity()).isCloseTo(1.0, within(1e-6));
+        assertThat(result.get(0).similarity()).isCloseTo(1.0, within(1e-6));
         assertThat(result.get(1).similarity()).isCloseTo(10.0 / 11, within(1e-6));
         assertThat(result.get(1).rank()).isEqualTo(2);
 

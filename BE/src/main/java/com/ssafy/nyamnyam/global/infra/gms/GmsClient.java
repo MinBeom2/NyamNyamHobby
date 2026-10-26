@@ -1,5 +1,6 @@
 package com.ssafy.nyamnyam.global.infra.gms;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -13,12 +14,16 @@ import org.springframework.web.client.RestClient;
 
 import java.time.Duration;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 
 @Slf4j
 @Component
 public class GmsClient {
 
     private final RestClient restClient;
+    /** 숏폼 묶음 판별처럼 응답이 긴 배치용 호출. 사용자 요청 경로가 아니므로 읽기 제한 시간을 길게 둔다. */
+    private final RestClient batchRestClient;
     private final String apiKey;
     private final String model;
 
@@ -30,14 +35,60 @@ public class GmsClient {
         this.apiKey = apiKey;
         this.model = model != null && !model.isBlank() ? model : "gpt-4o";
 
+        this.restClient = createRestClient(baseUrl, Duration.ofSeconds(5));
+        this.batchRestClient = createRestClient(baseUrl, Duration.ofSeconds(30));
+    }
+
+    private static RestClient createRestClient(String baseUrl, Duration readTimeout) {
         SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
         requestFactory.setConnectTimeout(Duration.ofSeconds(5));
-        requestFactory.setReadTimeout(Duration.ofSeconds(5));
+        requestFactory.setReadTimeout(readTimeout);
 
-        this.restClient = RestClient.builder()
+        return RestClient.builder()
                 .baseUrl(baseUrl.endsWith("/") ? baseUrl.substring(0, baseUrl.length() - 1) : baseUrl)
                 .requestFactory(requestFactory)
                 .build();
+    }
+
+    public boolean isConfigured() {
+        return apiKey != null && !apiKey.isBlank();
+    }
+
+    /**
+     * JSON 객체 하나로만 답하게 하는 범용 호출(response_format=json_object, temperature 0).
+     * 키가 없거나 호출·응답에 문제가 있으면 빈 값을 돌려주고, 판단은 호출한 쪽에서 한다.
+     */
+    public Optional<String> completeJson(String systemPrompt, String userPrompt, int maxTokens) {
+        if (!isConfigured()) {
+            return Optional.empty();
+        }
+        try {
+            ChatRequest request = new ChatRequest(
+                    model,
+                    List.of(new ChatMessage("system", systemPrompt), new ChatMessage("user", userPrompt)),
+                    maxTokens,
+                    0.0,
+                    Map.of("type", "json_object")
+            );
+
+            ChatResponse response = batchRestClient.post()
+                    .uri("/v1/chat/completions")
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + apiKey)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(request)
+                    .retrieve()
+                    .body(ChatResponse.class);
+
+            if (response == null || response.getChoices() == null || response.getChoices().isEmpty()
+                    || response.getChoices().get(0).getMessage() == null) {
+                return Optional.empty();
+            }
+            String content = response.getChoices().get(0).getMessage().getContent();
+            return content == null || content.isBlank() ? Optional.empty() : Optional.of(content.trim());
+        } catch (Exception e) {
+            log.warn("GMS JSON call failed: {}", e.getClass().getSimpleName());
+            return Optional.empty();
+        }
     }
 
     /**
@@ -107,12 +158,21 @@ public class GmsClient {
         @JsonProperty("max_tokens")
         private Integer maxTokens;
         private Double temperature;
+        @JsonProperty("response_format")
+        @JsonInclude(JsonInclude.Include.NON_NULL)
+        private Map<String, String> responseFormat;
 
         public ChatRequest(String model, List<ChatMessage> messages, Integer maxTokens, Double temperature) {
+            this(model, messages, maxTokens, temperature, null);
+        }
+
+        public ChatRequest(String model, List<ChatMessage> messages, Integer maxTokens, Double temperature,
+                           Map<String, String> responseFormat) {
             this.model = model;
             this.messages = messages;
             this.maxTokens = maxTokens;
             this.temperature = temperature;
+            this.responseFormat = responseFormat;
         }
     }
 

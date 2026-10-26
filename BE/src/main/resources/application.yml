@@ -72,6 +72,22 @@ jwt:
 
 app:
   frontend-url: ${FRONTEND_URL:http://localhost:5173}
+  youtube:
+    api-key: ${YOUTUBE_API_KEY:}
+  # 숏폼 수집(FR-SHORT-07): 취미별 키워드 검색 → 필터 → GPT 판별 → CANDIDATE 저장 → 목요일 주간 반영
+  # 로컬·테스트에서 할당량을 쓰지 않도록 기본은 꺼 두고, 서버 .env에서 SHORT_COLLECT_ENABLED=true로 켠다.
+  short-collect:
+    enabled: ${SHORT_COLLECT_ENABLED:false}
+    cron: "0 7 * * * *"          # 매시 7분 (Asia/Seoul)
+    release-cron: "0 0 6 * * THU" # 매주 목 06:00 주간 반영
+    keywords-per-run: 2           # 키워드당 101단위 → 하루 약 4,850단위
+    target-per-hobby: 40          # 취미별 CANDIDATE+ACTIVE 목표. 채우면 그 취미는 건너뜀
+    max-per-channel: 3            # 한 취미에서 같은 채널 영상 최대 수
+    min-view-count: 1000
+    max-duration-seconds: 180
+    daily-quota-limit: 9000       # YouTube 기본 한도 10,000 중 이 작업 상한
+    confidence-threshold: 0.7     # GPT 신뢰도 미만이면 NEEDS_REVIEW
+    classify-chunk-size: 20
 
 management:
   endpoints:

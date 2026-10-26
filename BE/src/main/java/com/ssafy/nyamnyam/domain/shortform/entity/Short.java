@@ -113,6 +113,13 @@ public class Short {
         this.updatedAt = LocalDateTime.now();
     }
 
+    /** 수집 필터·판별에서 제외. 같은 영상을 다시 수집하지 않도록 사유와 함께 남긴다. */
+    public void reject(String reason) {
+        this.status = ShortStatus.REJECTED;
+        this.rejectReason = reason;
+        this.updatedAt = LocalDateTime.now();
+    }
+
     public void incrementFailUserCount() {
         this.failUserCount++;
         this.updatedAt = LocalDateTime.now();

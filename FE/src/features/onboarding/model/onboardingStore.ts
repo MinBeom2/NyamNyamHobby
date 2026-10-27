@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 
-export type PlacePreference = 'INDOOR' | 'OUTDOOR' | 'ANY';
-export type SocialPreference = 'ALONE' | 'TOGETHER' | 'ANY';
+export type PlacePreference = '' | 'INDOOR' | 'OUTDOOR' | 'ANY';
+export type SocialPreference = '' | 'ALONE' | 'TOGETHER' | 'ANY';
 
 type OnboardingState = {
   hobbies: string[];
@@ -12,11 +12,23 @@ type OnboardingState = {
   sido: string;
   sigungu: string;
   toggleHobby: (name: string) => void;
-  setCondition: (condition: Partial<Omit<OnboardingState, 'toggleHobby' | 'setCondition'>>) => void;
+  setCondition: (condition: Partial<Omit<OnboardingState, 'toggleHobby' | 'setCondition' | 'resetOnboarding'>>) => void;
+  resetOnboarding: () => void;
+};
+
+const initialOnboardingState = {
+  hobbies: [],
+  weeklyHours: '',
+  monthlyBudget: '',
+  placePref: '' as PlacePreference,
+  socialPref: '' as SocialPreference,
+  sido: '',
+  sigungu: '',
 };
 
 export const useOnboardingStore = create<OnboardingState>((set) => ({
-  hobbies: [], weeklyHours: '', monthlyBudget: '', placePref: 'INDOOR', socialPref: 'ANY', sido: '서울특별시', sigungu: '마포구',
+  ...initialOnboardingState,
   toggleHobby: (name) => set((state) => ({ hobbies: state.hobbies.includes(name) ? state.hobbies.filter((item) => item !== name) : state.hobbies.length < 5 ? [...state.hobbies, name] : state.hobbies })),
   setCondition: (condition) => set(condition),
+  resetOnboarding: () => set(initialOnboardingState),
 }));

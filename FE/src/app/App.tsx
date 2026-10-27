@@ -5,6 +5,7 @@ import { SignupPage } from '../pages/auth/SignupPage';
 import { EmailSentPage, LinkExpiredPage, VerifyEmailPage } from '../pages/auth/EmailVerificationPages';
 import { PasswordResetConfirmPage, PasswordResetRequestPage } from '../pages/auth/PasswordResetPages';
 import { HobbyInterestPage, UsageConditionPage } from '../pages/onboarding/OnboardingPages';
+import { ExplorePage } from '../pages/explore/ExplorePage';
 
 export function App() {
   return (
@@ -20,6 +21,7 @@ export function App() {
       <Route path="/password-reset/expired" element={<LinkExpiredPage />} />
       <Route path="/onboarding/interests" element={<HobbyInterestPage />} />
       <Route path="/onboarding/conditions" element={<UsageConditionPage />} />
+      <Route path="/explore" element={<ExplorePage />} />
       <Route path="/home" element={<MemberHomePage />} />
       <Route path="*" element={<Navigate replace to="/" />} />
     </Routes>

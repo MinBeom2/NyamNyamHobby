@@ -6,6 +6,7 @@ type AppHeaderProps = {
   authenticated?: boolean;
   notificationCount?: number;
   onLogout?: () => void;
+  onBrandClick?: () => void;
   logoutPending?: boolean;
 };
 
@@ -17,11 +18,11 @@ const navigation = [
   { label: '공지', to: '/notices' },
 ];
 
-export function AppHeader({ authenticated = false, notificationCount = 0, onLogout, logoutPending = false }: AppHeaderProps) {
+export function AppHeader({ authenticated = false, notificationCount = 0, onLogout, onBrandClick, logoutPending = false }: AppHeaderProps) {
   return (
     <header className="app-header">
       <div className="app-header__inner">
-        <Link className="brand" to={authenticated ? '/home' : '/'} aria-label="냠냠취미 홈">
+        <Link className="brand" to={authenticated ? '/home' : '/'} aria-label="냠냠취미 홈" onClick={onBrandClick}>
           <img src={brandAssets.logo} alt="냠냠취미" />
         </Link>
 

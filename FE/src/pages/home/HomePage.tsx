@@ -11,17 +11,19 @@ import { popularHobbies, recommendedHobbies, type HobbyCardModel } from './homeF
 
 function PageShell({
   authenticated,
+  variant,
   children,
   onLogout,
   logoutPending,
 }: {
   authenticated?: boolean;
+  variant?: 'guest';
   children: React.ReactNode;
   onLogout?: () => void;
   logoutPending?: boolean;
 }) {
   return (
-    <div className="site-shell">
+    <div className={variant === 'guest' ? 'site-shell site-shell--guest' : 'site-shell'}>
       <AppHeader
         authenticated={authenticated}
         notificationCount={3}
@@ -59,7 +61,7 @@ function HobbyCard({ hobby }: { hobby: HobbyCardModel }) {
 
 export function GuestHomePage() {
   return (
-    <PageShell>
+    <PageShell variant="guest">
       <div className="page-container guest-home">
         <div className="guest-above-fold">
           <section className="guest-hero">
@@ -68,8 +70,8 @@ export function GuestHomePage() {
               <h1>나에게 맞는 취미,<br />숏폼으로 찾아보세요</h1>
               <p>영상 몇 개만 보고 좋아요·별로예요를 누르면 시간·비용까지 맞춘 취미를 추천해 드려요.</p>
               <div className="guest-hero__actions">
-                <Button to="/explore">무료로 시작하기</Button>
-                <Button to="/explore?guest=true" variant="secondary">비회원 체험하기</Button>
+                <Button to="/signup">무료로 시작하기</Button>
+                <Button to="/onboarding/interests?mode=guest" variant="secondary">비회원 체험하기</Button>
               </div>
               <small>로그인하지 않으면 탐색 기록은 7일 뒤 사라져요</small>
             </div>

@@ -110,6 +110,7 @@ export function LoginPage() {
             <button className="social-login__button social-login__button--kakao" type="button" disabled>카카오로 계속하기</button>
             <button className="social-login__button social-login__button--naver" type="button" disabled>네이버로 계속하기</button>
           </div>
+
         </section>
       </main>
     </div>

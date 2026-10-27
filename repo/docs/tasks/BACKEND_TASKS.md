@@ -41,7 +41,7 @@
 
 필수 9 · 권장 5 · 후순위 1 · 제외 1 · 프론트엔드 짝: SYS-F01~F13
 
-- [ ] **SYS-B01 프로젝트·로컬 환경 구성** · `필수` · 환경
+- [x] **SYS-B01 프로젝트·로컬 환경 구성** · `필수` · 환경
   - Java 17 · Spring Boot 4.1(Gradle 9.8) 프로젝트, local·dev·prod 프로필, Docker Compose(PostgreSQL 17 + pgvector, 이미지 `pgvector/pgvector:pg17`·Redis 7·RabbitMQ), Flyway V1__init.sql(7.5 DDL, 테이블 41개), JPA ddl-auto: validate.
   - DB 이미지 변경(2026-10-23): 로컬·운영 설정 원본을 `pgvector/pgvector:pg17`로 통일. 운영 DB 이미지 교체를 먼저 수행하고, `vector` 확장 활성화와 임베딩 스키마는 신규 Flyway 마이그레이션으로 추가한다. 기존 V1은 유지하며 Jenkins의 백엔드 배포만으로 운영 DB 이미지는 바뀌지 않는다.
   - API·배치: 7.5 DDL
@@ -70,7 +70,7 @@
   - API·배치: 9.3
   - 근거: 9.3
   - 비고: 쓰는 기능이 AI 추천 이유(P1)·피드 요약(P1)이라 권장. notification.create·feedback.analyze 큐는 제외(P2)
-- [ ] **SYS-B07 GMS(GPT) 클라이언트** · `필수` · 외부 API
+- [x] **SYS-B07 GMS(GPT) 클라이언트** · `필수` · 외부 API
   - GPT-4o 호출 공통 클라이언트(타임아웃 5초, 프롬프트 템플릿 관리, 실패 시 호출부 대체 처리), 키는 환경변수.
   - API·배치: —
   - 근거: 9.2 · NFR-OPS-03 · NFR-SEC-07
@@ -92,7 +92,7 @@
   - API·배치: 5.1
   - 근거: 5.1 · NFR-SEC-08
   - 비고: 고도화(P3 수준, 여유 시): CSV에 없는 비기능
-- [ ] **SYS-B12 배포 파이프라인** · `필수` · 배포
+- [x] **SYS-B12 배포 파이프라인** · `필수` · 배포
   - Jenkins(EC2 Docker 컨테이너, BE/Jenkinsfile): dev 병합 → GitLab 웹훅 → Docker 이미지 빌드(BE/Dockerfile) → EC2에서 backend 컨테이너 교체 → /actuator/health 확인 → Mattermost 알림, Nginx TLS(Let's Encrypt)·HTTP→HTTPS, https://k15d104.p.ssafy.io/api → 127.0.0.1:18080, 비밀값은 .env·Jenkins Credentials.
   - API·배치: —
   - 근거: 9.5 · NFR-OPS-01 · NFR-SEC-01
@@ -118,11 +118,11 @@
 
 필수 5 · 권장 1 · 후순위 0 · 제외 1 · 프론트엔드 짝: AUTH-F01~F07
 
-- [ ] **AUTH-B01 회원가입·중복 확인** · `필수` · 회원가입
+- [x] **AUTH-B01 회원가입·중복 확인** · `필수` · 회원가입
   - POST /auth/signup(PENDING 생성, BCrypt), check-email·check-nickname, 입력 규칙 검증, 409 AUTH_EMAIL_DUPLICATED, 소셜(Google)로 가입한 이메일이면 안내 코드 [P1].
   - API·배치: /auth/signup · /auth/check-email · /auth/check-nickname · users
   - 근거: FR-AUTH-01
-- [ ] **AUTH-B02 이메일 인증** · `필수` · 회원가입
+- [x] **AUTH-B02 이메일 인증** · `필수` · 회원가입
   - 인증 토큰(24시간·1회용·SHA-256 해시), verify → ACTIVE 전환 + 로그인 토큰 발급, 재발송 60초 1회.
   - API·배치: /auth/email/verify · /auth/email/resend · auth_tokens
   - 근거: FR-AUTH-01
@@ -135,7 +135,7 @@
   - API·배치: /oauth2/** · /auth/oauth/signup · social_accounts
   - 근거: FR-AUTH-03
   - 비고: 11장 #2: Google만(P1)으로 변경
-- [ ] **AUTH-B05 비밀번호 재설정** · `필수` · 비밀번호
+- [x] **AUTH-B05 비밀번호 재설정** · `필수` · 비밀번호
   - reset-request(가입 여부와 관계없이 같은 응답, 30분·1회용 토큰, 소셜(Google) 전용 계정에는 'Google 로그인을 이용해 주세요' 안내 메일), reset(규칙 검증, Refresh 전부 폐기).
   - API·배치: /auth/password/reset-request · /auth/password/reset
   - 근거: FR-AUTH-04
@@ -178,7 +178,7 @@
 
 필수 9 · 권장 2 · 후순위 0 · 제외 2 · 프론트엔드 짝: SHORT-F01~F09
 
-- [ ] **SHORT-B01 탐색 세션 API** · `필수` · 탐색 세션
+- [x] **SHORT-B01 탐색 세션 API** · `필수` · 탐색 세션
   - POST /explorations(세션 + 첫 영상), progress(진행률 n / N·반응한 취미·관심 주제 상위 3개 %), finish(종료 + 추천 생성 호출), 세션 상태 IN_PROGRESS·COMPLETED·ABANDONED.
   - API·배치: /explorations · /explorations/{id}/progress · /explorations/{id}/finish
   - 근거: FR-SHORT-03 · FR-SHORT-04
@@ -191,7 +191,7 @@
   - POST views: watchedSeconds(길이 상한)·watch_ratio 저장, 고유 시청자 view_user_count 증가, playFailed 기록 → 서로 다른 3명 이상 실패 시 UNAVAILABLE.
   - API·배치: /explorations/{id}/views · exploration_views · shorts
   - 근거: FR-SHORT-01 · FR-SHORT-02
-- [ ] **SHORT-B04 반응 API** · `필수` · 반응
+- [x] **SHORT-B04 반응 API** · `필수` · 반응
   - PUT·DELETE /shorts/{id}/reaction: 사용자 × 영상 1개(비회원 체험 도입 시 guestKey 포함 [P2]), 변경·취소, IRRELEVANT면 irrelevant_count ±1(고유 회원 기준).
   - API·배치: /shorts/{id}/reaction · short_reactions
   - 근거: FR-SHORT-02 · FR-SHORT-08
@@ -209,12 +209,12 @@
   - ACTIVE 채널마다 playlistItems.list(last_collected_at 이후), videos.list 50개 묶음, 기계적 필터(180초 이하·embeddable·public·KR 재생 가능) 불합격은 REJECTED(사유), 실패 채널은 다음 날 이어서, 할당량 사용량 기록.
   - API·배치: YouTube Data API · youtube_channels · shorts · batch_runs
   - 근거: FR-SHORT-07 · NFR-EXT-01
-- [ ] **SHORT-B08 영상 취미 지정** · `필수` · 수집 배치
+- [x] **SHORT-B08 영상 취미 지정** · `필수` · 수집 배치
   - 단일 채널은 채널 취미 상속, 종합 채널은 숏폼 키워드 매핑으로, 그래도 못 정하면 GMS(제목·설명·썸네일 → hobbyId·confidence·isHobbyContent). 확실한 영상은 CANDIDATE, 신뢰도 0.7 미만·실패는 NEEDS_REVIEW로 저장한다(이 구분을 P0에서 미리 만들어 두어 관리자 검수(P3)를 언제든 붙일 수 있게 함). NEEDS_REVIEW는 관리자 승인 전까지 노출하지 않음.
   - API·배치: shorts.assign_method · assign_confidence
   - 근거: FR-SHORT-07
   - 비고: 11장 #25
-- [ ] **SHORT-B09 주간 반영(목 06:00)** · `필수` · 수집 배치
+- [x] **SHORT-B09 주간 반영(목 06:00)** · `필수` · 수집 배치
   - 그 주 CANDIDATE만 ACTIVE로(released_at). 관리자가 없어도 확실한 영상은 이 배치로 사용자에게 나간다. NEEDS_REVIEW는 반영하지 않고, 관리자 승인([P3], ADM-B10)으로 CANDIDATE가 된 영상만 다음 반영에 포함. 관리자 '지금 반영' 수동 실행(409 ADMIN_RELEASE_IN_PROGRESS)은 [P2·MVP 제외].
   - API·배치: shorts · batch_runs
   - 근거: FR-SHORT-07
@@ -257,7 +257,7 @@
 
 필수 5 · 권장 2 · 후순위 0 · 제외 0 · 프론트엔드 짝: RECO-F01~F03
 
-- [ ] **RECO-B01 관심사 점수 계산** · `필수` · 점수 계산
+- [x] **RECO-B01 관심사 점수 계산** · `필수` · 점수 계산
   - 영상 점수 = 반응(LIKE +3, DISLIKE −3) + 시청 가중치(시청 비율 × 2 − 1), 취미 점수 = 영상 점수 합(직접 선택 +5는 [P2]), 태그 점수 = 영상 점수 × 0.3. 관련 없음·재생 실패 제외(초기화 이후 반응만 쓰는 규칙은 [P2]), 가중치는 application.yml.
   - API·배치: short_reactions · exploration_views
   - 근거: FR-RECO-01
@@ -272,7 +272,7 @@
   - API·배치: /recommendations/latest · /recommendations/{id}
   - 근거: FR-RECO-02
   - 비고: 추천 기준 문구(basisText)·추천 이유 상태는 권장(P1)
-- [ ] **RECO-B04 추천 이유 생성(reco.reason)** · `권장` · 추천 이유
+- [x] **RECO-B04 추천 이유 생성(reco.reason)** · `권장` · 추천 이유
   - 추천 생성 직후 큐 발행 → GMS로 60자 이내 1문장, 실패하면 FALLBACK 템플릿('클라이밍 영상에 좋아요 3회').
   - API·배치: reco.reason · recommendation_items.reason
   - 근거: FR-RECO-02

@@ -85,6 +85,11 @@
 | 운영 방식 | 관리자 화면 대부분이 P2라 MVP에서는 수집 피드·장소를 검토 없이 바로 PUBLISHED로 두고, 숏폼 NEEDS_REVIEW 영상은 승인 전까지 노출하지 않음(확실한 CANDIDATE 영상은 주간 반영으로 자동 노출). 숏폼 검수 화면은 후순위(P3)이고 그 전 자동 숨김 복구는 DB 직접. | FEED-B04 · PLACE-B04 · SHORT-B08 · SHORT-B09 · SHORT-B12 · SYS-B15 | 검토 없는 공개를 받아들일지, 부적절 항목은 DB에서 숨기는 운영 절차를 둘지 결정 |
 | 흐름 | 비회원 체험이 P2라 홈·숏폼 진입 시 로그인을 요구해야 함. | SYS-F04 · SYS-F03 · SHORT-F02 · AUTH-F06 | 비회원이 숏폼·추천 진입 시 로그인 모달 → 로그인 후 원래 화면 복귀 흐름을 화면 설계에 반영 |
 | 수치 | 탐색 세션 노출 수 N 값과 진행 표시 문구가 미정(설정값, 기본안 12). | SHORT-B02 · SHORT-F06 | N 값을 정하고 화면에는 'n / N'처럼 고정 숫자 없이 표시(11장 #3) |
+| 문서 간 상충 | 숏폼 수집이 명세서는 신뢰 채널 playlistItems(매일 04:00) + 채널 발굴(월 06:00)인데, 구현은 취미별 키워드 search.list(매시 7분, V5)로 바뀜. | SHORT-B07 · SHORT-B11 · SHORT-P01 · HOBBY-P03 | 키워드 수집으로 확정하면 명세서 FR-SHORT-07·배치 표를 고치고 SHORT-B11·SHORT-P01 범위를 다시 정함 |
+| 문서 간 상충 | 취미 유사도가 명세서는 hobby_similarity 저장 배치(매일 03:00)인데, 구현은 pgvector 태그 벡터로 요청 때 코사인 거리 계산(V4). | RECO-B02 · RECO-B06 | 실시간 계산으로 가면 hobby_similarity 테이블·배치를 명세서에서 정리 |
+| 문서 간 상충 | 와이어프레임(프론트 최신 협의)에는 비회원 홈의 '비회원 체험하기'·'탐색 기록은 7일 뒤 사라져요'(P2 표시 있음)와 회원 GNB 알림 배지가 있으나, 기능 요구사항 CSV는 비회원 체험(FR-AUTH-05)·알림(FR-NOTI-01)을 P2로 정함. 프론트는 와이어프레임대로 구현. | SYS-F03 · SYS-F04 · AUTH-F06 · NOTI-F01 | Figma에서 P2 요소를 숨김(또는 비활성) 표시로 바꿀지, CSV 범위를 넓힐지 결정 |
+| 선행 종속 | FE/docs/design-sources/screens의 내보내기 파일(PNG·SVG)이 Figma 원본보다 오래됨. 최신 Figma 01-5 이용 상황 설정은 한 화면(숙련도 포함, 3단계)인데 레포 PNG는 2화면·4단계, SVG는 더 이전 저해상도 와이어프레임. | USER-F01 · AUTH-F01 · AUTH-F02 | Figma 원본(9ExlElBFJhsqSCUQaT6lLP)을 기준으로 삼고 레포 내보내기를 다시 뽑거나 지움 |
+| 문서 간 상충 | 소셜 로그인은 CSV(FR-AUTH-03 'Google 로그인')·명세서 11장 #2에서 Google만으로 확정됐는데, Figma 01-1에 카카오·네이버 버튼과 개발 메모 '/oauth2/authorization/{google\|kakao\|naver}'가 남아 있고 프론트도 두 버튼을 비활성으로 노출 중. | AUTH-F04 · AUTH-B04 | Figma 01-1에서 카카오·네이버 버튼과 메모를 지우고, 프론트 LoginPage에서도 두 버튼을 제거 |
 
 ## 표기
 - **ID**: `도메인-파트번호`. 파트 F = 프론트엔드, B = 백엔드, P = 기획·운영. 같은 도메인의 F·B 작업이 짝입니다.

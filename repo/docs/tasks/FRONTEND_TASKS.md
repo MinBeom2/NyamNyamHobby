@@ -124,7 +124,7 @@
   - 화면·API: 01-1 · 01-2 · /oauth2/authorization/{provider} · /auth/oauth/signup
   - 근거: FR-AUTH-03
   - 비고: 11장 #2: Google만(P1)으로 변경
-- [ ] **AUTH-F05 비밀번호 재설정** · `필수` · 비밀번호
+- [x] **AUTH-F05 비밀번호 재설정** · `필수` · 비밀번호
   - 01-3 이메일 입력 → 가입 여부와 관계없이 같은 안내, 01-4 메일 링크에서 새 비밀번호 설정, 만료·사용된 링크 상태를 만든다.
   - 화면·API: 01-3 · 01-4 · /auth/password/reset-request · /auth/password/reset
   - 근거: FR-AUTH-04

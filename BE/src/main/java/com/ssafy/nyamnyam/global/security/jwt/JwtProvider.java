@@ -60,6 +60,25 @@ public class JwtProvider {
                 .compact();
     }
 
+    /**
+     * 최초 소셜 로그인 시 닉네임 설정을 위한 임시 가입 토큰 (유효기간: 15분)
+     */
+    public String createOAuthSignupToken(String provider, String providerUserId, String email) {
+        Date now = new Date();
+        Date validity = new Date(now.getTime() + (15 * 60 * 1000L)); // 15분
+
+        return Jwts.builder()
+                .subject("OAUTH_SIGNUP")
+                .claim("provider", provider)
+                .claim("providerUserId", providerUserId)
+                .claim("email", email)
+                .issuedAt(now)
+                .expiration(validity)
+                .signWith(secretKey)
+                .compact();
+    }
+
+
     public Claims parseClaims(String token) {
         return Jwts.parser()
                 .verifyWith(secretKey)

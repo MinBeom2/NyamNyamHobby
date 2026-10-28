@@ -6,6 +6,7 @@ import { EmailSentPage, LinkExpiredPage, VerifyEmailPage } from '../pages/auth/E
 import { PasswordResetConfirmPage, PasswordResetRequestPage } from '../pages/auth/PasswordResetPages';
 import { HobbyInterestPage, UsageConditionPage } from '../pages/onboarding/OnboardingPages';
 import { ExplorePage } from '../pages/explore/ExplorePage';
+import { OAuthCallbackPage } from '../pages/auth/OAuthCallbackPage';
 
 export function App() {
   return (
@@ -15,6 +16,7 @@ export function App() {
       <Route path="/signup" element={<SignupPage />} />
       <Route path="/signup/email-sent" element={<EmailSentPage />} />
       <Route path="/auth/email/verify" element={<VerifyEmailPage />} />
+      <Route path="/oauth/callback" element={<OAuthCallbackPage />} />
       <Route path="/password-reset" element={<PasswordResetRequestPage />} />
       <Route path="/password-reset/new" element={<PasswordResetConfirmPage />} />
       <Route path="/auth/password/reset" element={<PasswordResetConfirmPage />} />

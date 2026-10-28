@@ -85,3 +85,16 @@ export function login(request: LoginRequest) {
 export function logout() {
   return apiRequest<void>('/auth/logout', { method: 'POST' });
 }
+
+export type OAuthSignupRequest = {
+  signupToken: string;
+  nickname: string;
+};
+
+export function oauthSignup(request: OAuthSignupRequest) {
+  return apiRequest<LoginResponse>('/auth/oauth/signup', {
+    method: 'POST',
+    body: JSON.stringify(request),
+  });
+}
+

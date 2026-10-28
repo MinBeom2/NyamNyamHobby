@@ -4,13 +4,14 @@ EC2 한 대에 Nginx(호스트)와 Docker 컨테이너들을 올린다. 외부�
 
 ```
 인터넷 ──443──► Nginx(호스트, Let's Encrypt)
-                 ├─ /jenkins/ ─► jenkins   (127.0.0.1:19090)
-                 └─ /api/     ─► backend   (127.0.0.1:18080)
+                 ├─ /           ─► 프론트엔드 정적 파일 (/var/www/nyamnyam/current)
+                 ├─ /jenkins/   ─► jenkins   (127.0.0.1:19090)
+                 └─ /api/, /oauth2/, /login/oauth2/ ─► backend (127.0.0.1:18080)
                                   │  backend 네트워크
                                   ├─ postgres:5432 (호스트 127.0.0.1:15432)
                                   ├─ redis:6379    (호스트 127.0.0.1:16379)
                                   └─ rabbitmq:5672 (호스트 127.0.0.1:15673, 관리 화면 25672)
-프론트엔드는 Vercel
+프론트엔드도 같은 도메인에서 서빙하므로 CORS·쿠키 문제가 없다
 ```
 
 ## 서버 폴더와 이 저장소 파일
@@ -19,7 +20,9 @@ EC2 한 대에 Nginx(호스트)와 Docker 컨테이너들을 올린다. 외부�
 | `/home/ubuntu/infra/` | `server/infra/` | PostgreSQL 17 + pgvector · Redis · RabbitMQ |
 | `/home/ubuntu/jenkins/` | `server/jenkins/` | Jenkins (Docker CLI 포함 이미지) |
 | `/home/ubuntu/app/` | `server/app/` | 백엔드 컨테이너 (Jenkins가 배포) |
-| `/etc/nginx/snippets/` | `server/nginx/` | `/jenkins/`, `/api/` 프록시 설정 |
+| `/etc/nginx/sites-available/default` | `server/nginx/site.conf` | 사이트 전체 설정 (HTTPS, 프론트 정적 파일, snippets include) |
+| `/etc/nginx/snippets/` | `server/nginx/*.conf` | `/jenkins/`, `/api/`, `/oauth2/` 프록시 설정 |
+| `/var/www/nyamnyam/` | — | 프론트엔드 릴리스 (`releases/<빌드번호>`, `current` 링크). Jenkins가 배포 |
 | `/etc/docker/daemon.json` | `server/docker/daemon.json` | 컨테이너 로그 크기 제한 (파일당 10MB × 3개) |
 
 `.env` 파일은 서버에만 있고 커밋하지 않는다(권한 600). 형식은 각 폴더의 `.env.example`을 본다.
@@ -29,6 +32,7 @@ EC2 한 대에 Nginx(호스트)와 Docker 컨테이너들을 올린다. 외부�
 `dev`에 `BE/` 변경이 MR로 머지되면 GitLab 웹훅 → Jenkins(`BE/Jenkinsfile`) → 테스트(임시 PostgreSQL로 `./gradlew test`) → 이미지 빌드(`BE/Dockerfile`) → `/home/ubuntu/app`에서 컨테이너 교체 → `/actuator/health` 확인 → Mattermost 알림.
 - 테스트가 실패하면 이미지를 만들지 않고 서버는 그대로 둔다.
 - 헬스 체크가 실패하면 직전에 돌던 이미지(`nyam-backend:previous`)로 되돌린다.
+- 프론트엔드: `dev`에 `FE/` 변경이 머지되면 Jenkins(`FE/Jenkinsfile`) → `FE/Dockerfile`로 빌드(npm ci → 타입 검사 → vite build) → `/var/www/nyamnyam/releases/<빌드번호>`에 복사 → `current` 링크 교체 → Mattermost 알림. 최근 5개 릴리스를 남기며, 되돌릴 때는 서버에서 `ln -sfn releases/<번호> /var/www/nyamnyam/current`.
 - `dev`는 보호 브랜치라 직접 푸시하지 않는다. `feature/{JIRA키}-{설명}` 브랜치에서 MR을 올리고, MR 설명에 `Closes {JIRA키}`를 적으면 머지할 때 Jira 이슈가 완료된다.
 
 ## 로그 크기 제한 적용 (최초 1회)

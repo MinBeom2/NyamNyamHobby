@@ -33,7 +33,7 @@ class ShortContentClassifierTest {
 
     @BeforeEach
     void setUp() {
-        ShortCollectProperties properties = new ShortCollectProperties(true, 2, 40, 3, 1000, 180, 9000, 0.7, 2);
+        ShortCollectProperties properties = new ShortCollectProperties(true, 2, 40, 3, 1000, 180, 9000, 0.7, 0.9, 2, 7, 30, 5);
         classifier = new ShortContentClassifier(gmsClient, JsonMapper.builder().build(), properties);
     }
 

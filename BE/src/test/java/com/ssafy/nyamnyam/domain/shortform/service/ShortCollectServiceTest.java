@@ -59,7 +59,7 @@ class ShortCollectServiceTest {
 
     @BeforeEach
     void setUp() {
-        ShortCollectProperties properties = new ShortCollectProperties(true, 2, 40, 3, 1000, 180, 9000, 0.7, 20);
+        ShortCollectProperties properties = new ShortCollectProperties(true, 2, 40, 3, 1000, 180, 9000, 0.7, 0.9, 20, 7, 30, 3);
         service = new ShortCollectService(properties, youtubeClient, new ShortFilter(), classifier, writer,
                 shortRepository, channelRepository, mappingRepository, batchRunRepository);
         lenient().when(batchRunRepository.save(any(BatchRun.class))).thenAnswer(invocation -> invocation.getArgument(0));
@@ -94,7 +94,7 @@ class ShortCollectServiceTest {
 
         assertThat(run.getStatus()).isEqualTo(BatchRunStatus.FAILED);
         assertThat(run.getMessage()).contains("YOUTUBE_API_KEY");
-        verify(youtubeClient, never()).searchShorts(anyString(), any());
+        verify(youtubeClient, never()).searchShorts(anyString(), any(), any());
     }
 
     @Test
@@ -108,7 +108,7 @@ class ShortCollectServiceTest {
 
         assertThat(run.getStatus()).isEqualTo(BatchRunStatus.PARTIAL);
         assertThat(run.getMessage()).contains("할당량");
-        verify(youtubeClient, never()).searchShorts(anyString(), any());
+        verify(youtubeClient, never()).searchShorts(anyString(), any(), any());
     }
 
     @Test
@@ -120,7 +120,7 @@ class ShortCollectServiceTest {
         given(youtubeClient.isConfigured()).willReturn(true);
         given(batchRunRepository.sumQuotaUsedSince(anyList(), any())).willReturn(0L);
 
-        given(youtubeClient.searchShorts("볼더링", null))
+        given(youtubeClient.searchShorts("볼더링", null, null))
                 .willReturn(new YoutubeSearchPage(List.of("good", "long", "few", "old"), "NEXT"));
         given(shortRepository.findExistingVideoIds(anyList())).willReturn(List.of("old"));
 
@@ -157,7 +157,7 @@ class ShortCollectServiceTest {
         givenTargets(mapping(10L, hobby(1L, "클라이밍"), "볼더링", null));
         given(youtubeClient.isConfigured()).willReturn(true);
         given(batchRunRepository.sumQuotaUsedSince(anyList(), any())).willReturn(0L);
-        given(youtubeClient.searchShorts("볼더링", null)).willReturn(new YoutubeSearchPage(List.of("old"), null));
+        given(youtubeClient.searchShorts("볼더링", null, null)).willReturn(new YoutubeSearchPage(List.of("old"), null));
         given(shortRepository.findExistingVideoIds(anyList())).willReturn(List.of("old"));
         given(writer.save(10L, 1L, List.of(), null)).willReturn(new SaveResult(0, 0, 0));
 
@@ -174,12 +174,12 @@ class ShortCollectServiceTest {
         givenTargets(mapping(10L, hobby(1L, "클라이밍"), "볼더링", null), mapping(20L, hobby(2L, "러닝"), "러닝 초보", null));
         given(youtubeClient.isConfigured()).willReturn(true);
         given(batchRunRepository.sumQuotaUsedSince(anyList(), any())).willReturn(0L);
-        given(youtubeClient.searchShorts("볼더링", null)).willThrow(new YoutubeQuotaExceededException("quotaExceeded"));
+        given(youtubeClient.searchShorts("볼더링", null, null)).willThrow(new YoutubeQuotaExceededException("quotaExceeded"));
 
         BatchRun run = service.collect();
 
         assertThat(run.getStatus()).isEqualTo(BatchRunStatus.PARTIAL);
-        verify(youtubeClient, never()).searchShorts(eq("러닝 초보"), any());
+        verify(youtubeClient, never()).searchShorts(eq("러닝 초보"), any(), any());
         verify(writer, never()).save(anyLong(), anyLong(), anyList(), any());
     }
 
@@ -189,8 +189,8 @@ class ShortCollectServiceTest {
         givenTargets(mapping(10L, hobby(1L, "클라이밍"), "볼더링", null), mapping(20L, hobby(2L, "러닝"), "러닝 초보", null));
         given(youtubeClient.isConfigured()).willReturn(true);
         given(batchRunRepository.sumQuotaUsedSince(anyList(), any())).willReturn(0L);
-        willThrow(new IllegalStateException("timeout")).given(youtubeClient).searchShorts("볼더링", null);
-        willReturn(new YoutubeSearchPage(List.of(), null)).given(youtubeClient).searchShorts("러닝 초보", null);
+        willThrow(new IllegalStateException("timeout")).given(youtubeClient).searchShorts("볼더링", null, null);
+        willReturn(new YoutubeSearchPage(List.of(), null)).given(youtubeClient).searchShorts("러닝 초보", null, null);
         given(writer.save(20L, 2L, List.of(), null)).willReturn(new SaveResult(0, 0, 0));
 
         BatchRun run = service.collect();
@@ -214,9 +214,75 @@ class ShortCollectServiceTest {
                 mapping(4L, yoga, "요가 스트레칭", now.minusHours(5))));
         given(shortRepository.countGroupByHobby(anyList())).willReturn(List.<Object[]>of(new Object[]{1L, 40L}));
 
-        List<HobbySourceMapping> picked = service.pickTargets();
+        List<ShortCollectService.CollectTarget> picked = service.pickTargets();
 
-        assertThat(picked).extracting(HobbySourceMapping::getKeyword).containsExactly("달리기 자세", "요가 스트레칭");
+        assertThat(picked).extracting(t -> t.mapping().getKeyword(), ShortCollectService.CollectTarget::mode)
+                .containsExactly(
+                        org.assertj.core.groups.Tuple.tuple("달리기 자세", ShortCollectService.Mode.FILL),
+                        org.assertj.core.groups.Tuple.tuple("요가 스트레칭", ShortCollectService.Mode.FILL));
+    }
+
+    @Test
+    @DisplayName("채울 취미가 없으면 목표를 채운 취미 중 갱신 주기(7일)가 지난 키워드를 갱신 대상으로 고름")
+    void pickRefreshTargets() {
+        Hobby climbing = hobby(1L, "클라이밍");
+        Hobby running = hobby(2L, "러닝");
+        LocalDateTime now = LocalDateTime.now();
+        given(mappingRepository.findAllWithHobby(SourceTarget.SHORT_KEYWORD, HobbyStatus.PUBLISHED)).willReturn(List.of(
+                mapping(1L, climbing, "볼더링", now.minusDays(8)),       // 7일 지남 → 갱신
+                mapping(2L, climbing, "클라이밍 초보", now.minusDays(9)), // 같은 취미라 한 번만
+                mapping(3L, running, "러닝 초보", now.minusDays(2))));  // 아직 주기 전
+        given(shortRepository.countGroupByHobby(anyList()))
+                .willReturn(List.of(new Object[]{1L, 40L}, new Object[]{2L, 45L}));
+
+        List<ShortCollectService.CollectTarget> picked = service.pickTargets();
+
+        assertThat(picked).extracting(t -> t.mapping().getKeyword(), ShortCollectService.CollectTarget::mode)
+                .containsExactly(org.assertj.core.groups.Tuple.tuple("클라이밍 초보", ShortCollectService.Mode.REFRESH));
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    @DisplayName("갱신은 최근 업로드만 검색하고, 검색 관련도 순으로 상한(3개)까지만 판별·저장하며 채우기 페이지 위치는 유지")
+    void refreshCollectsRecentInSearchOrder() {
+        Hobby climbing = hobby(1L, "클라이밍");
+        HobbySourceMapping keyword = mapping(10L, climbing, "볼더링", LocalDateTime.now().minusDays(8));
+        ReflectionTestUtils.setField(keyword, "nextPageToken", "FILL_TOKEN");
+        given(mappingRepository.findAllWithHobby(SourceTarget.SHORT_KEYWORD, HobbyStatus.PUBLISHED)).willReturn(List.of(keyword));
+        given(shortRepository.countGroupByHobby(anyList())).willReturn(List.<Object[]>of(new Object[]{1L, 40L}));
+        given(youtubeClient.isConfigured()).willReturn(true);
+        given(batchRunRepository.sumQuotaUsedSince(anyList(), any())).willReturn(0L);
+
+        given(youtubeClient.searchShorts(eq("볼더링"), isNull(), any(java.time.Instant.class)))
+                .willReturn(new YoutubeSearchPage(List.of("v3", "v1", "v5", "v2", "v4"), "IGNORED")); // 검색 관련도 순
+        given(shortRepository.findExistingVideoIds(anyList())).willReturn(List.of());
+        List<YoutubeVideo> videos = List.of(
+                ShortFilterTest.video("v1", "c1", 50, "public", true, null, null, 2_000),
+                ShortFilterTest.video("v2", "c2", 50, "public", true, null, null, 90_000),
+                ShortFilterTest.video("v3", "c3", 50, "public", true, null, null, 5_000),
+                ShortFilterTest.video("v4", "c4", 50, "public", true, null, null, 70_000),
+                ShortFilterTest.video("v5", "c5", 50, "public", true, null, null, 30_000));
+        given(youtubeClient.getVideos(anyList())).willReturn(videos);
+        given(channelRepository.findChannelIdsByStatus(any(), eq("REJECTED"))).willReturn(List.of());
+        given(shortRepository.countGroupByChannelForHobby(eq(1L), anyList())).willReturn(List.of());
+        given(classifier.classify(eq("클라이밍"), anyList())).willReturn(Map.of(
+                "v3", new ShortContentClassifier.Verdict(true, 0.9),
+                "v1", new ShortContentClassifier.Verdict(true, 0.9),
+                "v5", new ShortContentClassifier.Verdict(true, 0.9)));
+        given(writer.save(eq(10L), eq(1L), anyList(), eq("FILL_TOKEN"))).willReturn(new SaveResult(3, 0, 0));
+
+        BatchRun run = service.collect();
+
+        ArgumentCaptor<List<YoutubeVideo>> sentToGms = ArgumentCaptor.forClass(List.class);
+        verify(classifier).classify(eq("클라이밍"), sentToGms.capture());
+        // 조회수(v2 90,000 · v4 70,000)가 아니라 검색 순서대로 앞의 3개
+        assertThat(sentToGms.getValue()).extracting(YoutubeVideo::videoId).containsExactly("v3", "v1", "v5");
+
+        ArgumentCaptor<List<ShortDraft>> drafts = ArgumentCaptor.forClass(List.class);
+        verify(writer).save(eq(10L), eq(1L), drafts.capture(), eq("FILL_TOKEN"));
+        assertThat(drafts.getValue()).extracting(d -> d.video().videoId()).containsExactlyInAnyOrder("v3", "v1", "v5");
+        assertThat(run.getRejected()).isEqualTo(2); // 상한 밖 2개는 저장하지 않고 건너뜀
+        assertThat(run.getMessage()).contains("볼더링(갱신) +3");
     }
 
     @Test
@@ -228,6 +294,6 @@ class ShortCollectServiceTest {
 
         assertThat(run.getStatus()).isEqualTo(BatchRunStatus.SUCCESS);
         assertThat(run.getAccepted()).isEqualTo(5);
-        verify(youtubeClient, never()).searchShorts(anyString(), isNull());
+        verify(youtubeClient, never()).searchShorts(anyString(), isNull(), any());
     }
 }

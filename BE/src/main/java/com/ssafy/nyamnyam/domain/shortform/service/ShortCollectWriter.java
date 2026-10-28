@@ -60,7 +60,8 @@ public class ShortCollectWriter {
 
     /**
      * 키워드 하나의 수집 결과를 저장하고 키워드의 다음 수집 위치를 기록한다.
-     * REJECTED 영상은 취미·채널 없이 사유만 남긴다(다시 수집하지 않기 위한 기록).
+     * REJECTED 영상도 어느 취미 키워드에서 나왔는지 분석할 수 있게 취미를 남긴다(채널은 비움).
+     * 취미별 개수·채널 상한·노출은 모두 상태로 거르므로 REJECTED는 세지 않는다.
      */
     @Transactional
     public SaveResult save(Long mappingId, Long hobbyId, List<ShortDraft> drafts, String nextPageToken) {
@@ -78,7 +79,7 @@ public class ShortCollectWriter {
             boolean isRejected = decision.status() == ShortStatus.REJECTED;
 
             Short entity = Short.builder()
-                    .hobby(isRejected ? null : hobby)
+                    .hobby(hobby)
                     .channel(isRejected ? null : channels.get(video.channelId()))
                     .youtubeVideoId(video.videoId())
                     .title(truncate(video.title() == null || video.title().isBlank() ? "(제목 없음)" : video.title(), TITLE_MAX))

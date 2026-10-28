@@ -14,6 +14,8 @@ import org.springframework.web.client.RestClient;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -66,10 +68,21 @@ public class YoutubeClient {
      * @param pageToken 이어서 볼 페이지. 처음부터 보려면 null
      */
     public YoutubeSearchPage searchShorts(String query, String pageToken) {
+        return searchShorts(query, pageToken, null);
+    }
+
+    /**
+     * @param publishedAfter 이 시각 이후 업로드된 영상만(갱신 검색용). 제한 없으면 null
+     */
+    public YoutubeSearchPage searchShorts(String query, String pageToken, Instant publishedAfter) {
         Map<String, Object> vars = new HashMap<>();
         vars.put("q", query);
         if (pageToken != null && !pageToken.isBlank()) {
             vars.put("pageToken", pageToken);
+        }
+        if (publishedAfter != null) {
+            // RFC 3339(예: 2026-09-26T03:00:00Z)
+            vars.put("publishedAfter", publishedAfter.truncatedTo(ChronoUnit.SECONDS).toString());
         }
 
         YoutubeSearchResponse body = restClient.get()
@@ -85,6 +98,9 @@ public class YoutubeClient {
                             .queryParam("q", "{q}");
                     if (vars.containsKey("pageToken")) {
                         builder.queryParam("pageToken", "{pageToken}");
+                    }
+                    if (vars.containsKey("publishedAfter")) {
+                        builder.queryParam("publishedAfter", "{publishedAfter}");
                     }
                     return builder.build(vars);
                 })

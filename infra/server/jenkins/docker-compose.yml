@@ -20,6 +20,8 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
       # 배포 설정(앱 compose·.env)을 Jenkins 안에서 같은 경로로 읽기 위함
       - /home/ubuntu/app:/home/ubuntu/app:ro
+      # 프론트엔드 정적 파일 배포 위치 (호스트 Nginx가 /var/www/nyamnyam/current 를 서빙)
+      - /var/www/nyamnyam:/var/www/nyamnyam
     group_add:
       - "${DOCKER_GID}"
     networks: [backend]

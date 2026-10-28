@@ -29,6 +29,8 @@ export function SignupPage() {
   const [nicknameState, setNicknameState] = useState<CheckState>('idle');
   const { register, handleSubmit, getValues, setError, formState: { errors } } = useForm<SignupFormValues>({
     resolver: zodResolver(signupSchema),
+    mode: 'onChange',
+    reValidateMode: 'onChange',
     defaultValues: { email: '', nickname: '', password: '', passwordConfirm: '', terms: false, privacy: false },
   });
 

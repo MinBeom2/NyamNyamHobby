@@ -44,7 +44,7 @@ export function LoginPage() {
     mutationFn: login,
     onSuccess: (data) => {
       setSession(data);
-      navigate('/home', { replace: true });
+      navigate(data.user.onboarded ? '/home' : '/onboarding/interests', { replace: true });
     },
   });
 

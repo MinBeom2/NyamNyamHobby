@@ -1,4 +1,4 @@
-import { ChartNoAxesColumnIncreasing, Check, CircleDollarSign, Clock3, Play, Search } from 'lucide-react';
+import { ChartNoAxesColumnIncreasing, Check, CircleDollarSign, Clock3, MessageCircleQuestion, Play, Search } from 'lucide-react';
 import { useMutation } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { logout } from '../../features/auth/api/authApi';
@@ -153,6 +153,15 @@ export function MemberHomePage() {
             <NewsRow badge="입문 자료" title="처음 암장에 가기 전 알아두면 좋은 볼더링 용어 20" meta="게시 10.08" />
           </section>
         </div>
+
+        <section className="support-cta" aria-labelledby="support-cta-title">
+          <div className="support-cta__icon"><MessageCircleQuestion aria-hidden="true" /></div>
+          <div className="support-cta__copy">
+            <h2 id="support-cta-title">도움이 필요하신가요?</h2>
+            <p>서비스 이용 중 궁금하거나 불편한 점을 남겨 주시면 확인 후 답변해 드려요.</p>
+          </div>
+          <Button to="/support/inquiries">문의하기</Button>
+        </section>
       </div>
     </PageShell>
   );

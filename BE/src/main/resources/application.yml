@@ -86,8 +86,13 @@ app:
     min-view-count: 1000
     max-duration-seconds: 180
     daily-quota-limit: 9000       # YouTube 기본 한도 10,000 중 이 작업 상한
-    confidence-threshold: 0.7     # GPT 신뢰도 미만이면 NEEDS_REVIEW
+    confidence-threshold: 0.7     # "취미 영상"이라고 이 신뢰도 이상이면 CANDIDATE, 미만이면 NEEDS_REVIEW
+    reject-threshold: 0.9         # "취미 영상 아님"이라고 이 신뢰도 이상일 때만 REJECTED, 미만이면 NEEDS_REVIEW
     classify-chunk-size: 20
+    # 갱신: 목표(40개)를 채운 취미도 키워드마다 7일에 한 번, 최근 30일 업로드 중 검색 관련도 순 5개까지 새로 받음
+    refresh-interval-days: 7
+    refresh-window-days: 30
+    refresh-max-per-keyword: 5
 
 management:
   endpoints:

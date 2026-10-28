@@ -23,6 +23,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.time.Duration;
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
@@ -43,6 +45,9 @@ import java.util.concurrent.atomic.AtomicBoolean;
  *
  * <p>수집 한 번 = 목표에 못 미친 취미의 키워드 N개(기본 2개)를 오래된 순으로 골라
  * 검색(100단위) → 새 영상 상세 조회(1단위) → 기계적 필터 → GPT 판별 → 키워드 단위 저장.
+ * 목표를 채운 취미도 refresh-interval-days마다 키워드를 다시 검색해, 최근 refresh-window-days 안에 올라온
+ * 영상 중 검색 관련도 순으로 refresh-max-per-keyword개까지 새로 받는다(갱신). 이미 저장된 영상은
+ * 상태와 관계없이(REJECTED 포함) 건너뛰므로 같은 영상을 다시 받거나 다시 판별하지 않는다.
  * 이 클래스에는 트랜잭션을 걸지 않는다. 외부 API를 기다리는 동안 DB 커넥션을 잡지 않도록
  * 저장만 {@link ShortCollectWriter}에서 짧게 처리한다.</p>
  */
@@ -74,6 +79,12 @@ public class ShortCollectService {
     private final BatchRunRepository batchRunRepository;
 
     private final AtomicBoolean collecting = new AtomicBoolean(false);
+
+    /** FILL: 목표 개수까지 채우기(검색 결과를 페이지 순서대로) · REFRESH: 목표를 채운 취미에 최근 영상 조금씩 더하기 */
+    enum Mode { FILL, REFRESH }
+
+    record CollectTarget(HobbySourceMapping mapping, Mode mode) {
+    }
 
     /** 수집 1회. 이미 실행 중이면 건너뛴다(직전 회차가 1시간을 넘긴 경우). */
     public BatchRun collect() {
@@ -119,20 +130,21 @@ public class ShortCollectService {
         }
 
         long usedToday = quotaUsedToday();
-        List<HobbySourceMapping> targets = pickTargets();
+        List<CollectTarget> targets = pickTargets();
         if (targets.isEmpty()) {
-            stats.note("수집할 키워드 없음(모든 취미가 목표 개수 도달)");
+            stats.note("수집할 키워드 없음(모든 취미가 목표 도달, 갱신 주기 전)");
             return;
         }
 
-        for (HobbySourceMapping target : targets) {
+        for (CollectTarget collectTarget : targets) {
+            HobbySourceMapping target = collectTarget.mapping();
             if (usedToday + stats.quotaUsed + COST_PER_KEYWORD > properties.dailyQuotaLimit()) {
                 stats.note("하루 할당량 상한(" + properties.dailyQuotaLimit() + ") 도달, 오늘 사용 " + (usedToday + stats.quotaUsed));
                 stats.stoppedByQuota = true;
                 break;
             }
             try {
-                collectKeyword(target, stats);
+                collectKeyword(collectTarget, stats);
                 stats.succeeded++;
             } catch (YoutubeQuotaExceededException e) {
                 stats.fail(target.getKeyword(), e.getMessage());
@@ -145,12 +157,18 @@ public class ShortCollectService {
         }
     }
 
-    private void collectKeyword(HobbySourceMapping target, CollectStats stats) {
+    private void collectKeyword(CollectTarget collectTarget, CollectStats stats) {
+        HobbySourceMapping target = collectTarget.mapping();
+        boolean refresh = collectTarget.mode() == Mode.REFRESH;
         Long hobbyId = target.getHobby().getId();
         String hobbyName = target.getHobby().getName();
 
         stats.quotaUsed += YoutubeClient.SEARCH_COST;
-        YoutubeSearchPage page = youtubeClient.searchShorts(target.getKeyword(), target.getNextPageToken());
+        // 갱신은 최근 업로드만 첫 페이지부터 본다. 채우기용 페이지 위치(nextPageToken)는 건드리지 않는다
+        YoutubeSearchPage page = refresh
+                ? youtubeClient.searchShorts(target.getKeyword(), null,
+                        Instant.now().minus(Duration.ofDays(properties.refreshWindowDays())))
+                : youtubeClient.searchShorts(target.getKeyword(), target.getNextPageToken(), null);
         stats.processed += page.videoIds().size();
 
         List<ShortDraft> drafts = new ArrayList<>();
@@ -167,31 +185,57 @@ public class ShortCollectService {
                     .filter(j -> j.outcome() == Outcome.PASS)
                     .map(Judgement::video)
                     .toList();
+            if (refresh) {
+                // 갱신은 검색 관련도 순(YouTube 검색 결과 순서)으로 일부만 판별·저장한다.
+                // 조회수 순으로 고르면 뉴스·바이럴 영상이 앞을 차지해 취미 영상이 밀려난다.
+                // 나머지는 저장하지 않아 다음 갱신 때 다시 후보가 된다
+                Map<String, Integer> searchRank = new HashMap<>();
+                for (int i = 0; i < page.videoIds().size(); i++) {
+                    searchRank.putIfAbsent(page.videoIds().get(i), i);
+                }
+                passed = passed.stream()
+                        .sorted(Comparator.comparingInt(v -> searchRank.getOrDefault(v.videoId(), Integer.MAX_VALUE)))
+                        .limit(Math.max(0, properties.refreshMaxPerKeyword()))
+                        .toList();
+            }
+            Set<String> passedIds = new HashSet<>();
+            passed.forEach(v -> passedIds.add(v.videoId()));
             Map<String, ShortContentClassifier.Verdict> verdicts = classifier.classify(hobbyName, passed);
 
             for (Judgement judgement : judgements) {
                 switch (judgement.outcome()) {
                     case REJECT -> drafts.add(new ShortDraft(judgement.video(),
                             new ShortFilter.Decision(ShortStatus.REJECTED, judgement.reason(), null)));
-                    case PASS -> drafts.add(new ShortDraft(judgement.video(),
-                            ShortFilter.decide(verdicts.get(judgement.video().videoId()), properties.confidenceThreshold())));
+                    case PASS -> {
+                        if (passedIds.contains(judgement.video().videoId())) {
+                            drafts.add(new ShortDraft(judgement.video(),
+                                    ShortFilter.decide(verdicts.get(judgement.video().videoId()),
+                                            properties.confidenceThreshold(), properties.rejectThreshold())));
+                        } else {
+                            skipped++;
+                        }
+                    }
                     case SKIP -> skipped++;
                 }
             }
         }
 
-        SaveResult saved = writer.save(target.getId(), hobbyId, drafts, page.nextPageToken());
+        String nextPageToken = refresh ? target.getNextPageToken() : page.nextPageToken();
+        SaveResult saved = writer.save(target.getId(), hobbyId, drafts, nextPageToken);
         stats.accepted += saved.accepted();
         stats.rejected += saved.rejected() + skipped;
-        stats.note(target.getKeyword() + " +" + saved.candidates()
+        stats.note(target.getKeyword() + (refresh ? "(갱신)" : "") + " +" + saved.candidates()
                 + (saved.needsReview() > 0 ? "(검토 " + saved.needsReview() + ")" : ""));
     }
 
     /**
-     * 목표 개수에 못 미친 공개 취미의 숏폼 키워드를 오래전에 수집한 순(처음이면 맨 앞)으로 고른다.
-     * 한 번 실행에서 같은 취미는 한 번만 고른다.
+     * 이번에 검색할 키워드를 고른다. 모두 오래전에 수집한 순(처음이면 맨 앞), 한 번 실행에서 같은 취미는 한 번만.
+     * <ol>
+     *   <li>채우기(FILL): 목표 개수에 못 미친 취미의 키워드를 먼저 고른다.</li>
+     *   <li>갱신(REFRESH): 자리가 남으면, 목표를 채운 취미 중 마지막 수집 뒤 refresh-interval-days가 지난 키워드를 고른다.</li>
+     * </ol>
      */
-    List<HobbySourceMapping> pickTargets() {
+    List<CollectTarget> pickTargets() {
         List<HobbySourceMapping> mappings = mappingRepository.findAllWithHobby(SourceTarget.SHORT_KEYWORD, HobbyStatus.PUBLISHED);
         Map<Long, Long> counts = new HashMap<>();
         for (Object[] row : shortRepository.countGroupByHobby(TARGET_STATUSES)) {
@@ -205,16 +249,29 @@ public class ShortCollectService {
                 .toList();
 
         Set<Long> pickedHobbies = new HashSet<>();
-        List<HobbySourceMapping> picked = new ArrayList<>();
+        List<CollectTarget> picked = new ArrayList<>();
+
         for (HobbySourceMapping mapping : sorted) {
+            if (picked.size() >= properties.keywordsPerRun()) {
+                return picked;
+            }
             Long hobbyId = mapping.getHobby().getId();
+            if (counts.getOrDefault(hobbyId, 0L) < properties.targetPerHobby() && pickedHobbies.add(hobbyId)) {
+                picked.add(new CollectTarget(mapping, Mode.FILL));
+            }
+        }
+
+        LocalDateTime refreshBefore = LocalDateTime.now().minusDays(properties.refreshIntervalDays());
+        for (HobbySourceMapping mapping : sorted) {
             if (picked.size() >= properties.keywordsPerRun()) {
                 break;
             }
-            if (counts.getOrDefault(hobbyId, 0L) >= properties.targetPerHobby() || !pickedHobbies.add(hobbyId)) {
-                continue;
+            Long hobbyId = mapping.getHobby().getId();
+            boolean full = counts.getOrDefault(hobbyId, 0L) >= properties.targetPerHobby();
+            boolean due = mapping.getLastCollectedAt() == null || !mapping.getLastCollectedAt().isAfter(refreshBefore);
+            if (full && due && pickedHobbies.add(hobbyId)) {
+                picked.add(new CollectTarget(mapping, Mode.REFRESH));
             }
-            picked.add(mapping);
         }
         return picked;
     }

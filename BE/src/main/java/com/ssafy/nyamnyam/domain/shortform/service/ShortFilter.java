@@ -86,18 +86,22 @@ public class ShortFilter {
 
     /**
      * GPT 판별 결과로 저장 상태를 정한다.
-     * 취미 영상이 확실하면 CANDIDATE(주간 반영 때 노출), 취미 영상이 아닌 게 확실하면 REJECTED,
-     * 판별 실패·애매하면 NEEDS_REVIEW(관리자 승인 전까지 노출하지 않음).
+     * <ul>
+     *   <li>취미 영상이라고 acceptThreshold 이상 → CANDIDATE(주간 반영 때 노출)</li>
+     *   <li>취미 영상이 아니라고 rejectThreshold 이상 → REJECTED(NOT_HOBBY). 확실할 때만 버린다</li>
+     *   <li>그 밖(애매함·판별 실패) → NEEDS_REVIEW(관리자 승인 전까지 노출하지 않음)</li>
+     * </ul>
      */
-    public static Decision decide(ShortContentClassifier.Verdict verdict, double threshold) {
+    public static Decision decide(ShortContentClassifier.Verdict verdict, double acceptThreshold, double rejectThreshold) {
         if (verdict == null) {
             return new Decision(ShortStatus.NEEDS_REVIEW, null, null);
         }
         double confidence = verdict.confidence();
-        if (confidence >= threshold) {
-            return verdict.hobbyContent()
-                    ? new Decision(ShortStatus.CANDIDATE, null, confidence)
-                    : new Decision(ShortStatus.REJECTED, NOT_HOBBY, confidence);
+        if (verdict.hobbyContent() && confidence >= acceptThreshold) {
+            return new Decision(ShortStatus.CANDIDATE, null, confidence);
+        }
+        if (!verdict.hobbyContent() && confidence >= rejectThreshold) {
+            return new Decision(ShortStatus.REJECTED, NOT_HOBBY, confidence);
         }
         return new Decision(ShortStatus.NEEDS_REVIEW, null, confidence);
     }

@@ -95,19 +95,22 @@ class ShortFilterTest {
     }
 
     @Test
-    @DisplayName("GPT 판별: 확실한 취미 영상만 CANDIDATE, 확실히 아니면 REJECTED, 나머지는 NEEDS_REVIEW")
+    @DisplayName("GPT 판별: 취미 영상 0.7 이상만 CANDIDATE, 아니라고 0.9 이상일 때만 REJECTED, 나머지는 NEEDS_REVIEW")
     void decide() {
-        assertThat(ShortFilter.decide(new ShortContentClassifier.Verdict(true, 0.9), 0.7))
+        assertThat(ShortFilter.decide(new ShortContentClassifier.Verdict(true, 0.9), 0.7, 0.9))
                 .isEqualTo(new Decision(ShortStatus.CANDIDATE, null, 0.9));
-        assertThat(ShortFilter.decide(new ShortContentClassifier.Verdict(true, 0.7), 0.7).status())
+        assertThat(ShortFilter.decide(new ShortContentClassifier.Verdict(true, 0.7), 0.7, 0.9).status())
                 .isEqualTo(ShortStatus.CANDIDATE);
-        assertThat(ShortFilter.decide(new ShortContentClassifier.Verdict(true, 0.5), 0.7).status())
+        assertThat(ShortFilter.decide(new ShortContentClassifier.Verdict(true, 0.5), 0.7, 0.9).status())
                 .isEqualTo(ShortStatus.NEEDS_REVIEW);
-        assertThat(ShortFilter.decide(new ShortContentClassifier.Verdict(false, 0.95), 0.7))
+        assertThat(ShortFilter.decide(new ShortContentClassifier.Verdict(false, 0.95), 0.7, 0.9))
                 .isEqualTo(new Decision(ShortStatus.REJECTED, ShortFilter.NOT_HOBBY, 0.95));
-        assertThat(ShortFilter.decide(new ShortContentClassifier.Verdict(false, 0.4), 0.7).status())
+        // "아님"이지만 확신이 0.9 미만이면 버리지 않고 보류
+        assertThat(ShortFilter.decide(new ShortContentClassifier.Verdict(false, 0.8), 0.7, 0.9))
+                .isEqualTo(new Decision(ShortStatus.NEEDS_REVIEW, null, 0.8));
+        assertThat(ShortFilter.decide(new ShortContentClassifier.Verdict(false, 0.4), 0.7, 0.9).status())
                 .isEqualTo(ShortStatus.NEEDS_REVIEW);
-        assertThat(ShortFilter.decide(null, 0.7))
+        assertThat(ShortFilter.decide(null, 0.7, 0.9))
                 .isEqualTo(new Decision(ShortStatus.NEEDS_REVIEW, null, null));
     }
 }

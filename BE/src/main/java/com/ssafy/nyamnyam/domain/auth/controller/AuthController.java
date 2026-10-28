@@ -169,4 +169,29 @@ public class AuthController {
         MessageResponse response = authService.resetPassword(request);
         return ResponseEntity.ok(ApiResponse.success(response));
     }
+
+    /**
+     * 11) 소셜 회원가입 완료 (201 Created, Refresh Token 쿠키 발급 + 자동 로그인)
+     */
+    @PostMapping("/oauth/signup")
+    public ResponseEntity<ApiResponse<LoginResponse>> oauthSignup(
+            @Valid @RequestBody OAuthSignupRequest request,
+            HttpServletResponse response
+    ) {
+        LoginResult result = authService.oauthSignup(request);
+
+        CookieUtils.addRefreshTokenCookie(
+                response,
+                result.getRefreshToken(),
+                jwtProvider.getRefreshTokenValidityInSeconds()
+        );
+
+        LoginResponse loginResponse = new LoginResponse(
+                result.getAccessToken(),
+                result.getExpiresIn(),
+                result.getUser()
+        );
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(loginResponse));
+    }
 }
+

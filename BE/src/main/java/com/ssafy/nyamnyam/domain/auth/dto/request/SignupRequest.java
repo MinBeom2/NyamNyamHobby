@@ -19,9 +19,10 @@ public class SignupRequest {
     @NotBlank(message = "비밀번호를 입력해 주세요.")
     @Size(min = 8, max = 20, message = "비밀번호는 8~20자로 입력해 주세요.")
     @Pattern(
-            regexp = "^(?=.*[A-Za-z])(?=.*\\d|.*[^A-Za-z0-9])|(?=.*\\d)(?=.*[^A-Za-z0-9]).{8,20}$",
+            regexp = "^(?:(?=.*[A-Za-z])(?=.*\\d)|(?=.*[A-Za-z])(?=.*[^A-Za-z0-9])|(?=.*\\d)(?=.*[^A-Za-z0-9])).{8,20}$",
             message = "비밀번호는 영문, 숫자, 특수문자 중 2종 이상을 조합해야 합니다."
     )
+
     private String password;
 
     @NotBlank(message = "닉네임을 입력해 주세요.")

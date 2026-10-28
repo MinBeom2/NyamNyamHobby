@@ -28,6 +28,10 @@ class RecommendationControllerTest {
     @Autowired MockMvc mvc;
     @MockitoBean HobbyRecommendationService service;
     @MockitoBean JwtProvider jwtProvider;
+    @MockitoBean com.ssafy.nyamnyam.global.security.oauth2.CustomOAuth2UserService customOAuth2UserService;
+    @MockitoBean com.ssafy.nyamnyam.global.security.oauth2.OAuth2AuthenticationSuccessHandler oAuth2AuthenticationSuccessHandler;
+    @MockitoBean com.ssafy.nyamnyam.global.security.oauth2.OAuth2AuthenticationFailureHandler oAuth2AuthenticationFailureHandler;
+
 
     @Test void requiresAuthentication() throws Exception {
         mvc.perform(post(PATH).contentType(MediaType.APPLICATION_JSON).content("{\"preferenceScores\":{}}"))

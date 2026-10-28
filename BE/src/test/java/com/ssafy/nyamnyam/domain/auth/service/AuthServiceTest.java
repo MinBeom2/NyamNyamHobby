@@ -229,4 +229,71 @@ class AuthServiceTest {
                 .isInstanceOf(CustomException.class)
                 .hasFieldOrPropertyWithValue("errorCode", ErrorCode.AUTH_EMAIL_NOT_VERIFIED);
     }
+
+    @Test
+    @DisplayName("소셜 회원가입 성공 - 유효한 토큰과 미중복 닉네임으로 계정 생성 및 로그인")
+    void oauthSignup_Success() {
+        // given
+        com.ssafy.nyamnyam.domain.auth.dto.request.OAuthSignupRequest request =
+                new com.ssafy.nyamnyam.domain.auth.dto.request.OAuthSignupRequest("valid-signup-token", "구글유저");
+
+        io.jsonwebtoken.Claims claims = org.mockito.Mockito.mock(io.jsonwebtoken.Claims.class);
+        given(claims.getSubject()).willReturn("OAUTH_SIGNUP");
+        given(claims.get("provider", String.class)).willReturn("GOOGLE");
+        given(claims.get("providerUserId", String.class)).willReturn("google-12345");
+        given(claims.get("email", String.class)).willReturn("googleuser@gmail.com");
+
+        given(jwtProvider.validateToken("valid-signup-token")).willReturn(true);
+        given(jwtProvider.parseClaims("valid-signup-token")).willReturn(claims);
+        given(userRepository.existsByNickname("구글유저")).willReturn(false);
+        given(socialAccountRepository.findByProviderAndProviderUserId(any(), any())).willReturn(Optional.empty());
+        given(userRepository.existsByEmail("googleuser@gmail.com")).willReturn(false);
+
+        User savedUser = User.builder()
+                .email("googleuser@gmail.com")
+                .nickname("구글유저")
+                .role(Role.USER)
+                .status(UserStatus.ACTIVE)
+                .build();
+        given(userRepository.save(any(User.class))).willReturn(savedUser);
+        given(jwtProvider.createAccessToken(any(), any(), any())).willReturn("access-token");
+        given(jwtProvider.createRefreshToken(any())).willReturn("refresh-token");
+        given(jwtProvider.getAccessTokenValidityInSeconds()).willReturn(1800L);
+        given(jwtProvider.getRefreshTokenValidityInSeconds()).willReturn(1209600L);
+        given(userConditionRepository.existsByUserId(any())).willReturn(false);
+
+        // when
+        LoginResult result = authService.oauthSignup(request);
+
+        // then
+        assertThat(result).isNotNull();
+        assertThat(result.getAccessToken()).isEqualTo("access-token");
+        assertThat(result.getUser().getEmail()).isEqualTo("googleuser@gmail.com");
+        assertThat(result.getUser().getNickname()).isEqualTo("구글유저");
+        verify(socialAccountRepository).save(any());
+    }
+
+    @Test
+    @DisplayName("소셜 회원가입 실패 - 닉네임 중복 시 AUTH_NICKNAME_DUPLICATED")
+    void oauthSignup_NicknameDuplicated() {
+        // given
+        com.ssafy.nyamnyam.domain.auth.dto.request.OAuthSignupRequest request =
+                new com.ssafy.nyamnyam.domain.auth.dto.request.OAuthSignupRequest("valid-signup-token", "중복닉네임");
+
+        io.jsonwebtoken.Claims claims = org.mockito.Mockito.mock(io.jsonwebtoken.Claims.class);
+        given(claims.getSubject()).willReturn("OAUTH_SIGNUP");
+        given(claims.get("provider", String.class)).willReturn("GOOGLE");
+        given(claims.get("providerUserId", String.class)).willReturn("google-12345");
+        given(claims.get("email", String.class)).willReturn("googleuser@gmail.com");
+
+        given(jwtProvider.validateToken("valid-signup-token")).willReturn(true);
+        given(jwtProvider.parseClaims("valid-signup-token")).willReturn(claims);
+        given(userRepository.existsByNickname("중복닉네임")).willReturn(true);
+
+        // when & then
+        assertThatThrownBy(() -> authService.oauthSignup(request))
+                .isInstanceOf(CustomException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.AUTH_NICKNAME_DUPLICATED);
+    }
 }
+

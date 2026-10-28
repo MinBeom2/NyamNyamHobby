@@ -130,7 +130,7 @@
   - login(5회 연속 실패 5분 잠금, 실패 문구 통일, PENDING 안내), refresh(Refresh 교체 발급), logout(Refresh 폐기·쿠키 삭제).
   - API·배치: /auth/login · /auth/refresh · /auth/logout
   - 근거: FR-AUTH-02
-- [ ] **AUTH-B04 소셜 로그인** · `권장` · 소셜 로그인
+- [x] **AUTH-B04 소셜 로그인** · `권장` · 소셜 로그인
   - OAuth2 Client(Google만, Authorization Code), 콜백 → 토큰 발급 → 프론트 /oauth/callback 리다이렉트, (provider, providerUserId) 식별, 최초 가입은 임시 토큰 + /auth/oauth/signup 닉네임 확정, 같은 이메일 자동 연동 안 함.
   - API·배치: /oauth2/** · /auth/oauth/signup · social_accounts
   - 근거: FR-AUTH-03

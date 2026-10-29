@@ -60,6 +60,7 @@ public class ExplorationSession {
     }
 
     public void complete() {
+        if (this.status != SessionStatus.IN_PROGRESS) return;
         this.status = SessionStatus.COMPLETED;
         this.endedAt = LocalDateTime.now();
     }

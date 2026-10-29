@@ -13,6 +13,16 @@ import java.util.Optional;
 
 public interface ShortReactionRepository extends JpaRepository<ShortReaction, Long> {
 
+    interface SessionReference {
+        Long getSessionId();
+    }
+
+    // 취소 시 세션 잠금을 먼저 잡고, 반응 엔티티는 영상 잠금을 획득한 후 새로 조회한다.
+    Optional<SessionReference> findSessionReferenceByUserAndShortformId(User user, Long shortId);
+
+    @Query("SELECT COUNT(DISTINCT sr.user.id) FROM ShortReaction sr WHERE sr.shortform.id = :shortId AND sr.type = :type")
+    long countByShortformIdAndType(@Param("shortId") Long shortId, @Param("type") ReactionType type);
+
     Optional<ShortReaction> findByUserAndShortform(User user, Short shortform);
 
     Optional<ShortReaction> findByUserAndShortformId(User user, Long shortId);

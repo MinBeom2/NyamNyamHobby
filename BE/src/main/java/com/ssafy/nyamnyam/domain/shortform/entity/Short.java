@@ -103,13 +103,18 @@ public class Short {
         this.updatedAt = LocalDateTime.now();
     }
 
-    public void incrementIrrelevantCount(int delta) {
-        this.irrelevantCount = Math.max(0, this.irrelevantCount + delta);
-        this.updatedAt = LocalDateTime.now();
-    }
-
-    public void incrementViewUserCount() {
-        this.viewUserCount++;
+    /** 영상 잠금 안에서 원본 기록을 집계해 갱신한다. 숨김·이용 불가 영상의 자동 복구는 하지 않는다. */
+    public void updateStatistics(long viewUsers, long failedUsers, long irrelevantUsers) {
+        this.viewUserCount = Math.toIntExact(viewUsers);
+        this.failUserCount = Math.toIntExact(failedUsers);
+        this.irrelevantCount = Math.toIntExact(irrelevantUsers);
+        if (this.status == ShortStatus.ACTIVE) {
+            if (failedUsers >= 3) {
+                this.status = ShortStatus.UNAVAILABLE;
+            } else if (irrelevantUsers >= 5 && viewUsers > 0 && irrelevantUsers * 100 >= viewUsers * 20) {
+                this.status = ShortStatus.AUTO_HIDDEN;
+            }
+        }
         this.updatedAt = LocalDateTime.now();
     }
 
@@ -120,8 +125,4 @@ public class Short {
         this.updatedAt = LocalDateTime.now();
     }
 
-    public void incrementFailUserCount() {
-        this.failUserCount++;
-        this.updatedAt = LocalDateTime.now();
-    }
 }

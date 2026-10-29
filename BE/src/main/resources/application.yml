@@ -76,6 +76,9 @@ jwt:
   access-token-validity-in-seconds: 1800 # 30분
   refresh-token-validity-in-seconds: 1209600 # 14일
 
+exploration:
+  session-size: ${EXPLORATION_SESSION_SIZE:12} # 새 탐색 세션의 최대 노출 수. 기존 세션은 생성 당시 값을 유지
+
 app:
   frontend-url: ${FRONTEND_URL:http://localhost:5173}
   youtube:

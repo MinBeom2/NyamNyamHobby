@@ -8,6 +8,7 @@ import com.ssafy.nyamnyam.domain.hobby.entity.*;
 import com.ssafy.nyamnyam.domain.hobby.repository.HobbyRepository;
 import com.ssafy.nyamnyam.domain.recommendation.dto.event.RecommendationReasonEvent;
 import com.ssafy.nyamnyam.domain.recommendation.dto.response.RecommendationResponse;
+import com.ssafy.nyamnyam.domain.recommendation.dto.response.FinishExplorationResult;
 import com.ssafy.nyamnyam.domain.recommendation.entity.*;
 import com.ssafy.nyamnyam.domain.recommendation.repository.RecommendationItemRepository;
 import com.ssafy.nyamnyam.domain.recommendation.repository.RecommendationRepository;
@@ -45,10 +46,22 @@ public class RecommendationService {
      * 탐색 세션 종료 및 추천 생성 (비동기 AI 추천 사유 이벤트 발행)
      */
     @Transactional
-    public RecommendationResponse finishExploration(Long sessionId, User user) {
-        ExplorationSession session = sessionRepository.findByIdAndUser(sessionId, user)
+    public FinishExplorationResult finishExploration(Long sessionId, User user) {
+        ExplorationSession session = sessionRepository.findByIdAndUserForUpdate(sessionId, user)
                 .orElseThrow(() -> new CustomException(ErrorCode.COMMON_NOT_FOUND, "탐색 세션을 찾을 수 없습니다."));
 
+        Optional<Recommendation> existing = recommendationRepository.findBySessionId(sessionId);
+        if (existing.isPresent()) {
+            Recommendation recommendation = existing.get();
+            List<RecommendationResponse.RecommendationItemDto> items = itemRepository
+                    .findByRecommendationOrderByRankNoAsc(recommendation).stream()
+                    .map(item -> toItemDto(item, item.getHobby()))
+                    .toList();
+            return new FinishExplorationResult(toResponse(recommendation, items), false);
+        }
+        if (session.getStatus() == SessionStatus.ABANDONED) {
+            throw new CustomException(ErrorCode.SHORT_SESSION_ENDED);
+        }
         session.complete();
 
         List<ExplorationView> views = viewRepository.findBySessionOrderBySeqAsc(session);
@@ -203,12 +216,17 @@ public class RecommendationService {
             log.error("Failed to publish RecommendationReasonEvent to RabbitMQ: {}", e.getMessage());
         }
 
+        return new FinishExplorationResult(toResponse(recommendation, itemDtos), true);
+    }
+
+    private RecommendationResponse toResponse(Recommendation recommendation,
+                                               List<RecommendationResponse.RecommendationItemDto> items) {
         return RecommendationResponse.builder()
                 .recommendationId(recommendation.getId())
                 .basis(recommendation.getBasis())
                 .isExploratory(recommendation.isExploratory())
                 .reactionCount((int) recommendation.getReactionCount())
-                .items(itemDtos)
+                .items(items)
                 .build();
     }
 

@@ -1,5 +1,6 @@
 package com.ssafy.nyamnyam.domain.exploration.service;
 
+import com.ssafy.nyamnyam.domain.exploration.config.ExplorationProperties;
 import com.ssafy.nyamnyam.domain.exploration.dto.request.ReactionRequest;
 import com.ssafy.nyamnyam.domain.exploration.dto.request.RecordViewRequest;
 import com.ssafy.nyamnyam.domain.exploration.dto.response.*;
@@ -8,9 +9,7 @@ import com.ssafy.nyamnyam.domain.exploration.repository.ExplorationSessionReposi
 import com.ssafy.nyamnyam.domain.exploration.repository.ExplorationViewRepository;
 import com.ssafy.nyamnyam.domain.exploration.repository.ShortReactionRepository;
 import com.ssafy.nyamnyam.domain.hobby.entity.Hobby;
-import com.ssafy.nyamnyam.domain.hobby.entity.HobbyTag;
-import com.ssafy.nyamnyam.domain.hobby.entity.Tag;
-import com.ssafy.nyamnyam.domain.hobby.entity.TagGroup;
+import com.ssafy.nyamnyam.domain.recommendation.repository.RecommendationRepository;
 import com.ssafy.nyamnyam.domain.shortform.entity.Short;
 import com.ssafy.nyamnyam.domain.shortform.entity.ShortStatus;
 import com.ssafy.nyamnyam.domain.shortform.repository.ShortRepository;
@@ -21,10 +20,12 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.annotation.Isolation;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.*;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -37,37 +38,24 @@ public class ExplorationService {
     private final ExplorationViewRepository viewRepository;
     private final ShortReactionRepository reactionRepository;
     private final ShortRepository shortRepository;
-
-    private static final int DEFAULT_SESSION_SIZE = 12;
+    private final ExplorationProperties explorationProperties;
+    private final RecommendationRepository recommendationRepository;
 
     /**
      * 1) 숏폼 탐색 세션 시작 + 첫 번째 영상 반환
      */
     @Transactional
     public StartExplorationResponse startSession(User user) {
+        Short firstShort = selectShort(user, List.of())
+                .orElseThrow(() -> new CustomException(ErrorCode.COMMON_NOT_FOUND, "노출 가능한 숏폼 영상이 없습니다."));
+
         ExplorationSession session = ExplorationSession.builder()
                 .user(user)
-                .maxCount((short) DEFAULT_SESSION_SIZE)
+                .maxCount((short) explorationProperties.getSessionSize())
                 .build();
         sessionRepository.save(session);
 
-        // 제외 대상: 관련 없음 표시한 영상
-        Set<Long> excludedIds = new HashSet<>(reactionRepository.findShortIdsByUserIdAndType(user.getId(), ReactionType.IRRELEVANT));
-
-        List<Short> candidates = excludedIds.isEmpty() ?
-                shortRepository.findWithHobbyByStatus(ShortStatus.ACTIVE) :
-                shortRepository.findCandidatesExcluding(ShortStatus.ACTIVE, excludedIds);
-
-        if (candidates.isEmpty()) {
-            throw new CustomException(ErrorCode.COMMON_NOT_FOUND, "노출 가능한 숏폼 영상이 없습니다.");
-        }
-
-        // 무작위 1개 선택
-        Collections.shuffle(candidates);
-        Short firstShort = candidates.get(0);
-
         session.incrementViewedCount();
-        firstShort.incrementViewUserCount();
 
         ExplorationView view = ExplorationView.builder()
                 .session(session)
@@ -78,6 +66,7 @@ public class ExplorationService {
                 .playFailed(false)
                 .build();
         viewRepository.save(view);
+        refreshStatistics(firstShort);
 
         ReactionType myReaction = reactionRepository.findByUserAndShortform(user, firstShort)
                 .map(ShortReaction::getType)
@@ -98,46 +87,24 @@ public class ExplorationService {
      */
     @Transactional
     public NextShortResponse getNextShort(Long sessionId, User user) {
-        ExplorationSession session = getSessionOrThrow(sessionId, user);
+        ExplorationSession session = getSessionForUpdate(sessionId, user);
 
         if (session.getStatus() != SessionStatus.IN_PROGRESS || session.getViewedCount() >= session.getMaxCount()) {
             session.complete();
             return new NextShortResponse(true, (int) session.getViewedCount(), null);
         }
 
-        // 이번 세션에서 이미 본 영상
         List<Long> sessionViewedIds = viewRepository.findViewedShortIdsBySessionId(sessionId);
-        // 사용자가 관련 없음 누른 영상
-        List<Long> irrelevantIds = reactionRepository.findShortIdsByUserIdAndType(user.getId(), ReactionType.IRRELEVANT);
-        // 사용자가 과거에 본 영상 전체
-        List<Long> allViewedIds = viewRepository.findAllViewedShortIdsByUserId(user.getId());
+        Optional<Short> selected = selectShort(user, sessionViewedIds);
 
-        Set<Long> excludedIds = new HashSet<>();
-        excludedIds.addAll(sessionViewedIds);
-        excludedIds.addAll(irrelevantIds);
-        excludedIds.addAll(allViewedIds);
-
-        List<Short> candidates = shortRepository.findCandidatesExcluding(ShortStatus.ACTIVE, excludedIds);
-
-        // 후보가 부족하면 이번 세션에서 보지 않았고 관련 없음이 아닌 영상 중에서 선택
-        if (candidates.isEmpty()) {
-            Set<Long> fallbackExcluded = new HashSet<>();
-            fallbackExcluded.addAll(sessionViewedIds);
-            fallbackExcluded.addAll(irrelevantIds);
-            candidates = shortRepository.findCandidatesExcluding(ShortStatus.ACTIVE, fallbackExcluded);
-        }
-
-        // 그래도 후보가 없으면 종료
-        if (candidates.isEmpty()) {
+        if (selected.isEmpty()) {
             session.complete();
             return new NextShortResponse(true, (int) session.getViewedCount(), null);
         }
 
-        Collections.shuffle(candidates);
-        Short nextShort = candidates.get(0);
+        Short nextShort = selected.get();
 
         session.incrementViewedCount();
-        nextShort.incrementViewUserCount();
 
         ExplorationView view = ExplorationView.builder()
                 .session(session)
@@ -148,6 +115,7 @@ public class ExplorationService {
                 .playFailed(false)
                 .build();
         viewRepository.save(view);
+        refreshStatistics(nextShort);
 
         ReactionType myReaction = reactionRepository.findByUserAndShortform(user, nextShort)
                 .map(ShortReaction::getType)
@@ -163,9 +131,11 @@ public class ExplorationService {
      */
     @Transactional
     public void recordView(Long sessionId, RecordViewRequest request, User user) {
-        ExplorationSession session = getSessionOrThrow(sessionId, user);
-        Short shortform = shortRepository.findById(request.getShortId())
-                .orElseThrow(() -> new CustomException(ErrorCode.COMMON_NOT_FOUND, "숏폼을 찾을 수 없습니다."));
+        ExplorationSession session = getSessionForUpdate(sessionId, user);
+        requireMutable(session);
+        Short shortform = getShortForUpdate(request.getShortId());
+        ExplorationView view = viewRepository.findBySessionAndShortform(session, shortform)
+                .orElseThrow(() -> new CustomException(ErrorCode.COMMON_NOT_FOUND, "이 세션에 노출된 숏폼이 아닙니다."));
 
         int watchedSec = request.getWatchedSeconds() != null ? Math.max(0, request.getWatchedSeconds()) : 0;
         int duration = shortform.getDurationSeconds() != null && shortform.getDurationSeconds() > 0 ?
@@ -177,30 +147,12 @@ public class ExplorationService {
         BigDecimal watchRatio = BigDecimal.valueOf((double) watchedSec / duration)
                 .setScale(3, RoundingMode.HALF_UP);
 
-        boolean playFailed = Boolean.TRUE.equals(request.getPlayFailed());
+        // 동일 노출에서 보고된 실패는 뒤늦은 정상 보고나 재시도로 지우지 않는다.
+        boolean playFailed = view.isPlayFailed() || Boolean.TRUE.equals(request.getPlayFailed());
 
-        Optional<ExplorationView> existingView = viewRepository.findBySessionAndShortform(session, shortform);
-        if (existingView.isPresent()) {
-            existingView.get().updateWatchTime((short) watchedSec, watchRatio, playFailed);
-        } else {
-            ExplorationView view = ExplorationView.builder()
-                    .session(session)
-                    .shortform(shortform)
-                    .seq(session.getViewedCount())
-                    .watchedSeconds((short) watchedSec)
-                    .watchRatio(watchRatio)
-                    .playFailed(playFailed)
-                    .build();
-            viewRepository.save(view);
-        }
+        view.updateWatchTime((short) watchedSec, watchRatio, playFailed);
 
-        if (playFailed) {
-            shortform.incrementFailUserCount();
-            long failedUsers = viewRepository.countDistinctUserPlayFailed(shortform.getId());
-            if (failedUsers >= 3) {
-                log.warn("Short {} unavailable due to {} failed users", shortform.getId(), failedUsers);
-            }
-        }
+        refreshStatistics(shortform);
     }
 
     /**
@@ -208,23 +160,20 @@ public class ExplorationService {
      */
     @Transactional
     public ReactionResponse recordReaction(Long shortId, ReactionRequest request, User user) {
-        Short shortform = shortRepository.findById(shortId)
-                .orElseThrow(() -> new CustomException(ErrorCode.COMMON_NOT_FOUND, "숏폼을 찾을 수 없습니다."));
+        if (request.getSessionId() == null || request.getSessionId() <= 0) {
+            throw new CustomException(ErrorCode.COMMON_INVALID_INPUT, "탐색 세션 ID는 필수이며 양수여야 합니다.");
+        }
+        ExplorationSession session = getSessionForUpdate(request.getSessionId(), user);
+        requireMutable(session);
+        Short shortform = getShortForUpdate(shortId);
+        requireActive(shortform);
+        requireExposed(session, shortform);
 
         Optional<ShortReaction> existing = reactionRepository.findByUserAndShortform(user, shortform);
 
         if (existing.isPresent()) {
             ShortReaction reaction = existing.get();
-            ReactionType oldType = reaction.getType();
-            ReactionType newType = request.getType();
-
-            if (oldType == ReactionType.IRRELEVANT && newType != ReactionType.IRRELEVANT) {
-                shortform.incrementIrrelevantCount(-1);
-            } else if (oldType != ReactionType.IRRELEVANT && newType == ReactionType.IRRELEVANT) {
-                shortform.incrementIrrelevantCount(1);
-            }
-
-            reaction.updateType(newType, request.getSessionId());
+            reaction.updateType(request.getType(), request.getSessionId());
         } else {
             ShortReaction reaction = ShortReaction.builder()
                     .user(user)
@@ -234,11 +183,8 @@ public class ExplorationService {
                     .build();
             reactionRepository.save(reaction);
 
-            if (request.getType() == ReactionType.IRRELEVANT) {
-                shortform.incrementIrrelevantCount(1);
-            }
         }
-
+        refreshStatistics(shortform);
         return new ReactionResponse(shortId, request.getType());
     }
 
@@ -247,98 +193,181 @@ public class ExplorationService {
      */
     @Transactional
     public ReactionResponse cancelReaction(Long shortId, User user) {
-        Short shortform = shortRepository.findById(shortId)
-                .orElseThrow(() -> new CustomException(ErrorCode.COMMON_NOT_FOUND, "숏폼을 찾을 수 없습니다."));
+        Optional<ShortReactionRepository.SessionReference> reference =
+                reactionRepository.findSessionReferenceByUserAndShortformId(user, shortId);
+        if (reference.isEmpty()) {
+            Short shortform = shortRepository.findById(shortId)
+                    .orElseThrow(() -> new CustomException(ErrorCode.COMMON_NOT_FOUND, "숏폼을 찾을 수 없습니다."));
+            requireActive(shortform);
+            return new ReactionResponse(shortId, null);
+        }
 
+        Long sessionId = reference.get().getSessionId();
+        if (sessionId == null) {
+            throw new CustomException(ErrorCode.COMMON_NOT_FOUND, "반응의 탐색 세션을 찾을 수 없습니다.");
+        }
+        ExplorationSession session = getSessionForUpdate(sessionId, user);
+        requireMutable(session);
+        Short shortform = getShortForUpdate(shortId);
+        requireActive(shortform);
+        requireExposed(session, shortform);
         Optional<ShortReaction> existing = reactionRepository.findByUserAndShortform(user, shortform);
         if (existing.isPresent()) {
             ShortReaction reaction = existing.get();
-            if (reaction.getType() == ReactionType.IRRELEVANT) {
-                shortform.incrementIrrelevantCount(-1);
+            if (!Objects.equals(reaction.getSessionId(), sessionId)) {
+                throw new CustomException(ErrorCode.SHORT_SESSION_ENDED, "반응의 세션이 변경되었습니다. 다시 요청해 주세요.");
             }
             reactionRepository.delete(reaction);
+            refreshStatistics(shortform);
         }
-
         return new ReactionResponse(shortId, null);
     }
 
     /**
      * 6) 탐색 세션 진행 현황 및 관심 주제 % 막대 조회
      */
+    @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
     public ExplorationProgressResponse getProgress(Long sessionId, User user) {
         ExplorationSession session = getSessionOrThrow(sessionId, user);
 
         List<ExplorationView> views = viewRepository.findBySessionOrderBySeqAsc(session);
         List<ShortReaction> reactions = reactionRepository.findByUserAndSessionId(user, sessionId);
 
-        Map<Long, ReactionType> reactionMap = reactions.stream()
-                .collect(Collectors.toMap(r -> r.getShortform().getId(), ShortReaction::getType, (k1, k2) -> k1));
-
-        // 1. 지금까지 반응한 취미 목록
-        Map<Long, ExplorationProgressResponse.ReactedHobbyResponse> reactedHobbyMap = new LinkedHashMap<>();
-        for (ShortReaction r : reactions) {
-            Hobby h = r.getShortform().getHobby();
-            if (h != null && !reactedHobbyMap.containsKey(h.getId())) {
-                reactedHobbyMap.put(h.getId(), new ExplorationProgressResponse.ReactedHobbyResponse(
-                        h.getId(), h.getName(), r.getType()
-                ));
-            }
-        }
-
-        // 2. 관심 주제 카드 (소재 SUBJECT 태그 상위 3개 점수 집계)
-        // 영상 점수 = 반응 점수(LIKE +3, DISLIKE -3) + 시청 가중치(watchRatio * 2 - 1)
-        Map<String, Double> subjectScoreMap = new HashMap<>();
+        Map<Long, ShortReaction> reactionMap = reactions.stream()
+                .collect(Collectors.toMap(r -> r.getShortform().getId(), r -> r));
+        Map<Long, Hobby> hobbies = new LinkedHashMap<>();
+        Map<Long, BigDecimal> hobbyScores = new HashMap<>();
+        Map<Long, ShortReaction> latestReactions = new HashMap<>();
+        Comparator<ShortReaction> reactionOrder = Comparator.comparing(ShortReaction::getUpdatedAt)
+                .thenComparing(r -> r.getId() != null ? r.getId() : 0L);
 
         for (ExplorationView v : views) {
             Short s = v.getShortform();
             Hobby h = s.getHobby();
-            if (h == null) continue;
+            if (h == null || v.isPlayFailed()) continue;
+            ShortReaction reaction = reactionMap.get(s.getId());
+            ReactionType type = reaction != null ? reaction.getType() : null;
+            if (type == ReactionType.IRRELEVANT) continue;
 
-            ReactionType rType = reactionMap.get(s.getId());
-            if (rType == ReactionType.IRRELEVANT || v.isPlayFailed()) continue;
-
-            double reactionScore = 0.0;
-            if (rType == ReactionType.LIKE) reactionScore = 3.0;
-            else if (rType == ReactionType.DISLIKE) reactionScore = -3.0;
-
-            double ratio = v.getWatchRatio() != null ? v.getWatchRatio().doubleValue() : 0.0;
-            double watchWeight = (ratio * 2.0) - 1.0;
-            double videoScore = reactionScore + watchWeight;
-
-            // 해당 취미의 태그 중 SUBJECT(소재) 태그에 점수 가산
-            for (HobbyTag ht : h.getHobbyTags()) {
-                Tag tag = ht.getTag();
-                if (tag.getTagGroup() == TagGroup.SUBJECT) {
-                    subjectScoreMap.put(tag.getName(), subjectScoreMap.getOrDefault(tag.getName(), 0.0) + videoScore);
-                }
+            hobbies.putIfAbsent(h.getId(), h);
+            if (reaction != null) {
+                latestReactions.merge(h.getId(), reaction,
+                        (a, b) -> reactionOrder.compare(a, b) > 0 ? a : b);
             }
+            int reactionScore = type == ReactionType.LIKE ? 3 : type == ReactionType.DISLIKE ? -3 : 0;
+            BigDecimal ratio = v.getWatchRatio() != null ? v.getWatchRatio() : BigDecimal.ZERO;
+            BigDecimal videoScore = ratio.multiply(BigDecimal.valueOf(2)).subtract(BigDecimal.ONE)
+                    .add(BigDecimal.valueOf(reactionScore));
+            hobbyScores.merge(h.getId(), videoScore, BigDecimal::add);
         }
 
-        // 상위 3개 소재 태그 산출 및 % 계산
-        List<Map.Entry<String, Double>> sortedSubjects = subjectScoreMap.entrySet().stream()
-                .filter(e -> e.getValue() > 0)
-                .sorted((a, b) -> Double.compare(b.getValue(), a.getValue()))
+        List<ExplorationProgressResponse.ReactedHobbyResponse> reactedHobbies = hobbies.values().stream()
+                .filter(h -> latestReactions.containsKey(h.getId()))
+                .map(h -> new ExplorationProgressResponse.ReactedHobbyResponse(
+                        h.getId(), h.getName(), latestReactions.get(h.getId()).getType()))
+                .toList();
+
+        List<Map.Entry<Long, BigDecimal>> ranked = hobbyScores.entrySet().stream()
+                .filter(e -> e.getValue().signum() > 0)
+                .sorted((a, b) -> {
+                    int scoreOrder = b.getValue().compareTo(a.getValue());
+                    return scoreOrder != 0 ? scoreOrder : Long.compare(a.getKey(), b.getKey());
+                })
                 .limit(3)
                 .toList();
 
-        double maxScore = sortedSubjects.isEmpty() ? 1.0 : sortedSubjects.get(0).getValue();
-        List<ExplorationProgressResponse.TopInterestResponse> topInterests = sortedSubjects.stream()
-                .map(e -> {
-                    int percent = (int) Math.round((e.getValue() / maxScore) * 100);
-                    return new ExplorationProgressResponse.TopInterestResponse(e.getKey(), percent);
-                })
+        BigDecimal maxScore = ranked.isEmpty() ? BigDecimal.ONE : ranked.get(0).getValue();
+        List<ExplorationProgressResponse.TopInterestResponse> topInterests = ranked.stream()
+                .map(e -> new ExplorationProgressResponse.TopInterestResponse(hobbies.get(e.getKey()).getName(),
+                        e.getValue().multiply(BigDecimal.valueOf(100))
+                                .divide(maxScore, 0, RoundingMode.HALF_UP).intValueExact()))
                 .toList();
 
         return ExplorationProgressResponse.builder()
                 .currentStep((int) session.getViewedCount())
                 .maxCount((int) session.getMaxCount())
-                .reactedHobbies(new ArrayList<>(reactedHobbyMap.values()))
+                .reactedHobbies(reactedHobbies)
                 .topInterests(topInterests)
                 .build();
+    }
+
+    /** 첫 영상과 다음 영상에 같은 규칙을 적용한다. 새 영상이 없을 때만 과거 무반응 영상을 재사용한다. */
+    private Optional<Short> selectShort(User user, Collection<Long> sessionViewedIds) {
+        Set<Long> viewedIds = new HashSet<>(viewRepository.findAllViewedShortIdsByUserId(user.getId()));
+        Set<Long> excludedIds = new HashSet<>(sessionViewedIds);
+        Set<Long> reactedIds = new HashSet<>();
+        for (ShortReaction reaction : reactionRepository.findByUser(user)) {
+            Long shortId = reaction.getShortform().getId();
+            reactedIds.add(shortId);
+            if (reaction.getType() == ReactionType.IRRELEVANT) {
+                excludedIds.add(shortId);
+            }
+        }
+
+        List<Short> unseen = new ArrayList<>();
+        List<Short> reusable = new ArrayList<>();
+        for (Short candidate : shortRepository.findWithHobbyByStatus(ShortStatus.ACTIVE)) {
+            Long shortId = candidate.getId();
+            if (excludedIds.contains(shortId)) continue;
+            if (!viewedIds.contains(shortId)) {
+                unseen.add(candidate);
+            } else if (!reactedIds.contains(shortId)) {
+                reusable.add(candidate);
+            }
+        }
+
+        Optional<Short> selected = lockActiveCandidate(unseen);
+        return selected.isPresent() ? selected : lockActiveCandidate(reusable);
+    }
+
+    private Optional<Short> lockActiveCandidate(List<Short> candidates) {
+        while (!candidates.isEmpty()) {
+            Short candidate = candidates.remove(ThreadLocalRandom.current().nextInt(candidates.size()));
+            Optional<Short> locked = shortRepository.findByIdAndStatusForUpdate(candidate.getId(), ShortStatus.ACTIVE);
+            if (locked.isPresent()) return locked;
+        }
+        return Optional.empty();
+    }
+
+    private Short getShortForUpdate(Long shortId) {
+        return shortRepository.findByIdForUpdate(shortId)
+                .orElseThrow(() -> new CustomException(ErrorCode.COMMON_NOT_FOUND, "숏폼을 찾을 수 없습니다."));
+    }
+
+    private void refreshStatistics(Short shortform) {
+        // 변경·삭제한 반응과 시청 기록까지 집계에 포함한다. 호출자는 영상 행 잠금을 보유한다.
+        shortRepository.flush();
+        shortform.updateStatistics(viewRepository.countDistinctViewUsers(shortform.getId()),
+                viewRepository.countDistinctUserPlayFailed(shortform.getId()),
+                reactionRepository.countByShortformIdAndType(shortform.getId(), ReactionType.IRRELEVANT));
     }
 
     private ExplorationSession getSessionOrThrow(Long sessionId, User user) {
         return sessionRepository.findByIdAndUser(sessionId, user)
                 .orElseThrow(() -> new CustomException(ErrorCode.COMMON_NOT_FOUND, "탐색 세션을 찾을 수 없습니다."));
+    }
+
+    private ExplorationSession getSessionForUpdate(Long sessionId, User user) {
+        return sessionRepository.findByIdAndUserForUpdate(sessionId, user)
+                .orElseThrow(() -> new CustomException(ErrorCode.COMMON_NOT_FOUND, "탐색 세션을 찾을 수 없습니다."));
+    }
+
+    private void requireMutable(ExplorationSession session) {
+        // COMPLETED는 영상 소진에 따른 자연 종료일 수도 있다. 추천 생성 전까지 마지막 기록을 받는다.
+        if (session.getStatus() == SessionStatus.ABANDONED || recommendationRepository.existsBySessionId(session.getId())) {
+            throw new CustomException(ErrorCode.SHORT_SESSION_ENDED);
+        }
+    }
+
+    private void requireActive(Short shortform) {
+        if (shortform.getStatus() != ShortStatus.ACTIVE) {
+            throw new CustomException(ErrorCode.SHORT_NOT_ACTIVE);
+        }
+    }
+
+    private void requireExposed(ExplorationSession session, Short shortform) {
+        if (!viewRepository.existsBySessionAndShortform(session, shortform)) {
+            throw new CustomException(ErrorCode.COMMON_NOT_FOUND, "이 세션에 노출된 숏폼이 아닙니다.");
+        }
     }
 }

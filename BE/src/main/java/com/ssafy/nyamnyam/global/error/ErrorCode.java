@@ -31,6 +31,8 @@ public enum ErrorCode {
     REGION_NOT_FOUND(HttpStatus.NOT_FOUND, "REGION_NOT_FOUND", "지역을 찾을 수 없습니다."),
 
     // 409 Conflict
+    SHORT_SESSION_ENDED(HttpStatus.CONFLICT, "SHORT_SESSION_ENDED", "변경할 수 없는 탐색 세션입니다."),
+    SHORT_NOT_ACTIVE(HttpStatus.CONFLICT, "SHORT_NOT_ACTIVE", "현재 반응할 수 없는 숏폼입니다."),
     AUTH_EMAIL_DUPLICATED(HttpStatus.CONFLICT, "AUTH_EMAIL_DUPLICATED", "이미 사용 중인 이메일입니다."),
     AUTH_NICKNAME_DUPLICATED(HttpStatus.CONFLICT, "AUTH_NICKNAME_DUPLICATED", "이미 사용 중인 닉네임입니다."),
     AUTH_SOCIAL_ACCOUNT(HttpStatus.CONFLICT, "AUTH_SOCIAL_ACCOUNT", "다른 방법으로 가입된 계정입니다."),

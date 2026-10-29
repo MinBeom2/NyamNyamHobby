@@ -9,6 +9,10 @@ import com.ssafy.nyamnyam.domain.hobby.repository.HobbyRepository;
 import com.ssafy.nyamnyam.domain.recommendation.dto.event.RecommendationReasonEvent;
 import com.ssafy.nyamnyam.domain.recommendation.dto.response.RecommendationResponse;
 import com.ssafy.nyamnyam.domain.recommendation.entity.RecoItemType;
+import com.ssafy.nyamnyam.domain.recommendation.entity.Recommendation;
+import com.ssafy.nyamnyam.domain.recommendation.entity.RecommendationItem;
+import com.ssafy.nyamnyam.global.error.CustomException;
+import com.ssafy.nyamnyam.global.error.ErrorCode;
 import com.ssafy.nyamnyam.domain.recommendation.repository.RecommendationItemRepository;
 import com.ssafy.nyamnyam.domain.recommendation.repository.RecommendationRepository;
 import com.ssafy.nyamnyam.domain.shortform.entity.Short;
@@ -21,6 +25,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -32,10 +38,13 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verifyNoInteractions;
 
 @ExtendWith(MockitoExtension.class)
 class RecommendationServiceTest {
@@ -138,15 +147,18 @@ class RecommendationServiceTest {
         ReflectionTestUtils.setField(shortClimbing, "id", 100L);
     }
 
-    @Test
+    @ParameterizedTest
+    @EnumSource(value = SessionStatus.class, names = {"IN_PROGRESS", "COMPLETED"})
     @DisplayName("탐색 세션 종료 시 피드백을 집계하여 관심/연관 취미를 추천하고 RabbitMQ 이벤트를 발행한다")
-    void finishExploration_success() {
+    void finishExploration_success(SessionStatus status) {
         // given
         ExplorationSession session = ExplorationSession.builder()
                 .user(testUser)
                 .maxCount((short) 12)
                 .build();
         ReflectionTestUtils.setField(session, "id", 50L);
+        if (status == SessionStatus.COMPLETED) session.complete();
+        var originalEndedAt = session.getEndedAt();
 
         ExplorationView view = ExplorationView.builder()
                 .session(session)
@@ -164,17 +176,21 @@ class RecommendationServiceTest {
                 .type(ReactionType.LIKE)
                 .build();
 
-        given(sessionRepository.findByIdAndUser(50L, testUser)).willReturn(Optional.of(session));
+        given(sessionRepository.findByIdAndUserForUpdate(50L, testUser)).willReturn(Optional.of(session));
         given(viewRepository.findBySessionOrderBySeqAsc(session)).willReturn(List.of(view));
         given(reactionRepository.findByUser(testUser)).willReturn(List.of(reaction));
         given(hobbyRepository.findAllWithTagsByStatus(HobbyStatus.PUBLISHED))
                 .willReturn(List.of(hobbyClimbing, hobbyRunning, hobbyPottery));
 
         // when
-        RecommendationResponse response = recommendationService.finishExploration(50L, testUser);
+        var result = recommendationService.finishExploration(50L, testUser);
+        RecommendationResponse response = result.response();
 
         // then
         assertThat(response).isNotNull();
+        assertThat(result.created()).isTrue();
+        assertThat(session.getStatus()).isEqualTo(SessionStatus.COMPLETED);
+        if (originalEndedAt != null) assertThat(session.getEndedAt()).isEqualTo(originalEndedAt);
         assertThat(response.getItems()).isNotEmpty();
 
         // 클라이밍이 높은 점수로 관심 취미(INTEREST) 1위 선정 확인
@@ -187,5 +203,58 @@ class RecommendationServiceTest {
                 eq(RabbitConfig.RECO_REASON_ROUTING_KEY),
                 any(RecommendationReasonEvent.class)
         );
+    }
+
+    @Test
+    @DisplayName("종료 재요청은 저장된 추천·순위를 반환하고 재계산·저장·이벤트 발행을 하지 않는다")
+    void repeatedFinishReturnsExistingRecommendation() {
+        ExplorationSession session = ExplorationSession.builder().user(testUser).build();
+        session.complete();
+        var endedAt = session.getEndedAt();
+        Recommendation recommendation = Recommendation.builder().user(testUser).session(session)
+                .reactionCount((short) 3).isExploratory(false).build();
+        ReflectionTestUtils.setField(recommendation, "id", 88L);
+        RecommendationItem item = RecommendationItem.builder().recommendation(recommendation)
+                .hobby(hobbyClimbing).type(RecoItemType.INTEREST).rankNo((short) 1)
+                .score(BigDecimal.valueOf(4)).build();
+        given(sessionRepository.findByIdAndUserForUpdate(50L, testUser)).willReturn(Optional.of(session));
+        given(recommendationRepository.findBySessionId(50L)).willReturn(Optional.of(recommendation));
+        given(itemRepository.findByRecommendationOrderByRankNoAsc(recommendation)).willReturn(List.of(item));
+
+        var result = recommendationService.finishExploration(50L, testUser);
+
+        assertThat(result.created()).isFalse();
+        assertThat(result.response().getRecommendationId()).isEqualTo(88L);
+        assertThat(result.response().getReactionCount()).isEqualTo(3);
+        assertThat(result.response().getItems()).extracting(RecommendationResponse.RecommendationItemDto::getHobbyId)
+                .containsExactly(1L);
+        assertThat(session.getEndedAt()).isEqualTo(endedAt);
+        verify(recommendationRepository, never()).save(any());
+        verify(itemRepository, never()).save(any());
+        verifyNoInteractions(viewRepository, reactionRepository, hobbyRepository, rabbitTemplate);
+    }
+
+    @Test
+    @DisplayName("타인 또는 없는 세션은 기존 추천 조회 전에 404로 거절한다")
+    void rejectsMissingOrForeignSession() {
+        assertError(() -> recommendationService.finishExploration(50L, testUser), ErrorCode.COMMON_NOT_FOUND);
+        verifyNoInteractions(recommendationRepository, viewRepository, rabbitTemplate);
+    }
+
+    @Test
+    @DisplayName("포기한 세션에서는 새 추천을 생성하지 않는다")
+    void rejectsAbandonedSession() {
+        ExplorationSession session = ExplorationSession.builder().user(testUser).build();
+        session.abandon();
+        given(sessionRepository.findByIdAndUserForUpdate(50L, testUser)).willReturn(Optional.of(session));
+
+        assertError(() -> recommendationService.finishExploration(50L, testUser), ErrorCode.SHORT_SESSION_ENDED);
+        verify(recommendationRepository, never()).save(any());
+        verifyNoInteractions(viewRepository, hobbyRepository, rabbitTemplate);
+    }
+
+    private void assertError(Runnable action, ErrorCode code) {
+        assertThatThrownBy(action::run).isInstanceOfSatisfying(CustomException.class,
+                error -> assertThat(error.getErrorCode()).isEqualTo(code));
     }
 }

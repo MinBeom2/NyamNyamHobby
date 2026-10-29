@@ -2,7 +2,9 @@ package com.ssafy.nyamnyam.domain.shortform.repository;
 
 import com.ssafy.nyamnyam.domain.shortform.entity.Short;
 import com.ssafy.nyamnyam.domain.shortform.entity.ShortStatus;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -15,6 +17,15 @@ import java.util.Optional;
 public interface ShortRepository extends JpaRepository<Short, Long> {
 
     Optional<Short> findByYoutubeVideoId(String youtubeVideoId);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT s FROM Short s WHERE s.id = :id")
+    Optional<Short> findByIdForUpdate(@Param("id") Long id);
+
+    /** 선택 후보를 읽은 뒤 숨김 처리된 영상이 노출되지 않도록 잠금 획득 시에도 상태를 검사한다. */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT s FROM Short s WHERE s.id = :id AND s.status = :status")
+    Optional<Short> findByIdAndStatusForUpdate(@Param("id") Long id, @Param("status") ShortStatus status);
 
     List<Short> findByStatus(ShortStatus status);
 

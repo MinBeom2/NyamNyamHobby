@@ -1,5 +1,6 @@
 package com.ssafy.nyamnyam.domain.exploration.service;
 
+import com.ssafy.nyamnyam.domain.exploration.config.ExplorationProperties;
 import com.ssafy.nyamnyam.domain.exploration.dto.request.ReactionRequest;
 import com.ssafy.nyamnyam.domain.exploration.dto.request.RecordViewRequest;
 import com.ssafy.nyamnyam.domain.exploration.dto.response.*;
@@ -8,6 +9,7 @@ import com.ssafy.nyamnyam.domain.exploration.repository.ExplorationSessionReposi
 import com.ssafy.nyamnyam.domain.exploration.repository.ExplorationViewRepository;
 import com.ssafy.nyamnyam.domain.exploration.repository.ShortReactionRepository;
 import com.ssafy.nyamnyam.domain.hobby.entity.*;
+import com.ssafy.nyamnyam.domain.recommendation.repository.RecommendationRepository;
 import com.ssafy.nyamnyam.domain.shortform.entity.Short;
 import com.ssafy.nyamnyam.domain.shortform.entity.ShortStatus;
 import com.ssafy.nyamnyam.domain.shortform.repository.ShortRepository;
@@ -18,19 +20,21 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.math.BigDecimal;
-import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
 
@@ -48,6 +52,12 @@ class ExplorationServiceTest {
 
     @Mock
     private ShortRepository shortRepository;
+
+    @Mock
+    private RecommendationRepository recommendationRepository;
+
+    @Spy
+    private ExplorationProperties explorationProperties = new ExplorationProperties();
 
     @InjectMocks
     private ExplorationService explorationService;
@@ -98,10 +108,9 @@ class ExplorationServiceTest {
     @DisplayName("탐색 세션 시작 시 세션 생성과 함께 첫 숏폼 영상을 반환한다")
     void startSession_success() {
         // given
-        given(reactionRepository.findShortIdsByUserIdAndType(testUser.getId(), ReactionType.IRRELEVANT))
-                .willReturn(Collections.emptyList());
         given(shortRepository.findWithHobbyByStatus(ShortStatus.ACTIVE))
                 .willReturn(List.of(testShort));
+        given(shortRepository.findByIdAndStatusForUpdate(100L, ShortStatus.ACTIVE)).willReturn(Optional.of(testShort));
         given(reactionRepository.findByUserAndShortform(testUser, testShort))
                 .willReturn(Optional.empty());
 
@@ -117,6 +126,24 @@ class ExplorationServiceTest {
         assertThat(response.getShortItem().getHobby().getName()).isEqualTo("클라이밍");
         verify(sessionRepository).save(any(ExplorationSession.class));
         verify(viewRepository).save(any(ExplorationView.class));
+    }
+
+    @ParameterizedTest
+    @ValueSource(ints = {1, 5, 24})
+    @DisplayName("새 세션의 최대 노출 수는 설정값으로 저장하고 응답한다")
+    void startSession_usesConfiguredSize(int sessionSize) {
+        explorationProperties.setSessionSize(sessionSize);
+        given(shortRepository.findWithHobbyByStatus(ShortStatus.ACTIVE)).willReturn(List.of(testShort));
+        given(shortRepository.findByIdAndStatusForUpdate(100L, ShortStatus.ACTIVE)).willReturn(Optional.of(testShort));
+        given(reactionRepository.findByUserAndShortform(testUser, testShort)).willReturn(Optional.empty());
+
+        StartExplorationResponse response = explorationService.startSession(testUser);
+
+        ArgumentCaptor<ExplorationSession> sessionCaptor = ArgumentCaptor.forClass(ExplorationSession.class);
+        verify(sessionRepository).save(sessionCaptor.capture());
+        assertThat(sessionCaptor.getValue().getMaxCount()).isEqualTo((short) sessionSize);
+        assertThat(response.getMaxCount()).isEqualTo(sessionSize);
+        assertThat(response.getViewedCount()).isEqualTo(1);
     }
 
     @Test
@@ -139,16 +166,15 @@ class ExplorationServiceTest {
                 .build();
         ReflectionTestUtils.setField(nextShort, "id", 101L);
 
-        given(sessionRepository.findByIdAndUser(50L, testUser))
+        given(sessionRepository.findByIdAndUserForUpdate(50L, testUser))
                 .willReturn(Optional.of(session));
         given(viewRepository.findViewedShortIdsBySessionId(50L))
                 .willReturn(List.of(100L));
-        given(reactionRepository.findShortIdsByUserIdAndType(testUser.getId(), ReactionType.IRRELEVANT))
-                .willReturn(Collections.emptyList());
         given(viewRepository.findAllViewedShortIdsByUserId(testUser.getId()))
                 .willReturn(List.of(100L));
-        given(shortRepository.findCandidatesExcluding(eq(ShortStatus.ACTIVE), any()))
+        given(shortRepository.findWithHobbyByStatus(ShortStatus.ACTIVE))
                 .willReturn(List.of(nextShort));
+        given(shortRepository.findByIdAndStatusForUpdate(101L, ShortStatus.ACTIVE)).willReturn(Optional.of(nextShort));
 
         // when
         NextShortResponse response = explorationService.getNextShort(50L, testUser);
@@ -161,17 +187,18 @@ class ExplorationServiceTest {
     }
 
     @Test
-    @DisplayName("세션 최대 노출 수(12)에 도달하면 finished: true를 반환한다")
+    @DisplayName("현재 설정과 달라도 세션 생성 당시 최대 노출 수에 도달하면 종료한다")
     void getNextShort_finishedWhenMaxCountReached() {
         // given
         ExplorationSession session = ExplorationSession.builder()
                 .user(testUser)
-                .maxCount((short) 12)
+                .maxCount((short) 4)
                 .build();
         ReflectionTestUtils.setField(session, "id", 50L);
-        ReflectionTestUtils.setField(session, "viewedCount", (short) 12);
+        ReflectionTestUtils.setField(session, "viewedCount", (short) 4);
+        explorationProperties.setSessionSize(24);
 
-        given(sessionRepository.findByIdAndUser(50L, testUser))
+        given(sessionRepository.findByIdAndUserForUpdate(50L, testUser))
                 .willReturn(Optional.of(session));
 
         // when
@@ -179,7 +206,24 @@ class ExplorationServiceTest {
 
         // then
         assertThat(response.getFinished()).isTrue();
+        assertThat(response.getViewedCount()).isEqualTo(4);
         assertThat(session.getStatus()).isEqualTo(SessionStatus.COMPLETED);
+    }
+
+    @Test
+    @DisplayName("진행 현황은 현재 설정 대신 세션 생성 당시 최대 노출 수를 반환한다")
+    void getProgress_usesSessionSizeSnapshot() {
+        ExplorationSession session = ExplorationSession.builder().user(testUser).maxCount((short) 5).build();
+        session.incrementViewedCount();
+        explorationProperties.setSessionSize(24);
+        given(sessionRepository.findByIdAndUser(50L, testUser)).willReturn(Optional.of(session));
+        given(viewRepository.findBySessionOrderBySeqAsc(session)).willReturn(List.of());
+        given(reactionRepository.findByUserAndSessionId(testUser, 50L)).willReturn(List.of());
+
+        ExplorationProgressResponse response = explorationService.getProgress(50L, testUser);
+
+        assertThat(response.getMaxCount()).isEqualTo(5);
+        assertThat(response.getCurrentStep()).isEqualTo(1);
     }
 
     @Test
@@ -201,8 +245,8 @@ class ExplorationServiceTest {
                 .playFailed(false)
                 .build();
 
-        given(sessionRepository.findByIdAndUser(50L, testUser)).willReturn(Optional.of(session));
-        given(shortRepository.findById(100L)).willReturn(Optional.of(testShort));
+        given(sessionRepository.findByIdAndUserForUpdate(50L, testUser)).willReturn(Optional.of(session));
+        given(shortRepository.findByIdForUpdate(100L)).willReturn(Optional.of(testShort));
         given(viewRepository.findBySessionAndShortform(session, testShort)).willReturn(Optional.of(view));
 
         RecordViewRequest request = new RecordViewRequest(100L, 30, false);
@@ -219,7 +263,8 @@ class ExplorationServiceTest {
     @DisplayName("숏폼에 좋아요 반응을 등록하면 정상적으로 저장된다")
     void recordReaction_like() {
         // given
-        given(shortRepository.findById(100L)).willReturn(Optional.of(testShort));
+        givenReactionSession();
+        given(shortRepository.findByIdForUpdate(100L)).willReturn(Optional.of(testShort));
         given(reactionRepository.findByUserAndShortform(testUser, testShort)).willReturn(Optional.empty());
 
         ReactionRequest request = new ReactionRequest(ReactionType.LIKE, 50L);
@@ -234,10 +279,12 @@ class ExplorationServiceTest {
     }
 
     @Test
-    @DisplayName("관련 없음 반응 등록 시 영상의 irrelevantCount가 증가한다")
+    @DisplayName("관련 없음 반응 등록 시 원본 기록의 고유 사용자 집계를 반영한다")
     void recordReaction_irrelevantIncrementsCount() {
         // given
-        given(shortRepository.findById(100L)).willReturn(Optional.of(testShort));
+        givenReactionSession();
+        given(shortRepository.findByIdForUpdate(100L)).willReturn(Optional.of(testShort));
+        given(reactionRepository.countByShortformIdAndType(100L, ReactionType.IRRELEVANT)).willReturn(1L);
         given(reactionRepository.findByUserAndShortform(testUser, testShort)).willReturn(Optional.empty());
 
         ReactionRequest request = new ReactionRequest(ReactionType.IRRELEVANT, 50L);
@@ -247,5 +294,12 @@ class ExplorationServiceTest {
 
         // then
         assertThat(testShort.getIrrelevantCount()).isEqualTo(1);
+    }
+
+    private void givenReactionSession() {
+        ExplorationSession session = ExplorationSession.builder().user(testUser).maxCount((short) 12).build();
+        ReflectionTestUtils.setField(session, "id", 50L);
+        given(sessionRepository.findByIdAndUserForUpdate(50L, testUser)).willReturn(Optional.of(session));
+        given(viewRepository.existsBySessionAndShortform(session, testShort)).willReturn(true);
     }
 }

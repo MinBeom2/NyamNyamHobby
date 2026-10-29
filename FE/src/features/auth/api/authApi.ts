@@ -37,6 +37,26 @@ export type OAuthSignupRequest = {
   nickname: string;
 };
 
+export type CurrentUserProfile = {
+  id: number;
+  email: string;
+  nickname: string;
+  profileImageUrl: string | null;
+  role: 'USER' | 'ADMIN';
+  conditions: {
+    weeklyHours: number | null;
+    monthlyBudget: number | null;
+    placePref: 'INDOOR' | 'OUTDOOR' | 'ANY' | null;
+    socialPref: 'ALONE' | 'TOGETHER' | 'ANY' | null;
+    region: {
+      id: number;
+      code: string;
+      sido: string;
+      sigungu: string;
+    } | null;
+  } | null;
+};
+
 export function signup(request: SignupRequest) {
   return apiRequest<SignupResponse>('/auth/signup', {
     method: 'POST',
@@ -85,6 +105,10 @@ export function login(request: LoginRequest) {
     method: 'POST',
     body: JSON.stringify(request),
   });
+}
+
+export function getCurrentUserProfile() {
+  return apiRequest<CurrentUserProfile>('/users/me');
 }
 
 export function oauthSignup(request: OAuthSignupRequest) {

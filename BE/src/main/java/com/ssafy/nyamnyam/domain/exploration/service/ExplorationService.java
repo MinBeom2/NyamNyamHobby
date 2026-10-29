@@ -10,6 +10,7 @@ import com.ssafy.nyamnyam.domain.exploration.repository.ExplorationViewRepositor
 import com.ssafy.nyamnyam.domain.exploration.repository.ShortReactionRepository;
 import com.ssafy.nyamnyam.domain.hobby.entity.Hobby;
 import com.ssafy.nyamnyam.domain.recommendation.repository.RecommendationRepository;
+import com.ssafy.nyamnyam.domain.recommendation.service.PreferenceProfileService;
 import com.ssafy.nyamnyam.domain.shortform.entity.Short;
 import com.ssafy.nyamnyam.domain.shortform.entity.ShortStatus;
 import com.ssafy.nyamnyam.domain.shortform.repository.ShortRepository;
@@ -40,13 +41,15 @@ public class ExplorationService {
     private final ShortRepository shortRepository;
     private final ExplorationProperties explorationProperties;
     private final RecommendationRepository recommendationRepository;
+    private final PreferenceProfileService profiles;
+    private final ExplorationSelectionPolicy selectionPolicy;
 
     /**
      * 1) 숏폼 탐색 세션 시작 + 첫 번째 영상 반환
      */
     @Transactional
     public StartExplorationResponse startSession(User user) {
-        Short firstShort = selectShort(user, List.of())
+        Short firstShort = selectShort(user, null, List.of())
                 .orElseThrow(() -> new CustomException(ErrorCode.COMMON_NOT_FOUND, "노출 가능한 숏폼 영상이 없습니다."));
 
         ExplorationSession session = ExplorationSession.builder()
@@ -95,7 +98,7 @@ public class ExplorationService {
         }
 
         List<Long> sessionViewedIds = viewRepository.findViewedShortIdsBySessionId(sessionId);
-        Optional<Short> selected = selectShort(user, sessionViewedIds);
+        Optional<Short> selected = selectShort(user, sessionId, sessionViewedIds);
 
         if (selected.isEmpty()) {
             session.complete();
@@ -292,16 +295,19 @@ public class ExplorationService {
     }
 
     /** 첫 영상과 다음 영상에 같은 규칙을 적용한다. 새 영상이 없을 때만 과거 무반응 영상을 재사용한다. */
-    private Optional<Short> selectShort(User user, Collection<Long> sessionViewedIds) {
+    private Optional<Short> selectShort(User user, Long sessionId, Collection<Long> sessionViewedIds) {
         Set<Long> viewedIds = new HashSet<>(viewRepository.findAllViewedShortIdsByUserId(user.getId()));
         Set<Long> excludedIds = new HashSet<>(sessionViewedIds);
         Set<Long> reactedIds = new HashSet<>();
+        Set<Long> dislikedHobbies = new HashSet<>();
         for (ShortReaction reaction : reactionRepository.findByUser(user)) {
             Long shortId = reaction.getShortform().getId();
             reactedIds.add(shortId);
             if (reaction.getType() == ReactionType.IRRELEVANT) {
                 excludedIds.add(shortId);
             }
+            if (sessionId != null && sessionId.equals(reaction.getSessionId()) && reaction.getType() == ReactionType.DISLIKE
+                    && reaction.getShortform().getHobby() != null) dislikedHobbies.add(reaction.getShortform().getHobby().getId());
         }
 
         List<Short> unseen = new ArrayList<>();
@@ -309,6 +315,7 @@ public class ExplorationService {
         for (Short candidate : shortRepository.findWithHobbyByStatus(ShortStatus.ACTIVE)) {
             Long shortId = candidate.getId();
             if (excludedIds.contains(shortId)) continue;
+            if (candidate.getHobby() != null && dislikedHobbies.contains(candidate.getHobby().getId())) continue;
             if (!viewedIds.contains(shortId)) {
                 unseen.add(candidate);
             } else if (!reactedIds.contains(shortId)) {
@@ -316,13 +323,20 @@ public class ExplorationService {
             }
         }
 
-        Optional<Short> selected = lockActiveCandidate(unseen);
-        return selected.isPresent() ? selected : lockActiveCandidate(reusable);
+        if (unseen.isEmpty() && reusable.isEmpty()) return Optional.empty();
+        var profile = profiles.load(user);
+        var prior = sessionId == null ? profile : profiles.load(user, sessionId);
+        boolean disperse = sessionViewedIds.size() < 4 && prior.hobbyScores().values().stream().noneMatch(score -> score > 0);
+        Set<Long> seenCategories = sessionId == null ? Set.of() : viewRepository.findBySessionIdOrderBySeqAsc(sessionId).stream()
+                .map(v -> v.getShortform().getHobby()).filter(Objects::nonNull).map(Hobby::getCategory)
+                .filter(Objects::nonNull).map(c -> c.getId()).collect(Collectors.toSet());
+        Optional<Short> selected = lockActiveCandidate(selectionPolicy.order(unseen, profile, disperse, seenCategories, explorationProperties.getPreferRatio()));
+        return selected.isPresent() ? selected : lockActiveCandidate(selectionPolicy.order(reusable, profile, disperse, seenCategories, explorationProperties.getPreferRatio()));
     }
 
     private Optional<Short> lockActiveCandidate(List<Short> candidates) {
         while (!candidates.isEmpty()) {
-            Short candidate = candidates.remove(ThreadLocalRandom.current().nextInt(candidates.size()));
+            Short candidate = candidates.remove(0);
             Optional<Short> locked = shortRepository.findByIdAndStatusForUpdate(candidate.getId(), ShortStatus.ACTIVE);
             if (locked.isPresent()) return locked;
         }

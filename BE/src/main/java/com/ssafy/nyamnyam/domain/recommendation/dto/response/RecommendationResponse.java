@@ -10,6 +10,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -21,7 +22,8 @@ import java.util.List;
 public class RecommendationResponse {
 
     private Long recommendationId;
-    private RecoBasis basis;
+    private String basis;
+    private String basisText;
     private Boolean isExploratory;
     private Integer reactionCount;
     private List<RecommendationItemDto> items;
@@ -32,19 +34,26 @@ public class RecommendationResponse {
     @Builder
     public static class RecommendationItemDto {
         private Long itemId;
-        private Long hobbyId;
-        private String hobbyName;
-        private String category;
         private RecoItemType type;
-        private Integer rankNo;
-        private BigDecimal score;
+        private Integer rank;
+        private HobbySnapshot hobby;
         private String reason;
         private ReasonStatus reasonStatus;
-        private Difficulty difficulty;
-        private String sessionMinutes;
-        private String monthlyCost;
-        private PlaceType placeType;
-        private SocialType socialType;
+        private String fallbackReason;
         private Boolean conditionWarning;
+        private Boolean saved;
+
+        @JsonIgnore public Long getHobbyId() { return hobby == null ? null : hobby.id(); }
+        @JsonIgnore public String getHobbyName() { return hobby == null ? null : hobby.name(); }
+        @JsonIgnore public Integer getRankNo() { return rank; }
+    }
+    public record Range(Integer min, Integer max) {}
+    public record HobbySnapshot(Long id, String name, String thumbnailUrl, Difficulty difficulty,
+                                Range sessionMinutes, Range monthlyCost) {
+        public static HobbySnapshot from(com.ssafy.nyamnyam.domain.hobby.entity.Hobby hobby) {
+            return new HobbySnapshot(hobby.getId(), hobby.getName(), hobby.getThumbnailUrl(), hobby.getDifficulty(),
+                    new Range((int) hobby.getSessionMinMinutes(), (int) hobby.getSessionMaxMinutes()),
+                    new Range(hobby.getMonthlyCostMin(), hobby.getMonthlyCostMax()));
+        }
     }
 }

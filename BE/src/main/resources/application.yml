@@ -38,6 +38,7 @@ spring:
       password: ${REDIS_PASSWORD:}
 
   rabbitmq:
+    publisher-confirm-type: simple
     host: ${RABBITMQ_HOST:localhost}
     port: ${RABBITMQ_PORT:5672}
     username: ${RABBITMQ_USER:guest}
@@ -78,6 +79,10 @@ jwt:
 
 exploration:
   session-size: ${EXPLORATION_SESSION_SIZE:12} # 새 탐색 세션의 최대 노출 수. 기존 세션은 생성 당시 값을 유지
+  prefer-ratio: ${EXPLORATION_PREFER_RATIO:0.7}
+
+recommendation:
+  reason-outbox-enabled: ${RECOMMENDATION_REASON_OUTBOX_ENABLED:true}
 
 app:
   frontend-url: ${FRONTEND_URL:http://localhost:5173}

@@ -11,12 +11,15 @@ import java.util.List;
 import java.util.Optional;
 
 public interface ExplorationViewRepository extends JpaRepository<ExplorationView, Long> {
+    @Query("SELECT ev FROM ExplorationView ev WHERE ev.session.user.id = :userId ORDER BY ev.viewedAt DESC, ev.id DESC")
+    List<ExplorationView> findHistoryByUserId(@Param("userId") Long userId);
 
     Optional<ExplorationView> findBySessionAndShortform(ExplorationSession session, Short shortform);
 
     boolean existsBySessionAndShortform(ExplorationSession session, Short shortform);
 
     List<ExplorationView> findBySessionOrderBySeqAsc(ExplorationSession session);
+    List<ExplorationView> findBySessionIdOrderBySeqAsc(Long sessionId);
 
     @Query("SELECT ev.shortform.id FROM ExplorationView ev WHERE ev.session.id = :sessionId")
     List<Long> findViewedShortIdsBySessionId(@Param("sessionId") Long sessionId);

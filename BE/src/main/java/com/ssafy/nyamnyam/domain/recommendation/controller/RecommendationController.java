@@ -3,17 +3,43 @@ package com.ssafy.nyamnyam.domain.recommendation.controller;
 import com.ssafy.nyamnyam.domain.recommendation.dto.request.RecommendationPreviewRequest;
 import com.ssafy.nyamnyam.domain.recommendation.dto.response.RecommendationPreviewResponse;
 import com.ssafy.nyamnyam.domain.recommendation.service.HobbyRecommendationService;
+import com.ssafy.nyamnyam.domain.recommendation.service.RecommendationService;
+import com.ssafy.nyamnyam.domain.recommendation.dto.request.CreateRecommendationRequest;
+import com.ssafy.nyamnyam.domain.recommendation.dto.response.RecommendationResponse;
+import com.ssafy.nyamnyam.domain.user.entity.User;
+import com.ssafy.nyamnyam.domain.user.repository.UserRepository;
+import com.ssafy.nyamnyam.global.error.*;
+import com.ssafy.nyamnyam.global.security.UserPrincipal;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.http.ResponseEntity;
+import lombok.RequiredArgsConstructor;
 import com.ssafy.nyamnyam.global.common.ApiResponse;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/v1/recommendations")
+@RequiredArgsConstructor
 public class RecommendationController {
     private final HobbyRecommendationService service;
+    private final RecommendationService recommendations;
+    private final UserRepository users;
 
-    public RecommendationController(HobbyRecommendationService service) {
-        this.service = service;
+    @PostMapping
+    public ResponseEntity<ApiResponse<RecommendationResponse>> create(@Valid @RequestBody CreateRecommendationRequest request,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        if (request.basis() != CreateRecommendationRequest.Basis.EXPLORATION_SESSION)
+            throw new CustomException(ErrorCode.COMMON_INVALID_INPUT, "직접 선택 기반 추천은 MVP에서 지원하지 않습니다.");
+        var result = recommendations.finishExploration(request.sessionId(), user(principal));
+        return ResponseEntity.status(result.created() ? 201 : 200).body(ApiResponse.success(result.response()));
+    }
+    @GetMapping("/{id}")
+    public ApiResponse<RecommendationResponse> detail(@PathVariable Long id, @AuthenticationPrincipal UserPrincipal principal) {
+        return ApiResponse.success(recommendations.getRecommendation(id, user(principal)));
+    }
+    private User user(UserPrincipal principal) {
+        if (principal == null) throw new CustomException(ErrorCode.COMMON_UNAUTHORIZED);
+        return users.findById(principal.getUserId()).orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
     }
 
     /** 전달받은 점수로만 추천한다. 사용자 선호나 추천 결과를 저장하지 않는다. */

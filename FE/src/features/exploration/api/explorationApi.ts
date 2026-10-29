@@ -46,23 +46,25 @@ export type ExplorationProgressResponse = {
 export type RecommendationResponse = {
   recommendationId: number;
   basis: string;
+  basisText: string | null;
   isExploratory: boolean;
   reactionCount: number;
   items: Array<{
     itemId: number;
-    hobbyId: number;
-    hobbyName: string;
-    category: string | null;
     type: string;
-    rankNo: number;
-    score: number;
+    rank: number;
+    hobby: {
+      id: number;
+      name: string;
+      thumbnailUrl: string | null;
+      difficulty: string | null;
+      sessionMinutes: { min: number; max: number };
+      monthlyCost: { min: number; max: number };
+    };
     reason: string | null;
     reasonStatus: string;
-    difficulty: string | null;
-    sessionMinutes: string | null;
-    monthlyCost: string | null;
-    placeType: string | null;
-    socialType: string | null;
+    fallbackReason: string;
+    saved: boolean;
     conditionWarning: boolean;
   }>;
 };

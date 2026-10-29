@@ -51,6 +51,14 @@ public class Recommendation {
     @Column(name = "condition_snapshot", columnDefinition = "jsonb")
     private String conditionSnapshot;
 
+    @Column(name = "basis_text", length = 500)
+    private String basisText;
+
+    public void initializeSnapshot(String basisText, String conditions) {
+        this.basisText = basisText;
+        this.conditionSnapshot = conditions;
+    }
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 

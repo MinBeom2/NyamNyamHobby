@@ -56,15 +56,12 @@ public class SecurityConfig {
                         .requestMatchers("/oauth2/**", "/login/oauth2/**").permitAll()
                         // Actuator health
                         .requestMatchers("/actuator/health", "/actuator/info").permitAll()
-<<<<<<< HEAD
-                        // 커뮤니티 게시판 목록·상세와 업로드한 이미지는 비회원도 조회 가능(FR-BOARD, 명세 3.7·3.8)
+                        // 커뮤니티 게시판·업로드 이미지·취미별 관련 숏폼 조회는 공개. 변경 요청은 인증 필요.
                         .requestMatchers(HttpMethod.GET,
                                 "/api/v1/hobbies/*/posts",
                                 "/api/v1/posts/*",
-                                "/api/v1/uploads/images/**").permitAll()
-=======
-                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/hobbies/*/shorts").permitAll()
->>>>>>> 327d3c826db97db531e8203e93a0608e45fec50d
+                                "/api/v1/uploads/images/**",
+                                "/api/v1/hobbies/*/shorts").permitAll()
                         // 그 외 모든 요청은 인증 필요
                         .anyRequest().authenticated())
                 .oauth2Login(oauth2 -> oauth2

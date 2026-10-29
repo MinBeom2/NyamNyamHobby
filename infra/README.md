@@ -29,11 +29,25 @@ EC2 한 대에 Nginx(호스트)와 Docker 컨테이너들을 올린다. 외부�
 저장소의 `server/` 파일을 고치면 서버의 같은 경로에도 직접 복사해야 반영된다(Jenkins는 서버의 `/home/ubuntu/app/docker-compose.yml`을 읽는다).
 
 ## 배포 흐름
-`dev`에 `BE/` 변경이 MR로 머지되면 GitLab 웹훅 → Jenkins(`BE/Jenkinsfile`) → 테스트(임시 PostgreSQL로 `./gradlew test`) → 이미지 빌드(`BE/Dockerfile`) → `/home/ubuntu/app`에서 컨테이너 교체 → `/actuator/health` 확인 → Mattermost 알림.
+`dev`에 `BE/` 변경이 MR로 머지되면 GitLab 웹훅 → Jenkins(`BE/Jenkinsfile`) → 테스트(전용 임시 네트워크의 PostgreSQL·RabbitMQ로 `./gradlew test`) → 이미지 빌드(`BE/Dockerfile`) → `/home/ubuntu/app`에서 컨테이너 교체 → `/actuator/health` 확인 → Mattermost 알림.
+- 테스트는 DB와 RabbitMQ의 준비 완료를 확인한 후 실행하며, 성공·실패와 관계없이 두 컨테이너와 임시 네트워크를 정리한다. 테스트용 RabbitMQ는 호스트 포트를 공개하지 않는다.
+- 테스트 중 자동 이유 발행 작업과 RabbitMQ 리스너는 중지한다. 브로커 통합 테스트가 직접 발행·수신·소비 처리를 실행하므로 다른 테스트 컨텍스트가 메시지를 먼저 가져가지 않는다. CI에서만 지정하는 Spring 설정이며 운영 환경변수를 추가할 필요는 없다.
 - 테스트가 실패하면 이미지를 만들지 않고 서버는 그대로 둔다.
 - 헬스 체크가 실패하면 직전에 돌던 이미지(`nyam-backend:previous`)로 되돌린다.
 - 프론트엔드: `dev`에 `FE/` 변경이 머지되면 Jenkins(`FE/Jenkinsfile`) → `FE/Dockerfile`로 빌드(npm ci → 타입 검사 → vite build) → `/var/www/nyamnyam/releases/<빌드번호>`에 복사 → `current` 링크 교체 → Mattermost 알림. 최근 5개 릴리스를 남기며, 되돌릴 때는 서버에서 `ln -sfn releases/<번호> /var/www/nyamnyam/current`.
 - `dev`는 보호 브랜치라 직접 푸시하지 않는다. `feature/{JIRA키}-{설명}` 브랜치에서 MR을 올리고, MR 설명에 `Closes {JIRA키}`를 적으면 머지할 때 Jira 이슈가 완료된다.
+
+## 이미지 업로드 배포 설정 반영
+
+커뮤니티 이미지 업로드를 처음 배포할 때 서버의 `/home/ubuntu/app/docker-compose.yml`에도 저장소의 `infra/server/app/docker-compose.yml`을 반영한다. Jenkins는 이 서버 폴더를 읽기 전용으로 마운트하므로 설정 파일 동기화는 서버에서 먼저 수행한다.
+
+1. 기존 서버 Compose 파일을 백업한 뒤 최신 파일로 교체한다. 서버 `.env`는 유지하고 필요한 항목만 수정한다.
+2. 최신 Compose에는 `UPLOAD_DIR=/app/uploads`와 `uploads:/app/uploads` 볼륨이 있다. 이후 컨테이너를 재생성해도 업로드 파일을 유지한다. 기존 컨테이너에 이미 저장한 이미지가 있으면 재생성 전에 해당 파일을 백업하고 볼륨으로 이관한다.
+3. 공개 URL은 Compose의 `UPLOAD_PUBLIC_BASE_URL`로 지정한다. `.env`에 없거나 비어 있으면 `https://k15d104.p.ssafy.io`를 사용한다. 다른 도메인을 사용하면 서버 `.env`의 값을 변경한다.
+4. 서버에서 `docker compose -f /home/ubuntu/app/docker-compose.yml config --quiet`로 구문을 확인한 뒤 Jenkins 배포를 실행한다.
+5. 배포 후 `docker inspect backend --format '{{range .Mounts}}{{println .Type .Destination}}{{end}}'`에 `volume /app/uploads`가 있는지 확인한다. 이미지 업로드 응답 URL이 운영 도메인이고, 로그인하지 않은 브라우저에서도 해당 이미지를 조회할 수 있어야 한다.
+
+이미지 경로는 기존 Nginx의 `/api/` 프록시를 사용한다. 저장소 설정 수정만으로 서버의 기존 Compose·`.env`가 갱신되지는 않는다.
 
 ## 로그 크기 제한 적용 (최초 1회)
 ```bash

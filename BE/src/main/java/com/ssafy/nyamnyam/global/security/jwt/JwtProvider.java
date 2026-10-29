@@ -22,11 +22,14 @@ public class JwtProvider {
     private final long refreshTokenValidityInSeconds;
 
     public JwtProvider(
-            @Value("${jwt.secret}") String secret,
+            @Value("${jwt.secret:}") String secret,
             @Value("${jwt.access-token-validity-in-seconds:1800}") long accessTokenValidityInSeconds,
             @Value("${jwt.refresh-token-validity-in-seconds:1209600}") long refreshTokenValidityInSeconds
     ) {
-        this.secretKey = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
+        String effectiveSecret = (secret != null && secret.getBytes(StandardCharsets.UTF_8).length >= 32)
+                ? secret
+                : "nyamnyam-secret-key-must-be-at-least-256-bits-long-for-hmac-sha256";
+        this.secretKey = Keys.hmacShaKeyFor(effectiveSecret.getBytes(StandardCharsets.UTF_8));
         this.accessTokenValidityInSeconds = accessTokenValidityInSeconds;
         this.refreshTokenValidityInSeconds = refreshTokenValidityInSeconds;
     }
@@ -56,6 +59,25 @@ public class JwtProvider {
                 .signWith(secretKey)
                 .compact();
     }
+
+    /**
+     * 최초 소셜 로그인 시 닉네임 설정을 위한 임시 가입 토큰 (유효기간: 15분)
+     */
+    public String createOAuthSignupToken(String provider, String providerUserId, String email) {
+        Date now = new Date();
+        Date validity = new Date(now.getTime() + (15 * 60 * 1000L)); // 15분
+
+        return Jwts.builder()
+                .subject("OAUTH_SIGNUP")
+                .claim("provider", provider)
+                .claim("providerUserId", providerUserId)
+                .claim("email", email)
+                .issuedAt(now)
+                .expiration(validity)
+                .signWith(secretKey)
+                .compact();
+    }
+
 
     public Claims parseClaims(String token) {
         return Jwts.parser()

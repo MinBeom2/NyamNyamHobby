@@ -23,6 +23,7 @@ public enum ErrorCode {
     AUTH_EMAIL_NOT_VERIFIED(HttpStatus.FORBIDDEN, "AUTH_EMAIL_NOT_VERIFIED", "이메일 인증이 완료되지 않았습니다. 인증 메일을 확인해 주세요."),
 
     // 404 Not Found
+    HOBBY_RECOMMENDATION_UNAVAILABLE(HttpStatus.NOT_FOUND, "HOBBY_RECOMMENDATION_UNAVAILABLE", "추천 가능한 공개 취미와 태그 정보를 찾을 수 없습니다."),
     COMMON_NOT_FOUND(HttpStatus.NOT_FOUND, "COMMON_NOT_FOUND", "요청하신 리소스를 찾을 수 없습니다."),
     USER_NOT_FOUND(HttpStatus.NOT_FOUND, "USER_NOT_FOUND", "사용자를 찾을 수 없습니다."),
 

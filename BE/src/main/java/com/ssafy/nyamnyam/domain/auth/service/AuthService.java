@@ -308,11 +308,82 @@ public class AuthService {
         return new MessageResponse("비밀번호가 성공적으로 변경되었습니다. 다시 로그인해 주세요.");
     }
 
-    // ─── Private Helpers ───
+    /**
+     * 10) 소셜 회원가입 완료: 임시 가입 토큰 검증 → 닉네임 설정 → User/SocialAccount 생성 → 로그인 토큰 발급
+     */
+    @Transactional
+    public LoginResult oauthSignup(OAuthSignupRequest request) {
+        if (!jwtProvider.validateToken(request.getSignupToken())) {
+            throw new CustomException(ErrorCode.AUTH_LINK_INVALID, "임시 가입 토큰이 만료되었거나 올바르지 않습니다.");
+        }
 
-    private LoginResult issueTokens(User user, LocalDateTime now) {
+        io.jsonwebtoken.Claims claims = jwtProvider.parseClaims(request.getSignupToken());
+        if (!"OAUTH_SIGNUP".equals(claims.getSubject())) {
+            throw new CustomException(ErrorCode.AUTH_LINK_INVALID, "올바른 소셜 가입 토큰이 아닙니다.");
+        }
+
+        String providerName = claims.get("provider", String.class);
+        String providerUserId = claims.get("providerUserId", String.class);
+        String email = claims.get("email", String.class);
+
+        if (providerName == null || providerUserId == null || email == null) {
+            throw new CustomException(ErrorCode.AUTH_LINK_INVALID, "토큰 정보가 올바르지 않습니다.");
+        }
+
+        com.ssafy.nyamnyam.domain.auth.entity.AuthProvider provider;
+        try {
+            provider = com.ssafy.nyamnyam.domain.auth.entity.AuthProvider.valueOf(providerName);
+        } catch (IllegalArgumentException e) {
+            throw new CustomException(ErrorCode.COMMON_INVALID_INPUT, "지원하지 않는 소셜 로그인 제공자입니다.");
+        }
+
+        // 닉네임 중복 검사
+        if (userRepository.existsByNickname(request.getNickname())) {
+            throw new CustomException(ErrorCode.AUTH_NICKNAME_DUPLICATED);
+        }
+
+        // 이미 가입된 소셜 계정이 있는 경우
+        var existingSocial = socialAccountRepository.findByProviderAndProviderUserId(provider, providerUserId);
+        if (existingSocial.isPresent()) {
+            return issueTokens(existingSocial.get().getUser(), LocalDateTime.now());
+        }
+
+        // 이미 일반 이메일로 가입된 계정이 있는 경우
+        if (userRepository.existsByEmail(email)) {
+            throw new CustomException(ErrorCode.AUTH_SOCIAL_ACCOUNT, "이미 일반 이메일로 가입된 계정입니다. 일반 로그인을 이용해 주세요.");
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+
+        // 소셜 사용자 생성 (비밀번호 없음, 즉시 ACTIVE)
+        User user = User.builder()
+                .email(email)
+                .nickname(request.getNickname())
+                .role(Role.USER)
+                .status(UserStatus.ACTIVE)
+                .build();
+        user.activate(now);
+        User savedUser = userRepository.save(user);
+
+        // 소셜 연동 계정 생성
+        com.ssafy.nyamnyam.domain.auth.entity.SocialAccount socialAccount = com.ssafy.nyamnyam.domain.auth.entity.SocialAccount.builder()
+                .user(savedUser)
+                .provider(provider)
+                .providerUserId(providerUserId)
+                .build();
+        socialAccountRepository.save(socialAccount);
+
+        log.info("[Auth] 소셜 회원가입 완료: userId={}, provider={}, email={}", savedUser.getId(), provider, email);
+
+        return issueTokens(savedUser, now);
+    }
+
+    // ─── Helpers ───
+
+    public LoginResult issueTokens(User user, LocalDateTime now) {
         String accessToken = jwtProvider.createAccessToken(user.getId(), user.getEmail(), user.getRole().name());
         String refreshToken = jwtProvider.createRefreshToken(user.getId());
+
 
         // 기존 Refresh Token 폐기 후 새로 저장
         authTokenRepository.deleteAllByUserIdAndType(user.getId(), TokenType.REFRESH);

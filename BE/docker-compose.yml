@@ -1,10 +1,10 @@
-# 로컬 개발용 인프라 (PostgreSQL · Redis · RabbitMQ)
+# 로컬 개발용 인프라 (PostgreSQL 17 + pgvector · Redis · RabbitMQ)
 # 실행: BE 폴더에서 `docker compose up -d` (같은 폴더의 .env 값을 사용)
 # 종료: `docker compose down` · 데이터까지 지우기: `docker compose down -v`
 
 services:
   postgres:
-    image: postgres:17
+    image: pgvector/pgvector:pg17
     container_name: nyamnyam-postgres
     environment:
       POSTGRES_DB: ${DB_NAME}

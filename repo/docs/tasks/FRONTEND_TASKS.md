@@ -119,12 +119,12 @@
   - 로그인 Primary L, 실패 문구 '이메일 또는 비밀번호가 맞지 않아요'로 통일, 5회 실패 잠금·PENDING 계정 재발송 안내, redirect 복귀, 로그아웃 후 토큰 삭제.
   - 화면·API: 01-1 · /auth/login · /auth/logout
   - 근거: FR-AUTH-02
-- [ ] **AUTH-F04 소셜 로그인** · `권장` · 소셜 로그인
+- [x] **AUTH-F04 소셜 로그인** · `권장` · 소셜 로그인
   - Google 버튼(Google 브랜드 가이드, 높이 48) → /oauth2/authorization/{provider}, /oauth/callback에서 토큰 처리, 최초 가입이면 닉네임 확인(/auth/oauth/signup) 후 01-5, 같은 이메일 일반 계정은 '이메일로 가입된 계정이에요' 안내. 소셜 로그인은 Google만(Kakao·Naver 없음).
   - 화면·API: 01-1 · 01-2 · /oauth2/authorization/{provider} · /auth/oauth/signup
   - 근거: FR-AUTH-03
   - 비고: 11장 #2: Google만(P1)으로 변경
-- [ ] **AUTH-F05 비밀번호 재설정** · `필수` · 비밀번호
+- [x] **AUTH-F05 비밀번호 재설정** · `필수` · 비밀번호
   - 01-3 이메일 입력 → 가입 여부와 관계없이 같은 안내, 01-4 메일 링크에서 새 비밀번호 설정, 만료·사용된 링크 상태를 만든다.
   - 화면·API: 01-3 · 01-4 · /auth/password/reset-request · /auth/password/reset
   - 근거: FR-AUTH-04

@@ -45,4 +45,10 @@ class ExplorationPropertiesTest {
     @EnableConfigurationProperties(ExplorationProperties.class)
     static class TestConfiguration {
     }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"-0.1", "1.1", "NaN"})
+    void rejectsInvalidPreferenceRatio(String ratio) {
+        contextRunner.withPropertyValues("exploration.prefer-ratio="+ratio).run(context->assertThat(context).hasFailed());
+    }
 }

@@ -15,6 +15,8 @@ import java.util.List;
 import java.util.Optional;
 
 public interface ShortRepository extends JpaRepository<Short, Long> {
+    @Query("SELECT s FROM Short s WHERE s.hobby.id = :hobbyId AND s.status = :status ORDER BY COALESCE(s.releasedAt,s.createdAt) DESC, s.id DESC")
+    List<Short> findByHobbyIdAndStatusOrderByReleasedAtDescIdDesc(@Param("hobbyId") Long hobbyId, @Param("status") ShortStatus status, org.springframework.data.domain.Pageable pageable);
 
     Optional<Short> findByYoutubeVideoId(String youtubeVideoId);
 

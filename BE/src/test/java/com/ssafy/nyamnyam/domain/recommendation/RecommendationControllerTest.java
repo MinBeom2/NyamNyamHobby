@@ -24,6 +24,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @WebMvcTest(RecommendationController.class)
 @Import({SecurityConfig.class, JwtAuthenticationEntryPoint.class, JwtAccessDeniedHandler.class})
 class RecommendationControllerTest {
+    @MockitoBean com.ssafy.nyamnyam.domain.recommendation.service.RecommendationService recommendations;
+    @MockitoBean com.ssafy.nyamnyam.domain.user.repository.UserRepository users;
     private static final String PATH = "/api/v1/recommendations/preview";
     @Autowired MockMvc mvc;
     @MockitoBean HobbyRecommendationService service;

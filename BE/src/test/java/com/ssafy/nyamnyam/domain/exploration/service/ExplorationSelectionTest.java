@@ -11,6 +11,8 @@ import com.ssafy.nyamnyam.domain.exploration.repository.ExplorationSessionReposi
 import com.ssafy.nyamnyam.domain.exploration.repository.ExplorationViewRepository;
 import com.ssafy.nyamnyam.domain.exploration.repository.ShortReactionRepository;
 import com.ssafy.nyamnyam.domain.recommendation.repository.RecommendationRepository;
+import com.ssafy.nyamnyam.domain.recommendation.service.PreferenceProfileService;
+import com.ssafy.nyamnyam.domain.hobby.entity.Hobby;
 import com.ssafy.nyamnyam.domain.shortform.entity.Short;
 import com.ssafy.nyamnyam.domain.shortform.entity.ShortStatus;
 import com.ssafy.nyamnyam.domain.shortform.repository.ShortRepository;
@@ -46,6 +48,8 @@ import static org.mockito.Mockito.lenient;
 
 @ExtendWith(MockitoExtension.class)
 class ExplorationSelectionTest {
+    @Mock private PreferenceProfileService profiles;
+    @Spy private ExplorationSelectionPolicy selectionPolicy = new ExplorationSelectionPolicy();
 
     @Mock private ExplorationSessionRepository sessionRepository;
     @Mock private ExplorationViewRepository viewRepository;
@@ -60,6 +64,8 @@ class ExplorationSelectionTest {
 
     @BeforeEach
     void setUp() {
+        lenient().when(profiles.load(any())).thenReturn(PreferenceProfileService.Profile.empty());
+        lenient().when(profiles.load(any(), any())).thenReturn(PreferenceProfileService.Profile.empty());
         user = User.builder().email("selection@example.com").nickname("selection").build();
         ReflectionTestUtils.setField(user, "id", 1L);
         session = ExplorationSession.builder().user(user).maxCount((short) 12).build();
@@ -157,6 +163,31 @@ class ExplorationSelectionTest {
 
         assertFinishedWithoutExposure(service.getNextShort(50L, user));
         verify(viewRepository, never()).save(any());
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    @DisplayName("별로예요를 받은 취미 전체 제외는 현재 세션의 반응에만 적용한다")
+    void excludesDislikedHobbyOnlyWithinReactionSession(boolean currentSession) {
+        Hobby hobby = Hobby.builder().name("취미").build();
+        ReflectionTestUtils.setField(hobby, "id", 9L);
+        Short previous = shortform(100L), candidate = shortform(101L);
+        ReflectionTestUtils.setField(previous, "hobby", hobby);
+        ReflectionTestUtils.setField(candidate, "hobby", hobby);
+        ShortReaction reaction = ShortReaction.builder().user(user).shortform(previous).type(ReactionType.DISLIKE)
+                .sessionId(currentSession ? 50L : 49L).build();
+        givenNextSession(List.of(100L));
+        given(viewRepository.findAllViewedShortIdsByUserId(1L)).willReturn(List.of(100L));
+        given(reactionRepository.findByUser(user)).willReturn(List.of(reaction));
+        given(shortRepository.findWithHobbyByStatus(ShortStatus.ACTIVE)).willReturn(List.of(candidate));
+
+        var result = service.getNextShort(50L, user);
+        if (currentSession) {
+            assertFinishedWithoutExposure(result);
+            verify(viewRepository, never()).save(any());
+        } else {
+            assertThat(result.getShortItem().getShortId()).isEqualTo(101L);
+        }
     }
 
     @ParameterizedTest

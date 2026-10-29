@@ -485,6 +485,14 @@
 
 - **세션 크기 설정**: `exploration.session-size`는 기본 12이며 `EXPLORATION_SESSION_SIZE` 환경변수로 변경할 수 있다. 유효 범위는 DB `SMALLINT`에 맞춰 1~32767이고, 범위를 벗어나면 서버 기동 시 설정 검증에 실패한다. 세션 생성 시 `maxCount`에 저장하므로 설정 변경 후에도 기존 세션의 최대 노출 수·진행 현황·종료 기준은 유지된다.
 
+**영상 선택 `[P1]`**
+
+- 이전 세션에 양수 취미 점수가 없으면 현재 세션의 1~4번째 영상은 가능한 범위에서 서로 다른 분류로 분산한다. 분류를 먼저 균등 선택하고 그 안에서 영상을 무작위 선택한다. 분류가 부족하면 남은 후보를 사용한다.
+- 이후에는 누적 점수가 양수인 상위 3개 선호 취미 중에서 70%, 누적 기록에서 덜 본 분류 중에서 30% 확률로 선택한다. 선호 후보가 없으면 탐색 후보를 사용한다. 확률은 영상마다 적용하므로 세션별 개수가 정확히 7:3으로 고정되지는 않는다.
+- 설정은 `exploration.prefer-ratio`, 환경변수는 `EXPLORATION_PREFER_RATIO`(기본 `0.7`, 유효 범위 `0~1`)다.
+- 현재 세션에서 `DISLIKE` 반응을 가진 영상의 **취미 전체**를 후보에서 제외한다. 반응 변경·취소 시 현재 상태를 반영한다. 추천 결과의 취미 제외(`hobby_dislikes`)와는 별도 정책이다.
+- 새 영상 후보를 우선 사용하고, 모두 소진됐을 때만 이전 세션의 현재 무반응 영상을 재사용한다. 같은 세션 중복·비활성·현재 관련 없음 반응 제외는 모든 단계에 적용한다. 선택 후 잠금 대기 중 비활성화된 후보는 건너뛰고 다른 후보를 확인한다.
+
 **고유 사용자 집계·영상 상태 전환**
 
 - `view_user_count`는 해당 영상이 노출된 고유 회원 수다. 같은 회원의 반복 노출·여러 세션은 한 명으로 센다.
@@ -787,36 +795,63 @@
 #### 3) 취미 상세 관련 숏폼 목록 `[P1]`
 - **Endpoint**: `GET /api/v1/hobbies/{hobbyId}/shorts?limit=6`
 - **Permission**: `공개`
-- **Response (200 OK)**: 최대 6개의 추천 숏폼 카드 목록
+- **Query Parameter**: `limit`은 생략 시 6, 정수 `1~6`. 범위를 벗어나거나 양수가 아닌 취미 ID는 `400 COMMON_INVALID_INPUT`.
+- **필터·정렬**: 공개(`PUBLISHED`) 취미의 `ACTIVE` 영상만 반환한다. 공개 반영 시각(`released_at`, 없으면 `created_at`) 내림차순, 영상 ID 내림차순이다. 개인별 시청·반응 여부로 제외하지 않는다.
+- **Response (200 OK)**: `data`는 최대 `limit`개의 카드 배열이며 영상이 없으면 `[]`. 없거나 비공개인 취미는 `404 COMMON_NOT_FOUND`.
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "shortId": 41,
+      "youtubeVideoId": "aBcD123xYz0",
+      "title": "퇴근 후 1시간, 볼더링 첫 도전기",
+      "duration": 58,
+      "thumbnailUrl": "https://cdn.example.com/shorts/41.jpg"
+    }
+  ],
+  "error": null
+}
+```
 
 #### 4) 취미 TODO 플랜 미리보기 `[P1]`
 - **Endpoint**: `GET /api/v1/hobbies/{hobbyId}/plan-preview?skillLevel=BEGINNER`
 - **Permission**: `공개`
 - **Response (200 OK)**: 1~2주차 활동 예시 데이터
 
-#### 5) 추천 생성 (수동 또는 직접 선택 기반)
+#### 5) 추천 생성 (탐색 세션 기반)
 - **Endpoint**: `POST /api/v1/recommendations`
 - **Permission**: `회원 (USER)` (비회원 `GUEST` 체험은 `[P2·MVP 제외]`)
 - **Request Body**:
 ```json
 {
-  "basis": "DIRECT_SELECTION",
-  "sessionId": null,
-  "hobbyIds": [3, 7, 12]
+  "basis": "EXPLORATION_SESSION",
+  "sessionId": 301
 }
 ```
-*(basis: `EXPLORATION_SESSION`, `DIRECT_SELECTION` — `DIRECT_SELECTION`(관심사 직접 선택, FR-SHORT-05)은 `[P2·MVP 제외]`. MVP는 탐색 세션 기반만 사용)*  
-*(정보 부족(LIKE 3개 미만) 시 `isExploratory: true` 탐색용 제안은 `[P1]`. 이용 상황 반영 정렬·`conditionWarning`은 `[P1]`. `basisText`(추천 기준 문구)와 AI 추천 이유 `reason`(60자)은 `[P1]` — AI 이유 도입 전에는 `fallbackReason`을 표시)*
+`basis`와 양수 `sessionId`는 필수다. `DIRECT_SELECTION`(관심사 직접 선택, FR-SHORT-05)은 `[P2·MVP 제외]`이며 MVP에서는 `400 COMMON_INVALID_INPUT`. `hobbyIds`는 생략·`null`·빈 배열만 허용한다.
+
+- `POST /explorations/{sessionId}/finish`와 동일한 생성 처리를 사용한다. 최초 생성은 `201 Created`, 같은 세션의 재요청은 `200 OK`로 저장된 결과를 반환한다. 포기한 세션은 `409 SHORT_SESSION_ENDED`, 타인·없는 세션은 `404 COMMON_NOT_FOUND`.
+- **누적 집계**: 본인의 모든 세션 기록에서 영상별 가장 최근 시청 기록(`viewed_at DESC, id DESC`) 하나와 현재 반응 하나를 사용한다. 반복 시청·반응 변경을 중복 가산하지 않는다. 반응 취소 시 시청 점수는 유지한다. 관심사 초기화 시각이 이미 저장되어 있으면 그 이후 기록만 사용하며, 초기화 API 자체는 P2다.
+- **점수**: 영상별 `LIKE +3`, `DISLIKE -3`, 무반응 0에 `시청 비율 × 2 - 1`을 더한다. 취미별로 합산하고, 각 태그에는 영상 점수의 `0.3`을 합산한다. 최신 시청이 재생 실패인 영상, 현재 `IRRELEVANT`인 영상, 취미가 없는 영상은 점수·LIKE 수·`reactionCount`에서 제외한다. `reactionCount`는 집계 대상 영상의 현재 LIKE·DISLIKE 반응 수(최대 32767)다.
+- **일반 추천**: 양수 취미 점수 상위 3개를 `INTEREST`, 관심 취미와의 최대 기존 유사도 × `0.7` + 정규화 태그 점수 × `0.3`의 상위 3개를 `RELATED`로 구성한다. 취미 제외는 양쪽에 적용하고, 연관 후보에서는 관심 취미·진행 중 취미도 제외한다. 기존 취미 유사도 계산 방식은 유지한다. 동점은 취미 ID 오름차순이다.
+- **정보 부족 `[P1]`**: 집계 대상 LIKE 영상이 3개 미만이면 `isExploratory: true`. 관심 저장 수에 이용 상황 가중치를 적용한 순서로 서로 다른 분류에서 최대 6개를 선택한다. 추천 제외·진행 중 취미를 제외하며 분류가 부족하면 적게 반환한다. 앞 3개는 `INTEREST`, 나머지는 `RELATED`다.
+- **이용 상황 `[P1]`**: 월 비용 최솟값이 월 예산을 넘거나 1회 시간 최솟값이 주간 가능 시간(분 환산)을 넘으면 점수에 `0.8`을 한 번 적용하고 `conditionWarning: true`로 표시한다. 장소·참여 형태가 맞으면 각각 `1.1`을 곱한다(`BOTH`는 양쪽에 일치). 미입력·`ANY`는 해당 가중치를 적용하지 않으며 후보를 필터링하지 않는다.
+- **스냅샷**: 취미 ID·명칭·이미지·난이도·시간·비용·정렬 점수·순위·저장 여부(`saved`)·이용 상황·경고·추천 기준 문구는 생성 시점에 저장한다. 이후 취미 정보·저장 상태·반응·이용 상황을 바꿔도 기존 결과는 재계산하지 않는다. AI `reason`·`reasonStatus`만 비동기 변경된다. 과거 추천은 V9 마이그레이션 시점의 취미·저장 정보를 고정하며 원래 생성 시점의 정보를 복원하지는 않는다.
+- API `basis`는 `EXPLORATION_SESSION`이며 기존 DB 표현 `REACTION`과 구분한다. `rank`는 전체 항목에서 1부터 순서대로 부여한다. 이유가 준비되지 않았거나 실패하면 항상 제공되는 `fallbackReason`을 표시한다.
 - **Response (201 Created)**:
 ```json
 {
   "success": true,
   "data": {
     "recommendationId": 88,
+    "basis": "EXPLORATION_SESSION",
     "isExploratory": false,
-    "basisText": "선택하신 관심 취미(클라이밍, 도예)와 이용 상황을 바탕으로 추천했어요",
+    "reactionCount": 5,
+    "basisText": "숏폼 누적 반응 5개와 이용 상황을 바탕으로 추천했어요",
     "items": [
       {
+        "itemId": 201,
         "type": "INTEREST",
         "rank": 1,
         "hobby": {
@@ -834,6 +869,7 @@
         "saved": false
       },
       {
+        "itemId": 202,
         "type": "RELATED",
         "rank": 2,
         "hobby": {
@@ -859,14 +895,18 @@
 #### 6) 추천 상세 조회 (비동기 사유 폴링용) — 비동기 AI 추천 이유는 `[P1]`
 - **Endpoint**: `GET /api/v1/recommendations/{id}`
 - **Permission**: `회원 (USER)` (비회원 `GUEST` 체험은 `[P2·MVP 제외]`)
-- **Response (200 OK)**:
-  - RabbitMQ 소비자가 GMS 추천 사유 생성을 마치면 `reasonStatus: "COMPLETED"`, `reason: "평소 활동적인 실내 운동을 선호하시고 주 3시간 여유에 적합한 취미예요"`로 응답.
+- **Response (200 OK)**: 추천 생성과 같은 응답 구조. 본인 추천만 조회하며 타인·없는 추천은 `404 COMMON_NOT_FOUND`.
+- **상태 흐름**: 생성 직후 `reasonStatus: "PENDING"`, `reason: null`. RabbitMQ 소비자가 GMS 이유 생성을 마치면 `COMPLETED`와 60자 이내 한 문장으로 응답한다. GMS 설정 없음·오류·빈 결과는 `FALLBACK`, `reason: null`이며 `fallbackReason`을 유지한다. 모든 항목이 `COMPLETED` 또는 `FALLBACK`이면 폴링을 종료한다. 기존 DB의 `DONE`도 응답에서는 `COMPLETED`로 변환한다.
+- **발행 보장**: 추천과 이유 발행 요청(outbox)을 같은 DB 트랜잭션에 저장한다. 별도 작업자가 5초 주기로 커밋된 요청을 읽어 RabbitMQ 발행 확인 후 제거한다. 실패 시 10·20·40·80초 간격으로 재시도하며 5번째 실패 시 남은 `PENDING` 항목을 `FALLBACK`으로 전환한다. 중복 메시지는 완료된 항목의 이유를 재생성하지 않는다.
+- **운영 설정**: `RECOMMENDATION_REASON_OUTBOX_ENABLED`는 기본 `true`. `false`이면 발행 작업만 중지하고 요청은 DB에 보존한다. 재활성화 전까지 해당 추천의 이유는 `PENDING`일 수 있다. 로컬·서버 `.env.example`에 예시를 함께 관리한다.
 
 #### 7) 취미 별로예요 (추천 제외) 등록 / 취소
 - **Endpoint**: `PUT /api/v1/hobbies/{hobbyId}/dislike`
 - **Endpoint**: `DELETE /api/v1/hobbies/{hobbyId}/dislike`
 - **Permission**: `회원 (USER)`
-- **Response (200 OK)**: 등록 시 향후 추천 및 연관 취미에서 영구 제외
+- **Response (200 OK)**: 등록은 `data: {"hobbyId": 3, "disliked": true}`, 취소는 `data: {"hobbyId": 3, "disliked": false}`. 같은 요청을 반복해도 성공하며 사용자별로 독립적이다.
+- 등록 이후 새로 생성하는 관심·연관·탐색용 추천 후보에서 제외하고 취소하면 다시 후보가 될 수 있다. 이미 생성된 추천 스냅샷은 변경하지 않는다.
+- 등록은 공개(`PUBLISHED`) 취미만 허용한다. 취소는 이미 비공개가 된 취미도 허용한다. 없는 취미는 `404 COMMON_NOT_FOUND`, 양수가 아닌 ID는 `400 COMMON_INVALID_INPUT`, 비로그인은 `401`이다.
 
 ---
 

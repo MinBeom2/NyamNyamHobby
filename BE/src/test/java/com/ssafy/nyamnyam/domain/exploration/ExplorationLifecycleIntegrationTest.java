@@ -9,6 +9,8 @@ import com.ssafy.nyamnyam.domain.hobby.entity.Hobby;
 import com.ssafy.nyamnyam.domain.hobby.entity.HobbyStatus;
 import com.ssafy.nyamnyam.domain.recommendation.dto.response.FinishExplorationResult;
 import com.ssafy.nyamnyam.domain.recommendation.service.RecommendationService;
+import com.ssafy.nyamnyam.domain.recommendation.service.RecommendationPlanner;
+import com.ssafy.nyamnyam.domain.recommendation.service.PreferenceProfileService;
 import com.ssafy.nyamnyam.domain.shortform.entity.Short;
 import com.ssafy.nyamnyam.domain.shortform.entity.ShortStatus;
 import com.ssafy.nyamnyam.domain.user.entity.User;
@@ -24,6 +26,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
+import org.mockito.ArgumentCaptor;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
@@ -37,7 +41,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
 /** 실제 PostgreSQL에서 실행. 외부 API·메시지 발송은 사용하지 않으며 생성한 fixture는 정리한다. */
-@SpringBootTest(properties = {"app.short-collect.enabled=false",
+@SpringBootTest(properties = {"app.short-collect.enabled=false", "recommendation.reason-outbox-enabled=false",
         "spring.rabbitmq.listener.simple.auto-startup=false", "spring.rabbitmq.listener.direct.auto-startup=false"})
 class ExplorationLifecycleIntegrationTest {
     @Autowired ExplorationService explorations;
@@ -47,6 +51,7 @@ class ExplorationLifecycleIntegrationTest {
     @Autowired EntityManager em;
     @Autowired PlatformTransactionManager transactionManager;
     @MockitoBean RabbitTemplate rabbit;
+    @MockitoSpyBean RecommendationPlanner planner;
 
     TransactionTemplate transaction;
     Fixture fixture;
@@ -75,6 +80,7 @@ class ExplorationLifecycleIntegrationTest {
     @AfterEach void cleanUp() {
         if (fixture == null) return;
         transaction.executeWithoutResult(status -> {
+            jdbc.update("DELETE FROM recommendation_reason_outbox WHERE recommendation_id IN (SELECT id FROM recommendations WHERE session_id=?)", fixture.sessionId());
             jdbc.update("DELETE FROM recommendation_items WHERE recommendation_id IN (SELECT id FROM recommendations WHERE session_id = ?)", fixture.sessionId());
             jdbc.update("DELETE FROM recommendations WHERE session_id = ?", fixture.sessionId());
             jdbc.update("DELETE FROM short_reactions WHERE user_id = ?", fixture.userId());
@@ -103,7 +109,8 @@ class ExplorationLifecycleIntegrationTest {
             assertThat(results).extracting(FinishExplorationResult::created).containsExactlyInAnyOrder(true, false);
             assertThat(results.get(0).response().getRecommendationId()).isEqualTo(results.get(1).response().getRecommendationId());
             assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM recommendations WHERE session_id = ?", Long.class, fixture.sessionId())).isEqualTo(1);
-            verify(rabbit, times(1)).convertAndSend(anyString(), anyString(), any(Object.class));
+            assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM recommendation_reason_outbox WHERE recommendation_id IN (SELECT id FROM recommendations WHERE session_id=?)", Long.class, fixture.sessionId())).isEqualTo(1);
+            verifyNoInteractions(rabbit);
         } finally {
             start.countDown();
             executor.shutdownNow();
@@ -121,7 +128,7 @@ class ExplorationLifecycleIntegrationTest {
         assertThat(first.created()).isTrue();
         assertThat(repeated.created()).isFalse();
         assertThat(repeated.response().getRecommendationId()).isEqualTo(first.response().getRecommendationId());
-        assertStoredScore("3.500");
+        assertRecommendationUsedScore("3.500");
         assertEnded(() -> explorations.recordView(fixture.sessionId(), new RecordViewRequest(fixture.shortId(), 1, false), user));
         assertEnded(() -> explorations.recordReaction(fixture.shortId(), new ReactionRequest(ReactionType.DISLIKE, fixture.sessionId()), user));
         assertEnded(() -> explorations.cancelReaction(fixture.shortId(), user));
@@ -150,7 +157,7 @@ class ExplorationLifecycleIntegrationTest {
             commitView.countDown();
             writer.get(20, TimeUnit.SECONDS);
             finisher.get(20, TimeUnit.SECONDS);
-            assertStoredScore("0.500");
+        assertRecommendationUsedScore("0.500");
         } finally {
             commitView.countDown();
             executor.shutdownNow();
@@ -255,10 +262,12 @@ class ExplorationLifecycleIntegrationTest {
 
     private User user() { return users.findById(fixture.userId()).orElseThrow(); }
 
-    private void assertStoredScore(String score) {
-        BigDecimal actual = jdbc.queryForObject("SELECT i.score FROM recommendation_items i JOIN recommendations r ON r.id = i.recommendation_id WHERE r.session_id = ? AND i.hobby_id = ?",
-                BigDecimal.class, fixture.sessionId(), fixture.hobbyId());
-        assertThat(actual).isEqualByComparingTo(score);
+    private void assertRecommendationUsedScore(String score) {
+        // LIKE 3개 미만이면 인기 취미를 제안하므로 시청한 취미가 결과에 포함된다고 가정하지 않는다.
+        // 실제 추천 계산에 전달된 누적 점수로 마지막 기록의 커밋 반영을 검증한다.
+        ArgumentCaptor<PreferenceProfileService.Profile> captured = ArgumentCaptor.forClass(PreferenceProfileService.Profile.class);
+        verify(planner).plan(anyList(), captured.capture(), anySet(), anySet(), any());
+        assertThat(BigDecimal.valueOf(captured.getValue().hobbyScores().get(fixture.hobbyId()))).isEqualByComparingTo(score);
     }
 
     private void assertEnded(Runnable operation) {

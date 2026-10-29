@@ -44,7 +44,7 @@ export function LoginPage() {
     mutationFn: login,
     onSuccess: (data) => {
       setSession(data);
-      navigate('/home', { replace: true });
+      navigate(data.user.onboarded ? '/home' : '/onboarding/interests', { replace: true });
     },
   });
 
@@ -107,9 +107,9 @@ export function LoginPage() {
 
           <div className="social-login" aria-label="소셜 로그인">
             <a className="social-login__button social-login__button--google" href="/oauth2/authorization/google">Google로 계속하기</a>
+            <button className="social-login__button social-login__button--kakao" type="button" disabled>카카오로 계속하기</button>
+            <button className="social-login__button social-login__button--naver" type="button" disabled>네이버로 계속하기</button>
           </div>
-
-
         </section>
       </main>
     </div>

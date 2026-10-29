@@ -32,6 +32,11 @@ export type AvailabilityResponse = {
 
 export type MessageResponse = { message: string };
 
+export type OAuthSignupRequest = {
+  signupToken: string;
+  nickname: string;
+};
+
 export function signup(request: SignupRequest) {
   return apiRequest<SignupResponse>('/auth/signup', {
     method: 'POST',
@@ -82,15 +87,6 @@ export function login(request: LoginRequest) {
   });
 }
 
-export function logout() {
-  return apiRequest<void>('/auth/logout', { method: 'POST' });
-}
-
-export type OAuthSignupRequest = {
-  signupToken: string;
-  nickname: string;
-};
-
 export function oauthSignup(request: OAuthSignupRequest) {
   return apiRequest<LoginResponse>('/auth/oauth/signup', {
     method: 'POST',
@@ -98,3 +94,6 @@ export function oauthSignup(request: OAuthSignupRequest) {
   });
 }
 
+export function logout() {
+  return apiRequest<void>('/auth/logout', { method: 'POST' });
+}

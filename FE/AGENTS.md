@@ -82,6 +82,11 @@ src/
 
 ## 6. API 연동 규칙
 
+- 실제 API를 연결하거나 교체할 때 기본 데이터 흐름은 `API DTO → adapter → feature hook → page/component`로 둔다.
+- `page/component`는 API DTO를 직접 해석하거나 서버 필드명에 맞춰 렌더링하지 않고, 화면에 필요한 view model을 props 또는 feature hook으로 받는다.
+- adapter는 서버 DTO를 화면 모델로 변환하며, 날짜·시간 표시, nullable 기본값, Enum 라벨, 중첩 필드 평탄화를 담당한다.
+- feature hook은 Query/Mutation, 로딩·오류 상태, 캐시 갱신과 사용자 동작을 담당하고 DOM 구조나 CSS 클래스명을 결정하지 않는다.
+- API 연결만 요청된 작업에서는 기존 JSX 구조, CSS 클래스명, 디자인 토큰, 문구, 에셋과 레이아웃을 변경하지 않는다. 화면 변경이 불가피하면 먼저 변경 이유와 영향을 보고한다.
 - 서버 응답 타입은 API 명세에서 파생해 작성한다. 화면에 필요한 모델이 다르면 API DTO를 변경하지 말고 명시적인 변환 함수를 둔다.
 - 서버 상태는 TanStack Query로 관리한다. API 응답을 Zustand에 중복 저장하지 않는다.
 - Query Key는 기능별 factory로 관리해 문자열을 화면 곳곳에 직접 작성하지 않는다.

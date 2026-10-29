@@ -10,4 +10,5 @@ export const characterAssets = {
   celebration: '/assets/characters/p5-celebration.png',
   searching: '/assets/characters/p6-searching.png',
   art: '/assets/characters/p7-art.png',
+  signupRequired: '/assets/characters/signup-required.png',
 } as const;

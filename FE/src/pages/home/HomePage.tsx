@@ -1,6 +1,6 @@
 import { ChartNoAxesColumnIncreasing, Check, CircleDollarSign, Clock3, MessageCircleQuestion, Play, Search } from 'lucide-react';
 import { useMutation } from '@tanstack/react-query';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { logout } from '../../features/auth/api/authApi';
 import { useAuthStore } from '../../features/auth/model/authStore';
 import { AppHeader } from '../../shared/ui/AppHeader';
@@ -52,7 +52,7 @@ function HobbyCard({ hobby }: { hobby: HobbyCardModel }) {
         </div>
         <div className="hobby-card__actions">
           <Button variant="secondary">관심 저장</Button>
-          <Button>상세 보기</Button>
+          <Button to={`/hobbies/${hobby.id}`}>상세 보기</Button>
         </div>
       </div>
     </article>
@@ -123,7 +123,7 @@ export function MemberHomePage() {
           <div className="member-hero__copy">
             <h1>안녕하세요, {user?.nickname ?? '취미찾는사람'}님!</h1>
             <p>숏폼으로 관심사를 찾고, 맞춤 취미를 추천받아 보세요. 이번 주 TODO는 3개 남았어요.</p>
-            <div><Button to="/explore">숏폼 탐색 이어하기</Button><Button to="/hobbies" variant="secondary">관심사 직접 선택</Button></div>
+            <div><Button to="/explore">숏폼 탐색 이어하기</Button><Button to="/hobbies/interests" variant="secondary">관심사 직접 선택</Button></div>
           </div>
           <div className="member-hero__media">
             <img src={characterAssets.greeting} alt="인사하는 냠냠취미 캐릭터" />
@@ -141,16 +141,16 @@ export function MemberHomePage() {
 
         <div className="dashboard-grid">
           <section className="dashboard-panel todo-panel">
-            <div className="panel-heading"><h2>진행 중인 TODO</h2><a href="/my-hobbies">내 취미</a></div>
-            <TodoRow title="클라이밍" step="2주차 · 기본 동작 익히기" progress={70} remaining="남은 활동 2개" />
-            <TodoRow title="요가" step="1주차 · 매트 위 10분" progress={28} remaining="남은 활동 1개" />
+            <div className="panel-heading"><h2>진행 중인 TODO</h2><Link to="/my-hobbies">내 취미</Link></div>
+            <TodoRow hobbyId={1} title="클라이밍" step="2주차 · 기본 동작 익히기" progress={70} remaining="남은 활동 2개" />
+            <TodoRow hobbyId={2} title="요가" step="1주차 · 매트 위 10분" progress={28} remaining="남은 활동 1개" />
           </section>
 
           <section className="dashboard-panel news-panel">
-            <div className="panel-heading"><h2>관심 취미 새 소식</h2><a href="/feed">정보 피드</a></div>
-            <NewsRow badge="클래스" title="실내 클라이밍 입문 원데이 클래스" meta="마포구 · 10.20~10.26" />
-            <NewsRow badge="행사" title="2026 생활체육 클라이밍 페스티벌" meta="서울 · 10.25(토)" orange />
-            <NewsRow badge="입문 자료" title="처음 암장에 가기 전 알아두면 좋은 볼더링 용어 20" meta="게시 10.08" />
+            <div className="panel-heading"><h2>관심 취미 새 소식</h2><Link to="/info-feed">정보 피드</Link></div>
+            <NewsRow feedId={1} badge="클래스" title="실내 클라이밍 입문 원데이 클래스" meta="마포구 · 10.20~10.26" />
+            <NewsRow feedId={2} badge="행사" title="2026 생활체육 클라이밍 페스티벌" meta="서울 · 10.25(토)" orange />
+            <NewsRow feedId={4} badge="입문 자료" title="처음 암장에 가기 전 알아두면 좋은 볼더링 용어 20" meta="게시 10.08" />
           </section>
         </div>
 
@@ -167,21 +167,21 @@ export function MemberHomePage() {
   );
 }
 
-function TodoRow({ title, step, progress, remaining }: { title: string; step: string; progress: number; remaining: string }) {
+function TodoRow({ hobbyId, title, step, progress, remaining }: { hobbyId: number; title: string; step: string; progress: number; remaining: string }) {
   return (
-    <div className="todo-row">
+    <Link aria-label={`${title} 진행 중인 계획 보기`} className="todo-row" to={`/my-hobbies/${hobbyId}/plan`}>
       <div className="todo-row__title"><strong>{title}</strong><span>{step}</span><small>{remaining}</small></div>
       <div className="progress-track"><span style={{ width: `${progress}%` }} /></div>
-    </div>
+    </Link>
   );
 }
 
-function NewsRow({ badge, title, meta, orange = false }: { badge: string; title: string; meta: string; orange?: boolean }) {
+function NewsRow({ feedId, badge, title, meta, orange = false }: { feedId: number; badge: string; title: string; meta: string; orange?: boolean }) {
   return (
-    <div className="news-row">
+    <Link aria-label={`${title} 정보 피드에서 보기`} className="news-row" to={`/info-feed?item=${feedId}`}>
       <span className={orange ? 'badge badge--orange' : 'badge'}>{badge}</span>
       <strong>{title}</strong>
       <small>{meta}</small>
-    </div>
+    </Link>
   );
 }

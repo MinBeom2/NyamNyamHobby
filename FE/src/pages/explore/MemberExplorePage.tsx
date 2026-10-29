@@ -1,4 +1,4 @@
-import { Bookmark, Check, ChevronDown, Heart, RotateCcw, ThumbsDown } from 'lucide-react';
+import { Bookmark, Check, ChevronDown, Heart, ThumbsDown } from 'lucide-react';
 import { useMutation } from '@tanstack/react-query';
 import { Link, useNavigate } from 'react-router-dom';
 import { logout } from '../../features/auth/api/authApi';
@@ -8,6 +8,7 @@ import { useMemberExploration } from '../../features/exploration/hooks/useMember
 import { ApiError } from '../../shared/api/client';
 import { characterAssets } from '../../shared/assets/assets';
 import { AppHeader } from '../../shared/ui/AppHeader';
+import { RestartExploreControl } from './RestartExploreControl';
 
 export function MemberExplorePage({ user }: { user: AuthUser }) {
   const navigate = useNavigate();
@@ -49,14 +50,14 @@ export function MemberExplorePage({ user }: { user: AuthUser }) {
 function ExploreHeading({ user, current, max }: { user: AuthUser; current: number; max: number }) {
   const percent = max > 0 ? Math.min(100, (current / max) * 100) : 0;
   return <header className="explore-heading">
-    <div><span className="eyebrow">실시간 취향 탐색</span><h1>{user.nickname}님을 위한 숏폼이에요</h1><p>좋아요와 별로예요 반응이 서버에 저장되고 추천 결과에 반영돼요.</p></div>
+    <div><span className="eyebrow">실시간 취향 탐색</span><h1>{user.nickname}님을 위한 숏폼이에요</h1></div>
     <div className="explore-progress" aria-label={`${current}/${max}번째 영상`}><strong>{current}</strong><span>/ {max}</span><div><i style={{ width: `${percent}%` }} /></div></div>
   </header>;
 }
 
 function MemberTastePanel({ progress }: { progress?: ExplorationProgress }) {
   return <aside className="taste-panel">
-    <h2>서버 탐색 현황</h2><p>실제 시청 및 반응 기록을 기준으로 계산해요.</p>
+    <h2>나의 탐색 기준</h2>
     <div className="taste-panel__chips">{(progress?.interests.length ? progress.interests : [{ hobbyName: '탐색 중', percent: 0 }]).map((item) => <span key={item.hobbyName}>{item.hobbyName}{item.percent > 0 ? ` ${item.percent}%` : ''}</span>)}</div>
     <dl>{(progress?.interests ?? []).map((item) => <div key={item.hobbyName}><dt>{item.hobbyName}</dt><dd>{item.percent}%</dd></div>)}</dl>
     <div className="taste-score"><div><span>관심 반응</span><strong>{progress?.likeCount ?? 0}</strong></div><div><span>비선호 반응</span><strong>{progress?.dislikeCount ?? 0}</strong></div></div>
@@ -78,9 +79,9 @@ function ReactionButton({ active, disabled, label, onClick, children }: { active
 function RecommendationComplete({ recommendation, onRestart }: { recommendation: ExplorationRecommendation; onRestart: () => void }) {
   return <section className="explore-complete">
     <div className="explore-complete__icon"><Check /></div><img src={characterAssets.celebration} alt="탐색 완료를 축하하는 냠냠취미 캐릭터" />
-    <span className="eyebrow">서버 추천 생성 완료</span><h1>탐색을 마쳤어요!</h1><p>{recommendation.reactionCount}개의 반응을 바탕으로 추천을 생성했어요.</p>
+    <span className="eyebrow">서버 추천 생성 완료</span><h1>탐색을 마쳤어요!</h1>
     <div className="explore-complete__chips">{(recommendation.hobbyNames.length ? recommendation.hobbyNames : ['추천 계산 중']).map((hobby) => <span key={hobby}>{hobby}</span>)}</div>
-    <div className="explore-complete__actions"><button className="button button--secondary" type="button" onClick={onRestart}><RotateCcw size={16} />다시 탐색하기</button><Link className="button button--primary" to="/home">홈으로 가기</Link></div>
+    <div className="explore-complete__actions"><RestartExploreControl onConfirm={onRestart} /><Link className="button button--primary" to="/home">홈으로 가기</Link></div>
   </section>;
 }
 

@@ -14,6 +14,7 @@ type AuthState = {
   user: AuthUser | null;
   setSession: (session: { accessToken: string; expiresIn: number; user: AuthUser }) => void;
   setAccessToken: (accessToken: string, expiresIn: number) => void;
+  setUser: (user: AuthUser) => void;
   clearSession: () => void;
 };
 
@@ -25,5 +26,6 @@ export const useAuthStore = create<AuthState>((set) => ({
     set({ accessToken, expiresAt: Date.now() + expiresIn * 1000, user }),
   setAccessToken: (accessToken, expiresIn) =>
     set({ accessToken, expiresAt: Date.now() + expiresIn * 1000 }),
+  setUser: (user) => set({ user }),
   clearSession: () => set({ accessToken: null, expiresAt: null, user: null }),
 }));

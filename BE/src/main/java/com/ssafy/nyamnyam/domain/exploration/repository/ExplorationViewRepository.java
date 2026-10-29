@@ -14,6 +14,8 @@ public interface ExplorationViewRepository extends JpaRepository<ExplorationView
 
     Optional<ExplorationView> findBySessionAndShortform(ExplorationSession session, Short shortform);
 
+    boolean existsBySessionAndShortform(ExplorationSession session, Short shortform);
+
     List<ExplorationView> findBySessionOrderBySeqAsc(ExplorationSession session);
 
     @Query("SELECT ev.shortform.id FROM ExplorationView ev WHERE ev.session.id = :sessionId")
@@ -21,6 +23,9 @@ public interface ExplorationViewRepository extends JpaRepository<ExplorationView
 
     @Query("SELECT DISTINCT ev.shortform.id FROM ExplorationView ev WHERE ev.session.user.id = :userId")
     List<Long> findAllViewedShortIdsByUserId(@Param("userId") Long userId);
+
+    @Query("SELECT COUNT(DISTINCT ev.session.user.id) FROM ExplorationView ev WHERE ev.shortform.id = :shortId")
+    long countDistinctViewUsers(@Param("shortId") Long shortId);
 
     @Query("SELECT COUNT(DISTINCT ev.session.user.id) FROM ExplorationView ev " +
            "WHERE ev.shortform.id = :shortId AND ev.playFailed = true")

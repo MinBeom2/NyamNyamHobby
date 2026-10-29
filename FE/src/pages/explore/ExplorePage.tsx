@@ -1,22 +1,24 @@
-import { Bookmark, Check, ChevronDown, Heart, Play, RotateCcw, ThumbsDown } from 'lucide-react';
-import { useMutation } from '@tanstack/react-query';
-import { useMemo, useState } from 'react';
+import { Bookmark, Check, ChevronDown, Heart, Play, ThumbsDown } from 'lucide-react';
+import { useMutation, useQuery } from '@tanstack/react-query';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom';
-import { logout } from '../../features/auth/api/authApi';
+import { getCurrentUserProfile, logout } from '../../features/auth/api/authApi';
 import { useAuthStore } from '../../features/auth/model/authStore';
 import { useOnboardingStore } from '../../features/onboarding/model/onboardingStore';
 import { characterAssets } from '../../shared/assets/assets';
 import { AppHeader } from '../../shared/ui/AppHeader';
 import { getExploreShorts } from './exploreFixtures';
 import { MemberExplorePage } from './MemberExplorePage';
+import { RestartExploreControl } from './RestartExploreControl';
 
 type Reaction = 'LIKE' | 'DISLIKE';
 
 export function ExplorePage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const guestMode = searchParams.get('guest') === 'true';
+  const guestRequested = searchParams.get('guest') === 'true';
   const user = useAuthStore((state) => state.user);
+  const setUser = useAuthStore((state) => state.setUser);
   const clearSession = useAuthStore((state) => state.clearSession);
   const hobbies = useOnboardingStore((state) => state.hobbies);
   const conditions = useOnboardingStore();
@@ -25,6 +27,25 @@ export function ExplorePage() {
   const [reactions, setReactions] = useState<Record<string, Reaction>>({});
   const [savedIds, setSavedIds] = useState<string[]>([]);
   const [completed, setCompleted] = useState(false);
+  const sessionQuery = useQuery({
+    queryKey: ['auth', 'current-user'],
+    queryFn: getCurrentUserProfile,
+    enabled: !user,
+    retry: false,
+  });
+  const restoredUser = useMemo(() => sessionQuery.data ? {
+    id: sessionQuery.data.id,
+    email: sessionQuery.data.email,
+    nickname: sessionQuery.data.nickname,
+    role: sessionQuery.data.role,
+    onboarded: Boolean(sessionQuery.data.conditions),
+  } : null, [sessionQuery.data]);
+  const activeUser = user ?? restoredUser;
+  const guestMode = guestRequested && !activeUser;
+
+  useEffect(() => {
+    if (restoredUser) setUser(restoredUser);
+  }, [restoredUser, setUser]);
   const logoutMutation = useMutation({
     mutationFn: logout,
     onSettled: () => {
@@ -33,8 +54,9 @@ export function ExplorePage() {
     },
   });
 
-  if (user && !guestMode) return <MemberExplorePage user={user} />;
-  if (!user && !guestMode) return <Navigate replace to="/onboarding/interests?mode=guest" />;
+  if (activeUser && !guestMode) return <MemberExplorePage user={activeUser} />;
+  if (!activeUser && sessionQuery.isPending) return <ExploreSessionStatus />;
+  if (!activeUser && !guestMode) return <Navigate replace to="/onboarding/interests?mode=guest" />;
 
   const current = shorts[index];
   const isLast = index === shorts.length - 1;
@@ -47,27 +69,24 @@ export function ExplorePage() {
     setIndex(0);
     setCompleted(false);
     setReactions({});
-    setSavedIds([]);
   };
 
   return (
     <div className="site-shell">
       <AppHeader
-        authenticated={Boolean(user)}
-        onLogout={user ? () => logoutMutation.mutate() : undefined}
+        authenticated={Boolean(activeUser)}
+        onLogout={activeUser ? () => logoutMutation.mutate() : undefined}
         onBrandClick={guestMode ? conditions.resetOnboarding : undefined}
         logoutPending={logoutMutation.isPending}
       />
       <main className="page-container explore-page">
         {completed ? (
-          <ExploreComplete guestMode={guestMode} hobbies={hobbies} reactionCount={Object.keys(reactions).length} onRestart={restart} />
+          <ExploreComplete guestMode={guestMode} hobbies={hobbies} onRestart={restart} />
         ) : (
           <>
             <header className="explore-heading">
               <div>
                 <span className="eyebrow">취향 탐색</span>
-                <h1>{guestMode ? '몇 번의 반응으로 취향을 찾아볼까요?' : `${user?.nickname ?? '회원'}님을 위한 숏폼이에요`}</h1>
-                <p>{guestMode ? '선택한 관심 취미와 이용 상황을 먼저 반영했어요.' : '좋아요와 별로예요 반응이 다음 추천에 반영돼요.'}</p>
               </div>
               <div className="explore-progress" aria-label={`${index + 1}/${shorts.length}번째 영상`}><strong>{index + 1}</strong><span>/ {shorts.length}</span><div><i style={{ width: `${((index + 1) / shorts.length) * 100}%` }} /></div></div>
             </header>
@@ -75,7 +94,6 @@ export function ExplorePage() {
             <div className="explore-layout">
               <aside className="taste-panel">
                 <h2>나의 탐색 기준</h2>
-                <p>관심 취미와 반응을 바탕으로 순서를 조정해요.</p>
                 <div className="taste-panel__chips">
                   {(hobbies.length ? hobbies : ['새로운 취미']).map((hobby) => <span key={hobby}>{hobby}</span>)}
                 </div>
@@ -103,7 +121,6 @@ export function ExplorePage() {
                 <button className="short-actions__next" type="button" onClick={next}><ChevronDown />{isLast ? '결과 보기' : '다음 영상'}</button>
               </aside>
             </div>
-            {guestMode && <p className="guest-explore-note">비회원 체험은 현재 브라우저에서만 동작하며 서버에 저장되지 않아요.</p>}
           </>
         )}
       </main>
@@ -111,20 +128,23 @@ export function ExplorePage() {
   );
 }
 
+function ExploreSessionStatus() {
+  return <div className="site-shell"><AppHeader /><main className="page-container explore-page"><section className="explore-status" aria-live="polite"><div className="status-icon status-icon--loading" /><h1>로그인 상태를 확인하고 있어요</h1></section></main></div>;
+}
+
 function ActionButton({ active, label, onClick, children }: { active: boolean; label: string; onClick: () => void; children: React.ReactNode }) {
   return <button type="button" className={active ? 'short-action active' : 'short-action'} aria-pressed={active} onClick={onClick}>{children}<span>{label}</span></button>;
 }
 
-function ExploreComplete({ guestMode, hobbies, reactionCount, onRestart }: { guestMode: boolean; hobbies: string[]; reactionCount: number; onRestart: () => void }) {
+function ExploreComplete({ guestMode, hobbies, onRestart }: { guestMode: boolean; hobbies: string[]; onRestart: () => void }) {
   return <section className="explore-complete">
     <div className="explore-complete__icon"><Check /></div>
     <img src={characterAssets.celebration} alt="탐색 완료를 축하하는 냠냠취미 캐릭터" />
     <span className="eyebrow">취향 탐색 완료</span>
     <h1>탐색을 마쳤어요!</h1>
-    <p>{reactionCount > 0 ? `${reactionCount}개의 반응과 선택한 조건을 바탕으로 취향을 정리했어요.` : '선택한 관심 취미와 이용 상황을 바탕으로 취향을 정리했어요.'}</p>
     <div className="explore-complete__chips">{(hobbies.length ? hobbies.slice(0, 3) : ['새로운 취미', '가볍게 시작']).map((hobby) => <span key={hobby}>{hobby}</span>)}</div>
     <div className="explore-complete__actions">
-      <button className="button button--secondary" type="button" onClick={onRestart}><RotateCcw size={16} />다시 탐색하기</button>
+      <RestartExploreControl onConfirm={onRestart} />
       <Link className="button button--primary" to={guestMode ? '/signup' : '/home'}>{guestMode ? '회원가입하기' : '홈으로 가기'}</Link>
     </div>
   </section>;

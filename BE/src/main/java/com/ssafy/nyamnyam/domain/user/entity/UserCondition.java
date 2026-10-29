@@ -35,21 +35,32 @@ public class UserCondition {
     @Column(name = "social_pref", length = 10)
     private String socialPref;
 
-    @Column(name = "region_id")
-    private Long regionId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "region_id")
+    private Region region;
 
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
 
     @Builder
-    public UserCondition(User user, Short weeklyHours, Integer monthlyBudget, String placePref, String socialPref, Long regionId) {
+    public UserCondition(User user, Short weeklyHours, Integer monthlyBudget, String placePref, String socialPref,
+            Region region) {
         this.user = user;
         this.userId = user != null ? user.getId() : null;
         this.weeklyHours = weeklyHours;
         this.monthlyBudget = monthlyBudget;
         this.placePref = placePref;
         this.socialPref = socialPref;
-        this.regionId = regionId;
+        this.region = region;
+        this.updatedAt = LocalDateTime.now();
+    }
+
+    public void update(Short weeklyHours, Integer monthlyBudget, String placePref, String socialPref, Region region) {
+        this.weeklyHours = weeklyHours;
+        this.monthlyBudget = monthlyBudget;
+        this.placePref = placePref;
+        this.socialPref = socialPref;
+        this.region = region;
         this.updatedAt = LocalDateTime.now();
     }
 

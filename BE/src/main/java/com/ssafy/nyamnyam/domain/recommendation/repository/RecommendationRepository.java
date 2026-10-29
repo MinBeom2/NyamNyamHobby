@@ -9,4 +9,5 @@ import java.util.Optional;
 public interface RecommendationRepository extends JpaRepository<Recommendation, Long> {
     Optional<Recommendation> findTopByUserOrderByCreatedAtDesc(User user);
     Optional<Recommendation> findBySessionId(Long sessionId);
+    boolean existsBySessionId(Long sessionId);
 }

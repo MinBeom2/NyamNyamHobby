@@ -1,4 +1,7 @@
 # 공통 설정. 비밀값은 환경변수(${...})로만 받고, 로컬에서는 BE/.env 를 읽는다.
+server:
+  forward-headers-strategy: framework # Nginx 리버스 프록시 헤더(X-Forwarded-Proto, X-Forwarded-Host, X-Forwarded-Port) 인식
+
 spring:
   application:
     name: nyamnyam
@@ -48,6 +51,9 @@ spring:
     properties:
       mail.smtp.auth: true
       mail.smtp.starttls.enable: true
+      mail.smtp.connectiontimeout: 5000
+      mail.smtp.timeout: 5000
+      mail.smtp.writetimeout: 5000
 
   servlet:
     multipart:
@@ -70,6 +76,9 @@ jwt:
   access-token-validity-in-seconds: 1800 # 30분
   refresh-token-validity-in-seconds: 1209600 # 14일
 
+exploration:
+  session-size: ${EXPLORATION_SESSION_SIZE:12} # 새 탐색 세션의 최대 노출 수. 기존 세션은 생성 당시 값을 유지
+
 app:
   frontend-url: ${FRONTEND_URL:http://localhost:5173}
   # 이미지 업로드(게시판 등): 서버 디스크에 저장하고 {public-base-url}/api/v1/uploads/images/... 로 내보낸다
@@ -82,9 +91,9 @@ app:
   # 로컬·테스트에서 할당량을 쓰지 않도록 기본은 꺼 두고, 서버 .env에서 SHORT_COLLECT_ENABLED=true로 켠다.
   short-collect:
     enabled: ${SHORT_COLLECT_ENABLED:false}
-    cron: "0 7 * * * *"          # 매시 7분 (Asia/Seoul)
+    cron: "0 7 */6 * * *"        # 6시간마다 7분: 00:07·06:07·12:07·18:07 (Asia/Seoul)
     release-cron: "0 0 6 * * THU" # 매주 목 06:00 주간 반영
-    keywords-per-run: 2           # 키워드당 101단위 → 하루 약 4,850단위
+    keywords-per-run: 2           # 키워드당 101단위 → 하루 4회 × 2개 ≈ 800단위
     target-per-hobby: 40          # 취미별 CANDIDATE+ACTIVE 목표. 채우면 그 취미는 건너뜀
     max-per-channel: 3            # 한 취미에서 같은 채널 영상 최대 수
     min-view-count: 1000
@@ -111,4 +120,3 @@ gms:
   base-url: ${GMS_BASE_URL:https://api.openai.com}
   api-key: ${GMS_API_KEY:}
   model: ${GMS_MODEL:gpt-4o}
-

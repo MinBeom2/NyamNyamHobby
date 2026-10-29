@@ -5,6 +5,9 @@ import com.ssafy.nyamnyam.domain.exploration.dto.response.ExplorationProgressRes
 import com.ssafy.nyamnyam.domain.exploration.dto.response.NextShortResponse;
 import com.ssafy.nyamnyam.domain.exploration.dto.response.StartExplorationResponse;
 import com.ssafy.nyamnyam.domain.exploration.service.ExplorationService;
+import com.ssafy.nyamnyam.domain.recommendation.dto.response.FinishExplorationResult;
+import com.ssafy.nyamnyam.domain.recommendation.dto.response.RecommendationResponse;
+import com.ssafy.nyamnyam.domain.recommendation.service.RecommendationService;
 import com.ssafy.nyamnyam.domain.user.entity.User;
 import com.ssafy.nyamnyam.domain.user.repository.UserRepository;
 import com.ssafy.nyamnyam.global.common.ApiResponse;
@@ -24,7 +27,7 @@ import org.springframework.web.bind.annotation.*;
 public class ExplorationController {
 
     private final ExplorationService explorationService;
-    private final com.ssafy.nyamnyam.domain.recommendation.service.RecommendationService recommendationService;
+    private final RecommendationService recommendationService;
     private final UserRepository userRepository;
 
     /**
@@ -80,17 +83,17 @@ public class ExplorationController {
     }
 
     /**
-     * 5) 탐색 종료 및 추천 생성 (201 Created)
+     * 5) 탐색 종료 및 추천 생성 (최초 201 Created, 재요청 200 OK)
      */
     @PostMapping("/{sessionId}/finish")
-    public ResponseEntity<ApiResponse<com.ssafy.nyamnyam.domain.recommendation.dto.response.RecommendationResponse>> finishExploration(
+    public ResponseEntity<ApiResponse<RecommendationResponse>> finishExploration(
             @PathVariable("sessionId") Long sessionId,
             @AuthenticationPrincipal UserPrincipal principal
     ) {
         User user = getUser(principal);
-        com.ssafy.nyamnyam.domain.recommendation.dto.response.RecommendationResponse response =
-                recommendationService.finishExploration(sessionId, user);
-        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(response));
+        FinishExplorationResult result = recommendationService.finishExploration(sessionId, user);
+        return ResponseEntity.status(result.created() ? HttpStatus.CREATED : HttpStatus.OK)
+                .body(ApiResponse.success(result.response()));
     }
 
 

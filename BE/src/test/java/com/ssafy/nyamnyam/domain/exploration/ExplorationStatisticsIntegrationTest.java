@@ -29,7 +29,7 @@ import java.util.concurrent.*;
 import static org.assertj.core.api.Assertions.*;
 
 /** 실제 PostgreSQL의 영상 행 잠금·집계·상태 전환을 검증한다. 생성한 사용자와 영상만 정리한다. */
-@SpringBootTest(properties = {"app.short-collect.enabled=false",
+@SpringBootTest(properties = {"app.short-collect.enabled=false", "recommendation.reason-outbox-enabled=false",
         "spring.rabbitmq.listener.simple.auto-startup=false", "spring.rabbitmq.listener.direct.auto-startup=false"})
 class ExplorationStatisticsIntegrationTest {
     @Autowired ExplorationService service;

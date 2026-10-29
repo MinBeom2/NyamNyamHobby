@@ -10,4 +10,5 @@ public interface RecommendationRepository extends JpaRepository<Recommendation, 
     Optional<Recommendation> findTopByUserOrderByCreatedAtDesc(User user);
     Optional<Recommendation> findBySessionId(Long sessionId);
     boolean existsBySessionId(Long sessionId);
+    Optional<Recommendation> findByIdAndUserId(Long id, Long userId);
 }

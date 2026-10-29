@@ -10,6 +10,7 @@ import com.ssafy.nyamnyam.domain.exploration.repository.ExplorationViewRepositor
 import com.ssafy.nyamnyam.domain.exploration.repository.ShortReactionRepository;
 import com.ssafy.nyamnyam.domain.hobby.entity.*;
 import com.ssafy.nyamnyam.domain.recommendation.repository.RecommendationRepository;
+import com.ssafy.nyamnyam.domain.recommendation.service.PreferenceProfileService;
 import com.ssafy.nyamnyam.domain.shortform.entity.Short;
 import com.ssafy.nyamnyam.domain.shortform.entity.ShortStatus;
 import com.ssafy.nyamnyam.domain.shortform.repository.ShortRepository;
@@ -40,6 +41,8 @@ import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
 class ExplorationServiceTest {
+    @Mock private PreferenceProfileService profiles;
+    @Spy private ExplorationSelectionPolicy selectionPolicy = new ExplorationSelectionPolicy();
 
     @Mock
     private ExplorationSessionRepository sessionRepository;
@@ -68,6 +71,8 @@ class ExplorationServiceTest {
 
     @BeforeEach
     void setUp() {
+        org.mockito.Mockito.lenient().when(profiles.load(any())).thenReturn(PreferenceProfileService.Profile.empty());
+        org.mockito.Mockito.lenient().when(profiles.load(any(), any())).thenReturn(PreferenceProfileService.Profile.empty());
         testUser = User.builder()
                 .email("test@example.com")
                 .nickname("testuser")

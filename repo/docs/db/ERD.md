@@ -2,6 +2,7 @@
 
 > **기준 스키마**: PostgreSQL 17 + pgvector (`pgvector/pgvector:pg17`) · 41개 테이블 · [V1__init.sql](V1__init.sql) (백엔드 `BE/src/main/resources/db/migration/V1__init.sql`과 같은 내용) + V2(`V2__add_tag_group.sql`: `tags.tag_group` 추가 및 태그·유사도 주석 정리)
 > **DB 이미지 변경(2026-10-23)**: pgvector 포함 이미지로 통일합니다. 테이블 수는 41개로 유지하며, 아래 ERD는 V1 + V2 적용 후 스키마를 반영합니다. `vector` 확장 활성화 및 임베딩 스키마는 이후 신규 Flyway 마이그레이션에서 추가합니다.
+> **추천 도메인 보완(2026-10-29)**: 아래 2.4절은 [V9 마이그레이션](../../../BE/src/main/resources/db/migration/V9__recommendation_snapshots_and_reason_outbox.sql)의 추천 스냅샷·이유 발행 요청 테이블을 반영합니다. 상단 41개는 V1 + V2 기준 개수이며, 실제 적용 스키마는 백엔드의 전체 Flyway 마이그레이션을 따릅니다.
 >
 > **타입 표기**: 아래 다이어그램은 PostgreSQL 타입 기준입니다(`timestamp` = TIMESTAMP(6) UTC, `smallint` = MySQL 원안의 TINYINT, `jsonb` = JSON).  
 > **프로젝트 명세서**: [spec/project-spec-v0.3.md](../spec/project-spec-v0.3.md) 7장 (데이터 구조)  
@@ -309,14 +310,15 @@ erDiagram
 ---
 
 ### 2.4 추천 및 선호도 도메인 (Recommendation & Preference)
-- **추천 스냅샷**: 한 번 생성된 추천 결과는 `recommendations` 및 `recommendation_items`에 스냅샷으로 저장되어 일관성을 보장합니다.
-- **비동기 추천 사유**: 추천 생성 직후 RabbitMQ를 통해 GMS(GPT-4o)가 60자 이내의 설득력 있는 맞춤 사유를 생성하여 갱신합니다.
+- **추천 스냅샷**: 누적 기록으로 생성한 취미 정보·순위·점수·저장 상태·이용 상황·추천 기준을 `recommendations` 및 `recommendation_items`에 저장합니다. 이후 원본 변경으로 재계산하지 않습니다. V9 이전 추천은 마이그레이션 시점의 정보를 고정합니다.
+- **비동기 추천 사유**: 추천과 `recommendation_reason_outbox`를 같은 트랜잭션에 저장합니다. 작업자가 커밋 이후 RabbitMQ 발행 확인·재시도를 처리하고, 소비자는 항목 잠금·상태 확인 후 GMS로 60자 이내 이유를 생성합니다. 실패 시 `FALLBACK`과 기본 문구를 사용합니다.
 
 ```mermaid
 erDiagram
     USERS ||--o{ RECOMMENDATIONS : "사용자 추천 이력"
     EXPLORATION_SESSIONS ||--o{ RECOMMENDATIONS : "추천 생성 세션"
     RECOMMENDATIONS ||--o{ RECOMMENDATION_ITEMS : "추천 항목 목록"
+    RECOMMENDATIONS ||--o| RECOMMENDATION_REASON_OUTBOX : "미발행 이유 요청"
     HOBBIES ||--o{ RECOMMENDATION_ITEMS : "추천 대상 취미"
     USERS ||--o{ HOBBY_DISLIKES : "제외 취미 설정"
     HOBBIES ||--o{ HOBBY_DISLIKES : "제외 대상 취미"
@@ -326,9 +328,11 @@ erDiagram
         bigint user_id FK "users.id (비회원은 NULL)"
         char guest_key "guestKey UUID [P2]"
         bigint session_id FK "exploration_sessions.id (NULL 가능)"
-        varchar basis "EXPLORATION_SESSION | DIRECT_SELECTION (직접 선택은 P2)"
-        varchar basis_text "추천 근거 요약 문구"
+        varchar basis "DB: REACTION | SELECTION | MIXED (API는 EXPLORATION_SESSION, 직접 선택은 P2)"
+        varchar basis_text "추천 근거 요약 문구 (V9)"
         boolean is_exploratory "데이터 부족 시 탐색용 제안 여부"
+        smallint reaction_count "집계한 현재 반응 수"
+        jsonb condition_snapshot "생성 시점 이용 상황"
         timestamp created_at "생성 일시"
     }
 
@@ -337,12 +341,22 @@ erDiagram
         bigint recommendation_id FK "recommendations.id"
         bigint hobby_id FK "hobbies.id"
         varchar type "INTEREST (관심) | RELATED (연관)"
-        smallint rank "추천 순위 (1~3)"
+        smallint rank_no "전체 추천 순위 (API 필드 rank)"
         decimal score "계산된 종합 점수"
+        jsonb hobby_snapshot "생성 시점 취미명·이미지·난이도·시간·비용 (V9)"
         varchar reason "GMS 비동기 생성 추천 사유 (60자)"
         varchar reason_status "PENDING | COMPLETED | FALLBACK"
-        varchar fallback_reason "사전 정의된 대체 템플릿 사유"
+        varchar fallback_reason "사전 정의된 대체 템플릿 사유 (V9)"
+        boolean saved "생성 시점 내 취미 등록 여부 (V9)"
         boolean condition_warning "시간/비용 조건 초과 경고 플래그"
+    }
+
+    RECOMMENDATION_REASON_OUTBOX {
+        bigint id PK
+        bigint recommendation_id FK, UK "recommendations.id, 추천당 최대 1건"
+        jsonb payload "이유 생성 이벤트 스냅샷"
+        int attempts "발행 실패 횟수, 5회 소진 시 FALLBACK"
+        timestamp next_attempt_at "다음 발행 시도 가능 시각"
     }
 
     HOBBY_DISLIKES {

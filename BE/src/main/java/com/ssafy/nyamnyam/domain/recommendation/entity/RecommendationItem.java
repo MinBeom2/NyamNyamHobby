@@ -6,6 +6,8 @@ import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.math.BigDecimal;
 
@@ -48,6 +50,22 @@ public class RecommendationItem {
 
     @Column(name = "condition_warning", nullable = false)
     private boolean conditionWarning;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "hobby_snapshot", columnDefinition = "jsonb")
+    private String hobbySnapshot;
+
+    @Column(name = "fallback_reason", length = 200)
+    private String fallbackReason;
+
+    @Column(nullable = false)
+    private boolean saved;
+
+    public void initializeSnapshot(String hobbySnapshot, String fallbackReason, boolean saved) {
+        this.hobbySnapshot = hobbySnapshot;
+        this.fallbackReason = fallbackReason;
+        this.saved = saved;
+    }
 
     @Builder
     public RecommendationItem(Recommendation recommendation, Hobby hobby, RecoItemType type,

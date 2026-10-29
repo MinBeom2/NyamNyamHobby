@@ -11,7 +11,7 @@ import java.util.*;
 import static org.assertj.core.api.Assertions.*;
 
 /** Jenkins의 임시 PostgreSQL + pgvector에서 실행. 모든 fixture 변경은 롤백된다. */
-@SpringBootTest
+@SpringBootTest(properties = "recommendation.reason-outbox-enabled=false")
 @Transactional
 class HobbyRecommendationIntegrationTest {
     @Autowired JdbcTemplate jdbc;

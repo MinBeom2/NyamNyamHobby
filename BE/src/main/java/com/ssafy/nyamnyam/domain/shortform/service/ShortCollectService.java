@@ -41,7 +41,7 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
- * 숏폼 수집(매시)과 주간 반영(목 06:00). 스케줄러가 부르고, 결과는 batch_runs에 남긴다.
+ * 숏폼 수집(6시간마다)과 주간 반영(목 06:00). 스케줄러가 부르고, 결과는 batch_runs에 남긴다.
  *
  * <p>수집 한 번 = 목표에 못 미친 취미의 키워드 N개(기본 2개)를 오래된 순으로 골라
  * 검색(100단위) → 새 영상 상세 조회(1단위) → 기계적 필터 → GPT 판별 → 키워드 단위 저장.
@@ -86,7 +86,7 @@ public class ShortCollectService {
     record CollectTarget(HobbySourceMapping mapping, Mode mode) {
     }
 
-    /** 수집 1회. 이미 실행 중이면 건너뛴다(직전 회차가 1시간을 넘긴 경우). */
+    /** 수집 1회. 이미 실행 중이면 건너뛴다(직전 회차가 다음 실행 시각까지 끝나지 않은 경우). */
     public BatchRun collect() {
         if (!collecting.compareAndSet(false, true)) {
             log.warn("[SHORT_COLLECT] previous run still in progress, skipped");

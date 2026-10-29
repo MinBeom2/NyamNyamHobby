@@ -18,8 +18,8 @@ public class ShortScheduler {
 
     private final ShortCollectService shortCollectService;
 
-    /** 매시 7분: 키워드 2개씩 돌아가며 수집(하루 약 4,850단위) */
-    @Scheduled(cron = "${app.short-collect.cron:0 7 * * * *}", zone = "Asia/Seoul")
+    /** 6시간마다 7분(00·06·12·18시): 키워드 2개씩 돌아가며 수집(하루 약 800단위) */
+    @Scheduled(cron = "${app.short-collect.cron:0 7 */6 * * *}", zone = "Asia/Seoul")
     public void collect() {
         shortCollectService.collect();
     }

@@ -101,6 +101,11 @@ public class User {
         this.updatedAt = LocalDateTime.now();
     }
 
+    public void changeProfileImageUrl(String profileImageUrl) {
+        this.profileImageUrl = profileImageUrl;
+        this.updatedAt = LocalDateTime.now();
+    }
+
     public void changePassword(String newPasswordHash) {
         this.passwordHash = newPasswordHash;
         this.updatedAt = LocalDateTime.now();

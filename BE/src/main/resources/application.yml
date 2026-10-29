@@ -1,4 +1,7 @@
 # 공통 설정. 비밀값은 환경변수(${...})로만 받고, 로컬에서는 BE/.env 를 읽는다.
+server:
+  forward-headers-strategy: framework # Nginx 리버스 프록시 헤더(X-Forwarded-Proto, X-Forwarded-Host, X-Forwarded-Port) 인식
+
 spring:
   application:
     name: nyamnyam
@@ -48,6 +51,9 @@ spring:
     properties:
       mail.smtp.auth: true
       mail.smtp.starttls.enable: true
+      mail.smtp.connectiontimeout: 5000
+      mail.smtp.timeout: 5000
+      mail.smtp.writetimeout: 5000
 
   servlet:
     multipart:
@@ -107,4 +113,3 @@ gms:
   base-url: ${GMS_BASE_URL:https://api.openai.com}
   api-key: ${GMS_API_KEY:}
   model: ${GMS_MODEL:gpt-4o}
-

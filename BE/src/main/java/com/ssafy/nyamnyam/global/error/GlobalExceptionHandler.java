@@ -10,6 +10,11 @@ import org.springframework.validation.BindException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.bind.MissingServletRequestParameterException;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.multipart.support.MissingServletRequestPartException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 @Slf4j
 @RestControllerAdvice
@@ -37,6 +42,33 @@ public class GlobalExceptionHandler {
         return ResponseEntity
                 .status(ErrorCode.COMMON_INVALID_INPUT.getHttpStatus())
                 .body(ApiResponse.error(errorResponse));
+    }
+
+    /** 쿼리·경로 값 형식 오류(예: type=ABC, postId=abc) → 400 */
+    @ExceptionHandler({MethodArgumentTypeMismatchException.class,
+            MissingServletRequestParameterException.class,
+            MissingServletRequestPartException.class})
+    public ResponseEntity<ApiResponse<Void>> handleBadRequestParameter(Exception e) {
+        log.warn("Bad request parameter: {}", e.getMessage());
+        return ResponseEntity
+                .status(ErrorCode.COMMON_INVALID_INPUT.getHttpStatus())
+                .body(ApiResponse.error(ErrorResponse.of(ErrorCode.COMMON_INVALID_INPUT)));
+    }
+
+    /** multipart 최대 크기(spring.servlet.multipart.max-file-size) 초과 → 413 */
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<ApiResponse<Void>> handleMaxUploadSize(MaxUploadSizeExceededException e) {
+        return ResponseEntity
+                .status(ErrorCode.UPLOAD_TOO_LARGE.getHttpStatus())
+                .body(ApiResponse.error(ErrorResponse.of(ErrorCode.UPLOAD_TOO_LARGE)));
+    }
+
+    /** 없는 정적 파일(업로드 이미지 등) → 404 */
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<ApiResponse<Void>> handleNoResource(NoResourceFoundException e) {
+        return ResponseEntity
+                .status(ErrorCode.COMMON_NOT_FOUND.getHttpStatus())
+                .body(ApiResponse.error(ErrorResponse.of(ErrorCode.COMMON_NOT_FOUND)));
     }
 
     @ExceptionHandler(CustomException.class)

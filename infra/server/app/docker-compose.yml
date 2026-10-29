@@ -14,9 +14,16 @@ services:
       # 명세서 규칙: DB에는 UTC로 저장. JVM 기본 시간대를 UTC로 두어 LocalDateTime.now()가 UTC가 되게 함
       # (주차·배치 시각처럼 한국 시간이 필요한 계산은 코드에서 Asia/Seoul을 명시)
       TZ: UTC
+      # 게시판 이미지 업로드 저장 위치. 컨테이너를 바꿔도 남도록 아래 uploads 볼륨에 둔다
+      UPLOAD_DIR: /app/uploads
     ports:
       - "127.0.0.1:18080:8080"
+    volumes:
+      - uploads:/app/uploads
     networks: [backend]
+
+volumes:
+  uploads:
 
 networks:
   backend:

@@ -9,6 +9,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -55,6 +56,11 @@ public class SecurityConfig {
                         .requestMatchers("/oauth2/**", "/login/oauth2/**").permitAll()
                         // Actuator health
                         .requestMatchers("/actuator/health", "/actuator/info").permitAll()
+                        // 커뮤니티 게시판 목록·상세와 업로드한 이미지는 비회원도 조회 가능(FR-BOARD, 명세 3.7·3.8)
+                        .requestMatchers(HttpMethod.GET,
+                                "/api/v1/hobbies/*/posts",
+                                "/api/v1/posts/*",
+                                "/api/v1/uploads/images/**").permitAll()
                         // 그 외 모든 요청은 인증 필요
                         .anyRequest().authenticated())
                 .oauth2Login(oauth2 -> oauth2

@@ -17,6 +17,8 @@ RUN ./gradlew bootJar -x test --no-daemon
 FROM eclipse-temurin:17-jre
 WORKDIR /app
 RUN groupadd --system spring && useradd --system --gid spring spring
+# 업로드 이미지 저장 폴더(app.upload.dir). 서버는 도커 볼륨을 여기에 붙이며, 첫 생성 시 이 소유권을 물려받는다
+RUN mkdir -p /app/uploads && chown spring:spring /app/uploads
 COPY --from=build /workspace/build/libs/*.jar app.jar
 USER spring
 EXPOSE 8080

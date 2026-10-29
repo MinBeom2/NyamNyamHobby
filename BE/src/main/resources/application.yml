@@ -72,6 +72,10 @@ jwt:
 
 app:
   frontend-url: ${FRONTEND_URL:http://localhost:5173}
+  # 이미지 업로드(게시판 등): 서버 디스크에 저장하고 {public-base-url}/api/v1/uploads/images/... 로 내보낸다
+  upload:
+    dir: ${UPLOAD_DIR:./uploads}                                  # 서버는 /app/uploads(도커 볼륨)
+    public-base-url: ${UPLOAD_PUBLIC_BASE_URL:http://localhost:8080} # 서버는 https://k15d104.p.ssafy.io
   youtube:
     api-key: ${YOUTUBE_API_KEY:}
   # 숏폼 수집(FR-SHORT-07): 취미별 키워드 검색 → 필터 → GPT 판별 → CANDIDATE 저장 → 목요일 주간 반영

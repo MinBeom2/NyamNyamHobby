@@ -16,6 +16,7 @@ pipeline {
         APP_DIR  = '/home/ubuntu/app'
         TEST_NET = "nyam-test-${BUILD_NUMBER}"
         TEST_DB  = "nyam-test-db-${BUILD_NUMBER}"
+        TEST_RABBIT = "nyam-test-rabbit-${BUILD_NUMBER}"
     }
 
     stages {
@@ -33,26 +34,41 @@ pipeline {
                         // 배포 단계에 들어왔다는 표시. 알림은 이 값이 있을 때만 보낸다 (docs만 바뀐 푸시는 조용히 끝남)
                         script { env.BACKEND_DEPLOY = 'true' }
                         // Jenkins는 서버 Docker를 쓰므로 작업 폴더를 마운트하지 않고, Dockerfile의 build 단계 이미지 안에서 테스트한다.
-                        // 테스트 전용 PostgreSQL을 임시 네트워크에 띄워 Flyway V1 + 엔티티 검증(ddl-auto: validate)까지 확인
+                        // 테스트 전용 PostgreSQL·RabbitMQ를 임시 네트워크에 띄워 마이그레이션·엔티티·메시지 전달까지 확인
                         sh '''
                             docker build --target build -t $IMAGE-test:latest BE
                             docker network create $TEST_NET
                             docker run -d --name $TEST_DB --network $TEST_NET \
                               -e POSTGRES_DB=nyamnyam -e POSTGRES_USER=test -e POSTGRES_PASSWORD=test pgvector/pgvector:pg17
+                            docker run -d --name $TEST_RABBIT --network $TEST_NET \
+                              -e RABBITMQ_DEFAULT_USER=test -e RABBITMQ_DEFAULT_PASS=test rabbitmq:4-management
                             # 초기화 중 임시 서버는 TCP를 열지 않으므로 127.0.0.1로 확인해야 진짜 준비 완료
                             for i in $(seq 1 30); do
                               if docker exec $TEST_DB pg_isready -h 127.0.0.1 -U test -d nyamnyam > /dev/null 2>&1; then break; fi
                               sleep 2
                             done
+                            docker exec $TEST_DB pg_isready -h 127.0.0.1 -U test -d nyamnyam
+                            for i in $(seq 1 30); do
+                              if docker exec $TEST_RABBIT rabbitmq-diagnostics -q check_running > /dev/null 2>&1 && \
+                                 docker exec $TEST_RABBIT rabbitmq-diagnostics -q check_port_connectivity > /dev/null 2>&1; then break; fi
+                              sleep 2
+                            done
+                            docker exec $TEST_RABBIT rabbitmq-diagnostics -q check_running
+                            docker exec $TEST_RABBIT rabbitmq-diagnostics -q check_port_connectivity
                             docker run --rm --network $TEST_NET \
                               -e SPRING_DATASOURCE_URL=jdbc:postgresql://$TEST_DB:5432/nyamnyam \
                               -e SPRING_DATASOURCE_USERNAME=test -e SPRING_DATASOURCE_PASSWORD=test \
+                              -e SPRING_RABBITMQ_HOST=$TEST_RABBIT -e SPRING_RABBITMQ_PORT=5672 \
+                              -e SPRING_RABBITMQ_USERNAME=test -e SPRING_RABBITMQ_PASSWORD=test \
+                              -e RECOMMENDATION_REASON_OUTBOX_ENABLED=false \
+                              -e SPRING_RABBITMQ_LISTENER_SIMPLE_AUTO_STARTUP=false \
+                              -e SPRING_RABBITMQ_LISTENER_DIRECT_AUTO_STARTUP=false \
                               $IMAGE-test:latest ./gradlew test --no-daemon
                         '''
                     }
                     post {
                         always {
-                            sh 'docker rm -f $TEST_DB > /dev/null 2>&1 || true; docker network rm $TEST_NET > /dev/null 2>&1 || true'
+                            sh 'docker rm -f $TEST_DB $TEST_RABBIT > /dev/null 2>&1 || true; docker network rm $TEST_NET > /dev/null 2>&1 || true'
                         }
                     }
                 }

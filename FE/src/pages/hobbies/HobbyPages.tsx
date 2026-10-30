@@ -1,11 +1,21 @@
 import { Check, ChevronDown, Clock3, Coins, Gauge, Heart, Image, Search } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { hobbyCategories, hobbyFixtures, type HobbySummary } from '../../features/hobby/model/hobbyFixtures';
+import { getHobbyShorts, hobbyQueryKeys } from '../../features/hobby/api/hobbyApi';
+import { deleteUserHobby, getUserHobbies, saveUserHobby, userQueryKeys } from '../../features/user/api/userApi';
 import { AppHeader } from '../../shared/ui/AppHeader';
 import { Button } from '../../shared/ui/Button';
 
 function HobbyCard({ hobby }: { hobby: HobbySummary }) {
+  const queryClient = useQueryClient();
+  const hobbiesQuery = useQuery({ queryKey: userQueryKeys.hobbies(), queryFn: () => getUserHobbies() });
+  const saved = hobbiesQuery.data?.some((item) => item.hobbyId === hobby.id && item.status === 'SAVED') ?? false;
+  const saveMutation = useMutation({
+    mutationFn: () => saved ? deleteUserHobby(hobby.id) : saveUserHobby(hobby.id),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: userQueryKeys.hobbies() }),
+  });
   return (
     <article className="catalog-card">
       <div className="catalog-card__visual"><Image aria-hidden="true" /><span>이미지</span><b>{hobby.relation}</b></div>
@@ -14,7 +24,7 @@ function HobbyCard({ hobby }: { hobby: HobbySummary }) {
         <h2>{hobby.name}</h2>
         <p>{hobby.description}</p>
         <div className="catalog-card__meta"><span><Clock3 />{hobby.duration}</span><span><Coins />{hobby.cost}</span><span><Gauge />{hobby.difficulty}</span></div>
-        <div className="catalog-card__actions"><button type="button"><Heart /> 관심 저장</button><Link to={`/hobbies/${hobby.id}`}>상세 보기</Link></div>
+        <div className="catalog-card__actions"><button className={saved ? 'active' : ''} disabled={saveMutation.isPending} onClick={() => saveMutation.mutate()} type="button"><Heart fill={saved ? 'currentColor' : 'none'} /> {saved ? '관심 저장됨' : '관심 저장'}</button><Link to={`/hobbies/${hobby.id}`}>상세 보기</Link></div>
       </div>
     </article>
   );
@@ -121,7 +131,19 @@ export function HobbySearchPage({ recommended = false }: { recommended?: boolean
 export function HobbyDetailPage() {
   const { hobbyId } = useParams();
   const hobby = hobbyFixtures.find((item) => item.id === Number(hobbyId));
-  const [interested, setInterested] = useState(false);
+  const queryClient = useQueryClient();
+  const userHobbiesQuery = useQuery({ queryKey: userQueryKeys.hobbies(), queryFn: () => getUserHobbies() });
+  const interested = userHobbiesQuery.data?.some((item) => item.hobbyId === Number(hobbyId) && item.status === 'SAVED') ?? false;
+  const interestMutation = useMutation({
+    mutationFn: () => interested ? deleteUserHobby(Number(hobbyId)) : saveUserHobby(Number(hobbyId)),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: userQueryKeys.hobbies() }),
+  });
+  const shortsQuery = useQuery({
+    queryKey: hobbyQueryKeys.shorts(Number(hobbyId), 3),
+    queryFn: () => getHobbyShorts(Number(hobbyId), 3),
+    enabled: Number.isFinite(Number(hobbyId)),
+    retry: false,
+  });
   const [activeGuide, setActiveGuide] = useState('hobby-overview');
   const [showGuideBar, setShowGuideBar] = useState(false);
 
@@ -154,7 +176,7 @@ export function HobbyDetailPage() {
             <div className="hobby-detail__summary"><h1>{hobby.name}</h1><div className="hobby-detail__tags"><span className="badge">#{hobby.place}</span>{hobby.tags.map((tag) => <span className="badge" key={tag}>#{tag}</span>)}</div><p>{hobby.description}이에요.<br />장비를 빌려 처음 방문한 날부터 바로 시작할 수 있어요.</p>
               <dl><div><dt>소요 시간</dt><dd>{hobby.duration}</dd></div><div><dt>초기 비용</dt><dd>5~10만 원</dd></div><div><dt>난이도</dt><dd>{hobby.difficulty}</dd></div></dl>
               <small className="hobby-detail__notice">※ 지역과 장비 대여 여부에 따라 비용이 달라질 수 있어요.</small>
-              <div className="hobby-detail__actions"><Button variant="secondary" onClick={() => setInterested((value) => !value)}><Heart aria-hidden="true" />{interested ? '관심 저장됨' : '관심 저장'}</Button><Button to="/my-hobbies">이 취미 시작하기</Button></div>
+              <div className="hobby-detail__actions"><Button variant="secondary" disabled={interestMutation.isPending} onClick={() => interestMutation.mutate()}><Heart fill={interested ? 'currentColor' : 'none'} aria-hidden="true" />{interested ? '관심 저장됨' : '관심 저장'}</Button><Button to="/my-hobbies">이 취미 시작하기</Button></div>
               <p className="hobby-detail__action-note">시작하면 내 상황에 맞는 입문 계획을 만들 수 있어요.</p>
             </div>
           </section>
@@ -165,7 +187,7 @@ export function HobbyDetailPage() {
           <div className={`hobby-guide__summary${showGuideBar ? ' is-visible' : ' is-hidden'}`} aria-hidden={!showGuideBar}>
             <div className="hobby-guide__summary-media"><Image aria-hidden="true" /><span>사진</span></div>
             <div><strong>{hobby.name}</strong><p>{hobby.duration} · 초기 5~10만 원 · 난이도 {hobby.difficulty}</p></div>
-            <div className="hobby-guide__summary-actions"><Button to="/my-hobbies">이 취미 시작하기</Button><button type="button" aria-label="관심 저장" onClick={() => setInterested((value) => !value)}><Heart fill={interested ? 'currentColor' : 'none'} aria-hidden="true" /></button></div>
+            <div className="hobby-guide__summary-actions"><Button to="/my-hobbies">이 취미 시작하기</Button><button type="button" aria-label="관심 저장" disabled={interestMutation.isPending} onClick={() => interestMutation.mutate()}><Heart fill={interested ? 'currentColor' : 'none'} aria-hidden="true" /></button></div>
           </div>
 
           <header className="hobby-guide__heading"><h2>{hobby.name} 상세 가이드</h2><p>필요한 정보만 선택해서 확인하세요.</p></header>
@@ -193,7 +215,7 @@ export function HobbyDetailPage() {
                 <header><h3>시작 전 준비</h3><p>첫 방문 전에 필요한 준비물과 비용, 안전 정보를 확인합니다.</p></header>
                 <section className="hobby-guide__preparation"><h4>준비물</h4><dl className="hobby-guide__facts"><div><dt>필수</dt><dd>암벽화(대여 가능) · 편한 운동복</dd></div><div><dt>선택</dt><dd>초크 · 물병 · 손가락 테이프</dd></div></dl></section>
                 <div className="hobby-guide__columns">
-                  <section><h4>예상 비용</h4><dl className="hobby-guide__facts"><div><dt>첫 방문</dt><dd>약 3~5만 원</dd></div><div><dt>월 예상</dt><dd>약 10~15만 원</dd></div></dl><Button variant="secondary">비용 계산하기</Button></section>
+                  <section><h4>예상 비용</h4><dl className="hobby-guide__facts"><div><dt>첫 방문</dt><dd>약 3~5만 원</dd></div><div><dt>월 예상</dt><dd>약 10~15만 원</dd></div></dl></section>
                   <section><h4>첫 활동과 유의 사항</h4><ol><li>장비 대여와 안전 수칙 확인</li><li>가장 쉬운 루트 3개 체험</li></ol><small>※ 시작 전 스트레칭과 착지 매트 확인</small><Button>첫 활동 계획에 추가</Button></section>
                 </div>
               </article>}
@@ -208,7 +230,7 @@ export function HobbyDetailPage() {
               {activeGuide === 'hobby-content' && <article className="hobby-guide-section" id="hobby-content">
                 <header><h3>콘텐츠·장소</h3><p>더 알아보고 싶을 때만 숏폼과 주변 정보를 탐색합니다.</p></header>
                 <h4>관련 숏폼</h4>
-                <div className="hobby-guide__shorts"><article><div><Image /><span>이미지 영역</span></div><b>첫 방문 준비</b></article><article><div><Image /><span>이미지 영역</span></div><b>초보자 동작</b></article><article><div><Image /><span>이미지 영역</span></div><b>암벽화 고르기</b></article><Button variant="secondary">전체 숏폼</Button></div>
+                <div className="hobby-guide__shorts">{(shortsQuery.data ?? []).map((short) => <article key={short.shortId}><div>{short.thumbnailUrl ? <img src={short.thumbnailUrl} alt="" /> : <><Image /><span>이미지 영역</span></>}</div><b>{short.title}</b></article>)}{shortsQuery.isLoading && <article><div><Image /><span>불러오는 중</span></div><b>관련 숏폼</b></article>}<Button variant="secondary" to="/explore">전체 숏폼</Button></div>
                 <div className="hobby-guide__columns hobby-guide__columns--footer"><section><h4>주변에서 시작하기</h4><p>설정한 지역을 기준으로 장소와 입문 클래스를 확인합니다.</p><div><Button to="/places">주변 장소</Button><Button variant="secondary">입문 클래스</Button></div></section><section><h4>관련 자료</h4><ul className="hobby-guide__materials"><li><span>행사</span>2026 생활체육 클라이밍 페스티벌</li><li><span>입문</span>볼더링 용어 20</li></ul></section></div>
               </article>}
             </div>

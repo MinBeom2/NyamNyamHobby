@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { GuestHomePage, MemberHomePage } from '../pages/home/HomePage';
 import { LoginPage } from '../pages/auth/LoginPage';
@@ -18,6 +19,32 @@ import { HobbyDetailPage, HobbyInterestSelectPage, HobbySearchPage } from '../pa
 import { HobbyPlanPage, MyHobbiesPage, TodoFocusPage } from '../pages/activities/ActivityPages';
 import { InfoFeedPage, PlaceSearchPage } from '../pages/places/PlacePages';
 import { CommunityDetailPage, CommunityListPage, CommunityWritePage } from '../pages/community/CommunityPages';
+import { getCurrentUserProfile } from '../features/auth/api/authApi';
+import { useAuthStore } from '../features/auth/model/authStore';
+
+function AuthSessionBootstrap() {
+  const user = useAuthStore((state) => state.user);
+  const setUser = useAuthStore((state) => state.setUser);
+  const profileQuery = useQuery({
+    queryKey: ['auth', 'current-user'],
+    queryFn: getCurrentUserProfile,
+    enabled: user === null,
+    retry: false,
+  });
+
+  useEffect(() => {
+    if (!profileQuery.data) return;
+    setUser({
+      id: profileQuery.data.id,
+      email: profileQuery.data.email,
+      nickname: profileQuery.data.nickname,
+      role: profileQuery.data.role,
+      onboarded: profileQuery.data.conditions !== null,
+    });
+  }, [profileQuery.data, setUser]);
+
+  return null;
+}
 
 function ScrollToTop() {
   const { pathname } = useLocation();
@@ -32,6 +59,7 @@ function ScrollToTop() {
 export function App() {
   return (
     <>
+      <AuthSessionBootstrap />
       <ScrollToTop />
       <Routes>
         <Route path="/" element={<GuestHomePage />} />
@@ -69,6 +97,7 @@ export function App() {
         <Route path="/info-feed" element={<InfoFeedPage />} />
         <Route path="/community" element={<CommunityListPage />} />
         <Route path="/community/new" element={<CommunityWritePage />} />
+        <Route path="/community/:postId/edit" element={<CommunityWritePage />} />
         <Route path="/community/:postId" element={<CommunityDetailPage />} />
         <Route path="*" element={<Navigate replace to="/" />} />
       </Routes>

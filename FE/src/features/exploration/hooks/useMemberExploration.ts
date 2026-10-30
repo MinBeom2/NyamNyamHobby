@@ -20,6 +20,7 @@ import type {
   ExplorationRecommendation,
   ExplorationShort,
 } from '../model/explorationModel';
+import { deleteSavedShort, saveShort } from '../../shortform/api/shortformApi';
 
 export function useMemberExploration() {
   const [sessionId, setSessionId] = useState<number | null>(null);
@@ -67,6 +68,16 @@ export function useMemberExploration() {
     onSuccess: (response) => {
       setCurrent((short) => short ? { ...short, reaction: response.type } : short);
       void progressQuery.refetch();
+    },
+  });
+
+  const saveMutation = useMutation({
+    mutationFn: async () => {
+      if (!current) throw new Error('보관할 영상이 준비되지 않았습니다.');
+      return current.isSaved ? deleteSavedShort(current.id) : saveShort(current.id);
+    },
+    onSuccess: (response) => {
+      setCurrent((short) => short ? { ...short, isSaved: response.isSaved } : short);
     },
   });
 
@@ -120,9 +131,11 @@ export function useMemberExploration() {
     isStartError: startMutation.isError,
     startError: startMutation.error,
     isReactionPending: reactionMutation.isPending,
+    isSavePending: saveMutation.isPending,
     isAdvancePending: advanceMutation.isPending,
-    error: startMutation.error ?? reactionMutation.error ?? advanceMutation.error,
+    error: startMutation.error ?? reactionMutation.error ?? saveMutation.error ?? advanceMutation.error,
     react: reactionMutation.mutate,
+    toggleSave: saveMutation.mutate,
     advance: advanceMutation.mutate,
     restart,
   };

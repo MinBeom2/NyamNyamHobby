@@ -1,7 +1,9 @@
 import { Check, ChevronDown, Image, Pause, Play, RotateCcw } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { activeHobbyFixtures, type ActiveHobby, type TodoItem } from '../../features/activity/model/activityFixtures';
+import { getUserHobbies, userQueryKeys, type UserHobbyDto } from '../../features/user/api/userApi';
 import { AppHeader } from '../../shared/ui/AppHeader';
 import { Button } from '../../shared/ui/Button';
 
@@ -10,11 +12,22 @@ function HobbyProgressCard({ hobby }: { hobby: ActiveHobby }) {
   return <article className="activity-card"><div className="activity-card__icon"><Image aria-hidden="true" /><span>{hobby.name}</span></div><div className="activity-card__body"><div className="activity-card__title"><h2>{hobby.name}</h2><span className={hobby.status === '진행 중' ? 'badge' : 'badge badge--paused'}>{hobby.status}</span></div><p>{hobby.week}주차 · {hobby.totalWeeks}주 계획 · {hobby.completed}/{hobby.totalTodos} 완료</p><div className="progress-track"><span style={{ width: `${progress}%` }} /></div></div><div className="activity-card__actions"><Link className="button button--primary" to={`/my-hobbies/${hobby.id}/plan`}>{hobby.status === '진행 중' ? '이어하기' : '다시 시작'}</Link><button className="button button--secondary" type="button">{hobby.status === '진행 중' ? <><Pause /> 일시중지</> : '그만두기'}</button></div></article>;
 }
 
+function UserHobbyProgressCard({ hobby }: { hobby: UserHobbyDto }) {
+  const progress = Math.max(0, Math.min(100, Math.round(hobby.progressRate ?? 0)));
+  const status = hobby.status === 'PAUSED' ? '일시중지' : '진행 중';
+  return <article className="activity-card"><div className="activity-card__icon">{hobby.thumbnailUrl ? <img src={hobby.thumbnailUrl} alt="" /> : <Image aria-hidden="true" />}<span>{hobby.name}</span></div><div className="activity-card__body"><div className="activity-card__title"><h2>{hobby.name}</h2><span className={hobby.status === 'PAUSED' ? 'badge badge--paused' : 'badge'}>{status}</span></div><p>{hobby.skillLevel || '입문'} · 진행률 {progress}%</p><div className="progress-track"><span style={{ width: `${progress}%` }} /></div></div><div className="activity-card__actions"><Link className="button button--primary" to={`/hobbies/${hobby.hobbyId}`}>취미 정보 보기</Link></div></article>;
+}
+
 export function MyHobbiesPage() {
-  return <div className="site-shell"><AppHeader authenticated notificationCount={3} /><main className="page-container activity-page"><div className="page-title-row"><div><h1>내 취미</h1><p>진행 중인 계획과 관심 취미를 한곳에서 확인해요.</p></div><span className="count-pill">진행 중 2 / 3</span></div>
-    <section><h2 className="content-title">진행 중</h2><div className="activity-list">{activeHobbyFixtures.filter((item) => item.status === '진행 중').map((hobby) => <HobbyProgressCard hobby={hobby} key={hobby.id} />)}</div></section>
-    <section className="section-block"><h2 className="content-title">일시중지</h2><div className="activity-list">{activeHobbyFixtures.filter((item) => item.status === '일시중지').map((hobby) => <HobbyProgressCard hobby={hobby} key={hobby.id} />)}</div></section>
-    <section className="section-block"><div className="section-heading"><h2>관심 취미</h2><Link to="/hobbies">전체 보기</Link></div><div className="interest-mini-grid">{['러닝', '홈베이킹', '드로잉', '플랜테리어'].map((name) => <article key={name}><div><Image /></div><h3>{name}</h3><Button to="/hobbies">시작하기</Button></article>)}</div></section>
+  const hobbiesQuery = useQuery({ queryKey: userQueryKeys.hobbies(), queryFn: () => getUserHobbies() });
+  const hobbies = hobbiesQuery.data ?? [];
+  const inProgress = hobbies.filter((item) => item.status === 'IN_PROGRESS');
+  const paused = hobbies.filter((item) => item.status === 'PAUSED');
+  const saved = hobbies.filter((item) => item.status === 'SAVED');
+  return <div className="site-shell"><AppHeader authenticated notificationCount={3} /><main className="page-container activity-page"><div className="page-title-row"><div><h1>내 취미</h1><p>진행 중인 계획과 관심 취미를 한곳에서 확인해요.</p></div><span className="count-pill">진행 중 {inProgress.length} / 3</span></div>
+    <section><h2 className="content-title">진행 중</h2><div className="activity-list">{inProgress.map((hobby) => <UserHobbyProgressCard hobby={hobby} key={hobby.userHobbyId} />)}{!hobbiesQuery.isLoading && inProgress.length === 0 && <p>진행 중인 취미가 없어요.</p>}</div></section>
+    <section className="section-block"><h2 className="content-title">일시중지</h2><div className="activity-list">{paused.map((hobby) => <UserHobbyProgressCard hobby={hobby} key={hobby.userHobbyId} />)}{!hobbiesQuery.isLoading && paused.length === 0 && <p>일시중지한 취미가 없어요.</p>}</div></section>
+    <section className="section-block"><div className="section-heading"><h2>관심 취미</h2><Link to="/hobbies">전체 보기</Link></div><div className="interest-mini-grid">{saved.map((hobby) => <article key={hobby.userHobbyId}><div>{hobby.thumbnailUrl ? <img src={hobby.thumbnailUrl} alt="" /> : <Image />}</div><h3>{hobby.name}</h3><Button to={`/hobbies/${hobby.hobbyId}`}>상세 보기</Button></article>)}</div>{!hobbiesQuery.isLoading && saved.length === 0 && <p>저장한 관심 취미가 없어요.</p>}</section>
   </main></div>;
 }
 

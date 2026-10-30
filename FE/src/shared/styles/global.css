@@ -334,14 +334,14 @@ strong, b { font-weight: 700; }
 .hobby-guide__heading { max-width: 1080px; margin: 0 auto; padding: 28px 0 18px; border-bottom: 1px solid var(--color-line); background: var(--color-bg); }
 .hobby-guide__heading h2 { margin: 0; font-family: var(--font-title); font-size: var(--type-title-l); font-weight: 400; line-height: var(--type-title-l-line); }
 .hobby-guide__heading p { margin: 6px 0 0; color: var(--color-muted); font-size: 12px; }
-.hobby-guide__layout { max-width: 1080px; margin: 0 auto; display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 38px; align-items: start; }
-.hobby-guide__nav { min-height: 480px; padding: 24px 20px 0 0; border-right: 1px solid var(--color-line); display: flex; flex-direction: column; gap: 8px; }
+.hobby-guide__layout { max-width: 1080px; min-height: 480px; margin: 0 auto; display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 38px; align-items: start; }
+.hobby-guide__nav { min-height: 480px; padding: 24px 20px 36px 0; border-right: 1px solid var(--color-line); display: flex; flex-direction: column; gap: 8px; }
 .hobby-guide__nav b { margin-bottom: 6px; font-size: 11px; }
 .hobby-guide__nav button { min-height: 44px; padding: 0 16px; border: 0; border-left: 3px solid transparent; display: flex; align-items: center; color: var(--color-muted); background: transparent; font-size: 12px; text-align: left; cursor: pointer; }
 .hobby-guide__nav button.active { border-color: var(--color-primary); color: var(--color-primary); background: var(--color-primary-soft); font-weight: 700; }
 .hobby-guide__nav button:last-child { margin-top: 26px; color: #66777b; font-size: 11px; }
-.hobby-guide__content { min-width: 0; }
-.hobby-guide-section { height: 480px; min-height: 480px; overflow: hidden; padding: 24px 0 22px; }
+.hobby-guide__content { min-width: 0; min-height: 480px; }
+.hobby-guide-section { box-sizing: border-box; height: auto; min-height: 480px; overflow: visible; padding: 24px 0 36px; }
 .hobby-guide-section > header { padding-bottom: 18px; border-bottom: 1px solid var(--color-line); }
 .hobby-guide-section h3 { margin: 0; font-family: var(--font-title); font-size: var(--type-title-l); font-weight: 400; line-height: var(--type-title-l-line); }
 .hobby-guide-section > header p, .hobby-guide-section section > p { margin: 5px 0 0; color: var(--color-muted); font-size: 12px; line-height: 20px; }

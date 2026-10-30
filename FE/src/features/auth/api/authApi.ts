@@ -43,6 +43,7 @@ export type CurrentUserProfile = {
   nickname: string;
   profileImageUrl: string | null;
   role: 'USER' | 'ADMIN';
+  hasPassword: boolean;
   conditions: {
     weeklyHours: number | null;
     monthlyBudget: number | null;

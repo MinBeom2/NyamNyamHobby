@@ -60,7 +60,7 @@
   - API·배치: exploration_sessions · short_reactions · recommendations
   - 근거: 3장 · 8.1
   - 비고: MVP 제외(P2): 비회원 체험(FR-AUTH-05). MVP에서 숏폼 탐색·추천은 로그인 후에만(11장 #1)
-- [ ] **SYS-B05 이미지 업로드** · `권장` · 업로드
+- [x] **SYS-B05 이미지 업로드** · `권장` · 업로드
   - POST /uploads/images(multipart, purpose): JPG·PNG·WEBP 확장자·MIME 화이트리스트, 크기 제한(프로필 2MB·그 외 5MB), UUID 파일명, EC2 볼륨 저장 + Nginx 정적 서빙.
   - API·배치: /uploads/images
   - 근거: NFR-SEC-06 · 11장 #19
@@ -182,12 +182,12 @@
   - POST /explorations(세션 + 첫 영상), progress(진행률 n / N·반응한 취미·관심 주제 상위 3개 %), finish(종료 + 추천 생성 호출), 세션 상태 IN_PROGRESS·COMPLETED·ABANDONED.
   - API·배치: /explorations · /explorations/{id}/progress · /explorations/{id}/finish
   - 근거: FR-SHORT-03 · FR-SHORT-04
-- [ ] **SHORT-B02 다음 영상 선택** · `필수` · 다음 영상
+- [x] **SHORT-B02 다음 영상 선택** · `필수` · 다음 영상
   - P0 단계는 ACTIVE 영상 중 본 영상·관련 없음·숨김(비ACTIVE) 제외 후 무작위, 별로예요 취미 세션 제외, 후보 부족 시 반응 없던 영상 재사용, 세션당 노출 수 N(설정값 exploration.session-size, 기본안 12) 또는 후보 없음이면 finished. [P1] 첫 진입 분류 분산(1~4번 서로 다른 분류)과 선호 70%·탐색 30%(prefer-ratio 설정값, 매번 난수)는 개선 기간에 붙인다.
   - API·배치: /explorations/{id}/next
   - 근거: FR-SHORT-03
   - 비고: 11장 #3 · #4 · 첫 진입 분류 분산·선호 70%/탐색 30%는 권장(P1)
-- [ ] **SHORT-B03 노출·시청·재생 실패 기록** · `필수` · 시청 기록
+- [x] **SHORT-B03 노출·시청·재생 실패 기록** · `필수` · 시청 기록
   - POST views: watchedSeconds(길이 상한)·watch_ratio 저장, 고유 시청자 view_user_count 증가, playFailed 기록 → 서로 다른 3명 이상 실패 시 UNAVAILABLE.
   - API·배치: /explorations/{id}/views · exploration_views · shorts
   - 근거: FR-SHORT-01 · FR-SHORT-02
@@ -243,11 +243,11 @@
 
 필수 2 · 권장 0 · 후순위 0 · 제외 0 · 프론트엔드 짝: HOBBY-F01~F03
 
-- [ ] **HOBBY-B01 취미 검색 API** · `필수` · 검색
+- [x] **HOBBY-B01 취미 검색 API** · `필수` · 검색
   - GET /hobbies: 취미명·태그 부분 일치(2자 이상), 필터 5종 AND, 정렬(추천순: 로그인은 관심사 점수·비회원은 인기순 / 이름순 / 비용 낮은순), 20개. GET /categories, /tags.
   - API·배치: /hobbies · /categories · /tags
   - 근거: FR-HOBBY-01
-- [ ] **HOBBY-B02 취미 상세 API** · `필수` · 상세
+- [x] **HOBBY-B02 취미 상세 API** · `필수` · 상세
   - GET /hobbies/{id}(PUBLISHED만, 로그인 시 myStatus), /shorts(ACTIVE 최대 6), /plan-preview(1~2주차), 관련 정보 피드 3개.
   - API·배치: /hobbies/{id} · /hobbies/{id}/shorts · /hobbies/{id}/plan-preview
   - 근거: FR-HOBBY-02
@@ -277,7 +277,7 @@
   - API·배치: reco.reason · recommendation_items.reason
   - 근거: FR-RECO-02
   - 비고: AI 추천 이유(60자)는 P1
-- [ ] **RECO-B05 별로예요 API** · `필수` · 추천 피드백
+- [x] **RECO-B05 별로예요 API** · `필수` · 추천 피드백
   - PUT·DELETE /hobbies/{id}/dislike(hobby_dislikes), 이후 추천·연관 후보에서 제외.
   - API·배치: /hobbies/{id}/dislike · hobby_dislikes
   - 근거: FR-RECO-03
@@ -417,12 +417,12 @@
 
 필수 0 · 권장 5 · 후순위 0 · 제외 0 · 프론트엔드 짝: BOARD-F01~F06
 
-- [ ] **BOARD-B01 게시판 목록 API** · `권장` · 목록
+- [x] **BOARD-B01 게시판 목록 API** · `권장` · 목록
   - GET /hobbies/{id}/posts: 유형·키워드(검색 인덱스는 PostgreSQL 방식으로 V2에서 추가, 예: pg_trgm)·정렬(최신·좋아요)·20개, HIDDEN·DELETED 제외.
   - API·배치: /hobbies/{id}/posts · posts
   - 근거: FR-BOARD-01
   - 비고: FR-BOARD P1
-- [ ] **BOARD-B02 게시글 작성·수정·삭제** · `권장` · 작성
+- [x] **BOARD-B02 게시글 작성·수정·삭제** · `권장` · 작성
   - POST·PATCH·DELETE /posts: 입력 검증(제목 2~50, 본문 10~5,000, 이미지 5장), HTML 이스케이프 저장, 본인만(403 BOARD_FORBIDDEN), soft delete 후 상세 404.
   - API·배치: /posts · /posts/{id} · post_images
   - 근거: FR-BOARD-02 · NFR-SEC-05
@@ -430,11 +430,11 @@
   - GET /posts/{id}: 조회수는 회원 기준(비회원 체험 도입 시 guestKey 포함) 24시간에 1회.
   - API·배치: /posts/{id}
   - 근거: FR-BOARD-03
-- [ ] **BOARD-B04 댓글·대댓글 API** · `권장` · 댓글
+- [x] **BOARD-B04 댓글·대댓글 API** · `권장` · 댓글
   - GET·POST /posts/{id}/comments, PATCH·DELETE /comments/{id}: 1~500자, 대댓글 1단계(답글의 답글도 부모 아래), 대댓글 있으면 '삭제된 댓글입니다'. 댓글 알림 발행은 [P2·MVP 제외].
   - API·배치: comments
   - 근거: FR-BOARD-03
-- [ ] **BOARD-B05 좋아요 API** · `권장` · 좋아요
+- [x] **BOARD-B05 좋아요 API** · `권장` · 좋아요
   - PUT·DELETE /posts/{id}/like, /comments/{id}/like: UNIQUE(user, targetType, targetId), like_count.
   - API·배치: likes
   - 근거: FR-BOARD-04

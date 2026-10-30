@@ -1,7 +1,10 @@
 package com.ssafy.nyamnyam.domain.hobby.controller;
 
+import com.ssafy.nyamnyam.domain.hobby.dto.request.HobbySearchCondition;
 import com.ssafy.nyamnyam.domain.hobby.dto.response.HobbyDetailResponse;
+import com.ssafy.nyamnyam.domain.hobby.dto.response.HobbySummaryResponse;
 import com.ssafy.nyamnyam.domain.hobby.service.HobbyService;
+import com.ssafy.nyamnyam.global.common.PageResponse;
 import com.ssafy.nyamnyam.global.error.CustomException;
 import com.ssafy.nyamnyam.global.error.ErrorCode;
 import com.ssafy.nyamnyam.global.security.SecurityConfig;
@@ -22,9 +25,12 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.List;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -49,6 +55,44 @@ class HobbyControllerTest {
                 new HobbyDetailResponse.RangeResponse(100000, 150000),
                 "암벽화", "실내 암벽장", "1일 체험", "스트레칭 필수",
                 List.of("실내", "활동적"), 420, myStatus);
+    }
+
+    @Test
+    @DisplayName("취미 검색은 공개이고, 쿼리 문자열이 조건으로 바뀌어 서비스에 전달된다")
+    void searchIsPublicAndParsesQuery() throws Exception {
+        HobbySummaryResponse card = new HobbySummaryResponse(3L, "클라이밍",
+                new HobbyDetailResponse.CategoryResponse(1L, "운동·야외"), "요약", null,
+                "NORMAL", "INDOOR", "BOTH",
+                new HobbyDetailResponse.RangeResponse(60, 120),
+                new HobbyDetailResponse.RangeResponse(100000, 150000), 420, List.of("실내"));
+        given(hobbyService.search(argThat(c -> "클라이".equals(c.keyword())
+                        && c.time() == HobbySearchCondition.TimeRange.H1_TO_2H
+                        && c.place() == HobbySearchCondition.PlaceFilter.INDOOR
+                        && c.sort() == HobbySearchCondition.SortType.NAME
+                        && c.page() == 1 && c.size() == 5), isNull()))
+                .willReturn(new PageResponse<>(List.of(card), new PageResponse.PageInfo(1, 5, 6, 2, false)));
+
+        mvc.perform(get("/api/v1/hobbies")
+                        .param("keyword", "클라이").param("time", "1H_TO_2H").param("place", "INDOOR")
+                        .param("sort", "NAME").param("page", "1").param("size", "5"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.content[0].id").value(3))
+                .andExpect(jsonPath("$.data.content[0].tags[0]").value("실내"))
+                .andExpect(jsonPath("$.data.page.number").value(1))
+                .andExpect(jsonPath("$.data.page.totalElements").value(6))
+                .andExpect(jsonPath("$.data.page.hasNext").value(false));
+    }
+
+    @Test
+    @DisplayName("잘못된 검색 조건은 서비스를 부르지 않고 400 COMMON_INVALID_INPUT")
+    void searchRejectsInvalidQuery() throws Exception {
+        mvc.perform(get("/api/v1/hobbies").param("keyword", "클"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.code").value("COMMON_INVALID_INPUT"));
+        mvc.perform(get("/api/v1/hobbies").param("cost", "CHEAP"))
+                .andExpect(status().isBadRequest());
+        verifyNoInteractions(hobbyService);
     }
 
     @Test

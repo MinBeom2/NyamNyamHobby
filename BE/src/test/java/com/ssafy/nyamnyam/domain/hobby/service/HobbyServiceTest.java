@@ -3,9 +3,11 @@ package com.ssafy.nyamnyam.domain.hobby.service;
 import com.ssafy.nyamnyam.domain.hobby.dto.response.HobbyDetailResponse;
 import com.ssafy.nyamnyam.domain.hobby.entity.*;
 import com.ssafy.nyamnyam.domain.hobby.repository.HobbyRepository;
+import com.ssafy.nyamnyam.domain.recommendation.service.PreferenceProfileService;
 import com.ssafy.nyamnyam.domain.user.entity.UserHobby;
 import com.ssafy.nyamnyam.domain.user.entity.UserHobbyStatus;
 import com.ssafy.nyamnyam.domain.user.repository.UserHobbyRepository;
+import com.ssafy.nyamnyam.domain.user.repository.UserRepository;
 import com.ssafy.nyamnyam.global.error.CustomException;
 import com.ssafy.nyamnyam.global.error.ErrorCode;
 import org.junit.jupiter.api.BeforeEach;
@@ -32,6 +34,12 @@ class HobbyServiceTest {
 
     @Mock
     private UserHobbyRepository userHobbyRepository;
+
+    @Mock
+    private UserRepository userRepository;
+
+    @Mock
+    private PreferenceProfileService preferenceProfileService;
 
     @InjectMocks
     private HobbyService hobbyService;

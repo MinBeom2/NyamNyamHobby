@@ -3,7 +3,9 @@ package com.ssafy.nyamnyam.domain.hobby.controller;
 import com.ssafy.nyamnyam.domain.hobby.dto.request.HobbySearchCondition;
 import com.ssafy.nyamnyam.domain.hobby.dto.response.HobbyDetailResponse;
 import com.ssafy.nyamnyam.domain.hobby.dto.response.HobbySummaryResponse;
+import com.ssafy.nyamnyam.domain.hobby.dto.response.PlanPreviewResponse;
 import com.ssafy.nyamnyam.domain.hobby.service.HobbyService;
+import com.ssafy.nyamnyam.domain.hobby.service.PlanPreviewService;
 import com.ssafy.nyamnyam.global.common.ApiResponse;
 import com.ssafy.nyamnyam.global.common.PageResponse;
 import com.ssafy.nyamnyam.global.security.UserPrincipal;
@@ -24,6 +26,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class HobbyController {
 
     private final HobbyService hobbyService;
+    private final PlanPreviewService planPreviewService;
 
     /** 취미 다중 필터 검색(명세 3.4-1). 값 검증은 {@link HobbySearchCondition#of}에서 한다 */
     @GetMapping
@@ -47,6 +50,14 @@ public class HobbyController {
     public ApiResponse<HobbyDetailResponse> detail(@PathVariable Long hobbyId,
                                                    @AuthenticationPrincipal UserPrincipal principal) {
         return ApiResponse.success(hobbyService.getDetail(hobbyId, userIdOf(principal)));
+    }
+
+    /** 취미 TODO 플랜 미리보기(명세 3.4-4). 공개 원본이 없으면 ready=false로 200 */
+    @GetMapping("/{hobbyId}/plan-preview")
+    public ApiResponse<PlanPreviewResponse> planPreview(@PathVariable Long hobbyId,
+                                                        @RequestParam(required = false) String skillLevel,
+                                                        @RequestParam(required = false) Integer weeks) {
+        return ApiResponse.success(planPreviewService.preview(hobbyId, skillLevel, weeks));
     }
 
     private static Long userIdOf(UserPrincipal principal) {

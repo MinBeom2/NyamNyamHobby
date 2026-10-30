@@ -3,7 +3,9 @@ package com.ssafy.nyamnyam.domain.hobby.controller;
 import com.ssafy.nyamnyam.domain.hobby.dto.request.HobbySearchCondition;
 import com.ssafy.nyamnyam.domain.hobby.dto.response.HobbyDetailResponse;
 import com.ssafy.nyamnyam.domain.hobby.dto.response.HobbySummaryResponse;
+import com.ssafy.nyamnyam.domain.hobby.dto.response.PlanPreviewResponse;
 import com.ssafy.nyamnyam.domain.hobby.service.HobbyService;
+import com.ssafy.nyamnyam.domain.hobby.service.PlanPreviewService;
 import com.ssafy.nyamnyam.global.common.PageResponse;
 import com.ssafy.nyamnyam.global.error.CustomException;
 import com.ssafy.nyamnyam.global.error.ErrorCode;
@@ -41,6 +43,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class HobbyControllerTest {
     @Autowired MockMvc mvc;
     @MockitoBean HobbyService hobbyService;
+    @MockitoBean PlanPreviewService planPreviewService;
     @MockitoBean JwtProvider jwtProvider;
     @MockitoBean CustomOAuth2UserService oauthUsers;
     @MockitoBean OAuth2AuthenticationSuccessHandler oauthSuccess;
@@ -93,6 +96,33 @@ class HobbyControllerTest {
         mvc.perform(get("/api/v1/hobbies").param("cost", "CHEAP"))
                 .andExpect(status().isBadRequest());
         verifyNoInteractions(hobbyService);
+    }
+
+    @Test
+    @DisplayName("플랜 미리보기는 공개이고 skillLevel·weeks가 서비스에 전달된다")
+    void planPreviewIsPublic() throws Exception {
+        PlanPreviewResponse.Item item = new PlanPreviewResponse.Item(1, "체험 수업 안내 확인하기", "설명", 15, "운동복", "기준");
+        given(planPreviewService.preview(3L, "BEGINNER", 3)).willReturn(new PlanPreviewResponse(
+                true, "BEGINNER", "클라이밍 · 입문 3주 계획", 3, 3,
+                List.of(new PlanPreviewResponse.Week(1, "환경과 안전 수칙 익히기", List.of(item)))));
+
+        mvc.perform(get("/api/v1/hobbies/3/plan-preview").param("skillLevel", "BEGINNER").param("weeks", "3"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.ready").value(true))
+                .andExpect(jsonPath("$.data.totalWeeks").value(3))
+                .andExpect(jsonPath("$.data.weeks[0].title").value("환경과 안전 수칙 익히기"))
+                .andExpect(jsonPath("$.data.weeks[0].items[0].expectedMinutes").value(15));
+    }
+
+    @Test
+    @DisplayName("플랜 미리보기: 파라미터를 생략하면 null로 넘겨 서비스 기본값을 쓴다")
+    void planPreviewDefaults() throws Exception {
+        given(planPreviewService.preview(3L, null, null)).willReturn(PlanPreviewResponse.notReady("BEGINNER"));
+
+        mvc.perform(get("/api/v1/hobbies/3/plan-preview"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.ready").value(false))
+                .andExpect(jsonPath("$.data.weeks").isEmpty());
     }
 
     @Test

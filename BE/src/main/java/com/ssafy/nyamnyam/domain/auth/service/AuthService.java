@@ -380,6 +380,7 @@ public class AuthService {
 
     // ─── Helpers ───
 
+    @Transactional
     public LoginResult issueTokens(User user, LocalDateTime now) {
         String accessToken = jwtProvider.createAccessToken(user.getId(), user.getEmail(), user.getRole().name());
         String refreshToken = jwtProvider.createRefreshToken(user.getId());

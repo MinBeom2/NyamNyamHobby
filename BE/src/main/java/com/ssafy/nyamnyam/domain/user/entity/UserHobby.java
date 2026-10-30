@@ -8,6 +8,10 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.time.Duration;
+import java.time.ZoneId;
+import java.time.ZoneOffset;
+import java.time.temporal.ChronoUnit;
 
 @Entity
 @Table(name = "user_hobbies",
@@ -53,6 +57,9 @@ public class UserHobby {
     @Column(name = "paused_days", nullable = false)
     private int pausedDays;
 
+    @Column(name = "paused_seconds", nullable = false)
+    private long pausedSeconds;
+
     @Column(name = "ended_at")
     private LocalDateTime endedAt;
 
@@ -76,6 +83,48 @@ public class UserHobby {
             this.skillLevel = skillLevel;
         }
         this.startedAt = now;
+        this.pausedAt = null;
+        this.pausedDays = 0;
+        this.pausedSeconds = 0;
+        this.endedAt = null;
+    }
+
+    public void pause(LocalDateTime now) {
+        if (status == UserHobbyStatus.PAUSED) return;
+        status = UserHobbyStatus.PAUSED;
+        pausedAt = now;
+    }
+
+    public void resume(LocalDateTime now) {
+        if (status == UserHobbyStatus.IN_PROGRESS) return;
+        pausedSeconds += Math.max(0, Duration.between(pausedAt, now).getSeconds());
+        pausedDays = (int) (pausedSeconds / 86400);
+        pausedAt = null;
+        status = UserHobbyStatus.IN_PROGRESS;
+    }
+
+    public void stop(LocalDateTime now) {
+        if (status == UserHobbyStatus.STOPPED) return;
+        // Preserve the frozen timeline when a paused hobby is stopped.
+        if (pausedAt != null) {
+            pausedSeconds += Math.max(0, Duration.between(pausedAt, now).getSeconds());
+            pausedDays = (int) (pausedSeconds / 86400);
+            pausedAt = null;
+        }
+        status = UserHobbyStatus.STOPPED;
+        endedAt = now;
+    }
+
+    /** UTC storage; week boundaries use Seoul calendar dates, excluding exact paused durations. */
+    public int currentWeek(int totalWeeks, LocalDateTime now) {
+        if (startedAt == null) return 1;
+        var zone = ZoneId.of("Asia/Seoul");
+        LocalDateTime reference = pausedAt != null ? pausedAt : endedAt != null ? endedAt : now;
+        var startDate = startedAt.atOffset(ZoneOffset.UTC).atZoneSameInstant(zone).toLocalDate();
+        var effectiveDate = reference.minusSeconds(pausedSeconds)
+                .atOffset(ZoneOffset.UTC).atZoneSameInstant(zone).toLocalDate();
+        long days = Math.max(0, ChronoUnit.DAYS.between(startDate, effectiveDate));
+        return (int) Math.min(totalWeeks, days / 7 + 1);
     }
 }
 

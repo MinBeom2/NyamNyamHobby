@@ -33,6 +33,12 @@ public enum ErrorCode {
     REGION_NOT_FOUND(HttpStatus.NOT_FOUND, "REGION_NOT_FOUND", "지역을 찾을 수 없습니다."),
 
     // 409 Conflict
+    MY_HOBBY_LIMIT(HttpStatus.CONFLICT, "MY_HOBBY_LIMIT", "동시에 진행할 수 있는 취미는 3개입니다."),
+    MY_PLAN_NOT_READY(HttpStatus.CONFLICT, "MY_PLAN_NOT_READY", "선택한 숙련도의 공개 계획이 준비되지 않았습니다."),
+    MY_HOBBY_IN_PROGRESS(HttpStatus.CONFLICT, "MY_HOBBY_IN_PROGRESS", "진행 중이거나 일시중지한 취미는 관심 상태로 변경할 수 없습니다."),
+    MY_HOBBY_INVALID_TRANSITION(HttpStatus.CONFLICT, "MY_HOBBY_INVALID_TRANSITION", "현재 취미 상태에서 요청한 전환을 할 수 없습니다."),
+    TODO_PLAN_NOT_ACTIVE(HttpStatus.CONFLICT, "TODO_PLAN_NOT_ACTIVE", "진행 중인 현재 계획만 수정할 수 있습니다."),
+    TODO_FUTURE_WEEK(HttpStatus.CONFLICT, "TODO_FUTURE_WEEK", "미래 주차의 완료 상태와 메모는 변경할 수 없습니다."),
     SHORT_SESSION_ENDED(HttpStatus.CONFLICT, "SHORT_SESSION_ENDED", "변경할 수 없는 탐색 세션입니다."),
     SHORT_NOT_ACTIVE(HttpStatus.CONFLICT, "SHORT_NOT_ACTIVE", "현재 반응할 수 없는 숏폼입니다."),
     AUTH_EMAIL_DUPLICATED(HttpStatus.CONFLICT, "AUTH_EMAIL_DUPLICATED", "이미 사용 중인 이메일입니다."),

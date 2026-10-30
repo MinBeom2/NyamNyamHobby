@@ -14,6 +14,7 @@ import com.ssafy.nyamnyam.domain.recommendation.service.PreferenceProfileService
 import com.ssafy.nyamnyam.domain.shortform.entity.Short;
 import com.ssafy.nyamnyam.domain.shortform.entity.ShortStatus;
 import com.ssafy.nyamnyam.domain.shortform.repository.ShortRepository;
+import com.ssafy.nyamnyam.domain.shortform.repository.ShortSaveRepository;
 import com.ssafy.nyamnyam.domain.user.entity.Role;
 import com.ssafy.nyamnyam.domain.user.entity.User;
 import com.ssafy.nyamnyam.domain.user.entity.UserStatus;
@@ -41,6 +42,7 @@ import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
 class ExplorationServiceTest {
+    @Mock private ShortSaveRepository shortSaveRepository;
     @Mock private PreferenceProfileService profiles;
     @Spy private ExplorationSelectionPolicy selectionPolicy = new ExplorationSelectionPolicy();
 
@@ -118,6 +120,7 @@ class ExplorationServiceTest {
         given(shortRepository.findByIdAndStatusForUpdate(100L, ShortStatus.ACTIVE)).willReturn(Optional.of(testShort));
         given(reactionRepository.findByUserAndShortform(testUser, testShort))
                 .willReturn(Optional.empty());
+        given(shortSaveRepository.exists(testUser.getId(), 100L)).willReturn(true);
 
         // when
         StartExplorationResponse response = explorationService.startSession(testUser);
@@ -127,6 +130,7 @@ class ExplorationServiceTest {
         assertThat(response.getMaxCount()).isEqualTo(12);
         assertThat(response.getViewedCount()).isEqualTo(1);
         assertThat(response.getShortItem().getShortId()).isEqualTo(100L);
+        assertThat(response.getShortItem().getIsSaved()).isTrue();
         assertThat(response.getShortItem().getYoutubeVideoId()).isEqualTo("aBcD123xYz0");
         assertThat(response.getShortItem().getHobby().getName()).isEqualTo("클라이밍");
         verify(sessionRepository).save(any(ExplorationSession.class));
@@ -180,6 +184,7 @@ class ExplorationServiceTest {
         given(shortRepository.findWithHobbyByStatus(ShortStatus.ACTIVE))
                 .willReturn(List.of(nextShort));
         given(shortRepository.findByIdAndStatusForUpdate(101L, ShortStatus.ACTIVE)).willReturn(Optional.of(nextShort));
+        given(shortSaveRepository.exists(testUser.getId(), 101L)).willReturn(true);
 
         // when
         NextShortResponse response = explorationService.getNextShort(50L, testUser);
@@ -188,6 +193,7 @@ class ExplorationServiceTest {
         assertThat(response.getFinished()).isFalse();
         assertThat(response.getViewedCount()).isEqualTo(2);
         assertThat(response.getShortItem().getShortId()).isEqualTo(101L);
+        assertThat(response.getShortItem().getIsSaved()).isTrue();
         verify(viewRepository).save(any(ExplorationView.class));
     }
 

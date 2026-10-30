@@ -1,9 +1,11 @@
 # 냠냠취미 REST API 상세 명세서 (v0.4)
 
 > **기준 문서**: 프로젝트 명세서 v0.4 ([project-spec-v0.3.md](./project-spec-v0.3.md), 파일 이름 유지) · 기능 요구사항 CSV(10/21) 반영 ([feature-requirements.csv](./feature-requirements.csv)) · DB 스키마 (PostgreSQL 17 + pgvector, 이미지 `pgvector/pgvector:pg17`; 확장·임베딩 스키마는 후속 마이그레이션, [V1__init.sql](../db/V1__init.sql))
-> **최종 수정일**: 2026-10-29
+> **최종 수정일**: 2026-10-30
 > **작성자**: 김재현  
 > **단일 진실 공급원(SSOT)**: 런타임 상세 스펙은 Spring Boot 서버의 Swagger UI (`/swagger-ui/index.html`)를 기준으로 하며, 본 문서는 프론트엔드-백엔드 간 계약 및 기능 구현을 위한 표준 상세 명세서입니다.
+
+> **10/30 화면 기준 변경**: 01-6A·01-6B 온보딩과 02-1 숏폼 보관·해제는 현재 Figma v2에 맞춰 구현했다. 이 두 기능은 아래의 과거 우선순위 설명보다 [프론트 연동용 변경 문서](./api-changes-2026-10-30-onboarding-short-save.md)를 우선한다. 보관함 목록 등 다른 P2 기능은 범위에 추가하지 않는다.
 
 > **우선순위 표기** (기능 요구사항 CSV 기준)
 >
@@ -415,8 +417,7 @@
   "regionId": 1101,
   "initialHobbies": [
     {
-      "hobbyId": 3,
-      "skillLevel": "BEGINNER"
+      "hobbyId": 3
     }
   ]
 }
@@ -432,6 +433,11 @@
   "error": null
 }
 ```
+
+- **화면 규격 (10/30)**: `initialHobbies`는 최대 5개, 생략·`null`·빈 배열 허용. 배열 항목의 `hobbyId`는 필수 양수이며 중복 불가. 이 화면에는 숙련도 입력이 없어 `skillLevel`을 요청하지 않으며 새 관심 취미의 내부 기본값은 `BEGINNER`다.
+- 이용 상황 전 항목은 선택이다. 미입력은 생략 또는 `null`, 상관없음은 `ANY`. 시간은 정수 0~40(시간/주), 예산은 0 이상의 32비트 정수(원/월), 지역은 선택한 시·도·시·군·구의 DB ID다.
+- **선택지 조회 추가**: `GET /api/v1/users/me/onboarding/options` → `data.hobbies[{hobbyId,name,categoryId,categoryName}]`, `data.regions[{id,code,sido,sigungu}]`. 회원 인증 필요, 공개 취미만 반환. 프론트는 여기서 얻은 실제 ID를 전송한다.
+- PUT은 두 화면 값을 원자적으로 전체 교체한다. 기존 `SAVED` 중 선택하지 않은 취미는 해제하며, 진행 중인 취미와 진행 이력은 유지한다. `savedHobbyCount`는 반영 후 `SAVED` 수다. 전체 건너뛰기 `{}`도 온보딩 완료로 기록한다. 상세 예시·오류·재시도 규칙은 [변경 문서](./api-changes-2026-10-30-onboarding-short-save.md) 참조.
 
 #### 4) 이용 상황 및 선호 지역 수정 `[P1]`
 - **Endpoint**: `PUT /api/v1/users/me/conditions`
@@ -536,7 +542,7 @@
   "error": null
 }
 ```
-*(`maxCount` = 설정값 N(기본안 12). `isSaved`는 숏폼 보관 `[P2·MVP 제외]` 도입 전까지 항상 `false`. 비회원 첫 호출 시 Set-Cookie `guest_key` 발급은 `[P2·MVP 제외]`)*
+*(`maxCount` = 설정값 N(기본안 12). `isSaved`는 10/30부터 현재 사용자의 실제 보관 상태를 반환한다. 다음 영상 응답도 동일하다. 비회원 첫 호출 시 Set-Cookie `guest_key` 발급은 `[P2·MVP 제외]`)*
 
 - **영상 선택**: 아래 다음 영상 조회와 동일한 P0 규칙을 적용한다. 새 영상이 없을 때만 과거 무반응 영상을 재사용한다.
 - **후보 없음 (404 Not Found)**: 새 영상과 재사용 가능한 영상이 모두 없으면 `COMMON_NOT_FOUND`를 반환하며 세션·노출 기록을 생성하지 않는다.
@@ -633,10 +639,12 @@
 }
 ```
 
-#### 6) 숏폼 영상 보관 / 보관 해제 `[P2·MVP 제외]`
+#### 6) 숏폼 영상 보관 / 보관 해제 `[10/30 화면 요구로 구현]`
 - **Endpoint**: `PUT /api/v1/shorts/{shortId}/save` (보관)
 - **Endpoint**: `DELETE /api/v1/shorts/{shortId}/save` (해제)
 - **Permission**: `회원 (USER)`
+- **Request Body**: 없음. 세션 ID 없이 현재 로그인 사용자에게 적용하며 좋아요·추천 점수·탐색 진행과 독립적이다.
+- 중복 PUT/DELETE는 멱등적이다. 중복 PUT은 최초 보관 시각을 유지한다. 보관은 `ACTIVE` 영상만 가능(`409 SHORT_NOT_ACTIVE`), 해제는 숨김·이용 불가 영상에도 가능하다. 없는 영상은 `404 COMMON_NOT_FOUND`.
 - **Response (200 OK)**:
 ```json
 {

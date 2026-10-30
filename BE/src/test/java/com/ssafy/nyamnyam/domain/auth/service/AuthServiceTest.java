@@ -295,5 +295,34 @@ class AuthServiceTest {
                 .isInstanceOf(CustomException.class)
                 .hasFieldOrPropertyWithValue("errorCode", ErrorCode.AUTH_NICKNAME_DUPLICATED);
     }
+
+    @Test
+    @DisplayName("토큰 발급 성공 - 기존 Refresh Token 삭제 및 새 Refresh Token 저장")
+    void issueTokens_Success() {
+        // given
+        User user = User.builder()
+                .email("test@example.com")
+                .nickname("테스터")
+                .role(Role.USER)
+                .build();
+        org.springframework.test.util.ReflectionTestUtils.setField(user, "id", 1L);
+        LocalDateTime now = LocalDateTime.now();
+
+        given(jwtProvider.createAccessToken(1L, "test@example.com", "USER")).willReturn("access-token");
+        given(jwtProvider.createRefreshToken(1L)).willReturn("refresh-token");
+        given(jwtProvider.getAccessTokenValidityInSeconds()).willReturn(1800L);
+        given(jwtProvider.getRefreshTokenValidityInSeconds()).willReturn(1209600L);
+        given(userConditionRepository.existsByUserId(1L)).willReturn(false);
+
+        // when
+        LoginResult result = authService.issueTokens(user, now);
+
+        // then
+        assertThat(result.getAccessToken()).isEqualTo("access-token");
+        assertThat(result.getRefreshToken()).isEqualTo("refresh-token");
+        assertThat(result.getUser().getId()).isEqualTo(1L);
+        verify(authTokenRepository).deleteAllByUserIdAndType(1L, TokenType.REFRESH);
+        verify(authTokenRepository).save(any(AuthToken.class));
+    }
 }
 

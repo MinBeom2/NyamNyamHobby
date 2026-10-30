@@ -16,6 +16,7 @@ import com.ssafy.nyamnyam.domain.hobby.entity.Hobby;
 import com.ssafy.nyamnyam.domain.shortform.entity.Short;
 import com.ssafy.nyamnyam.domain.shortform.entity.ShortStatus;
 import com.ssafy.nyamnyam.domain.shortform.repository.ShortRepository;
+import com.ssafy.nyamnyam.domain.shortform.repository.ShortSaveRepository;
 import com.ssafy.nyamnyam.domain.user.entity.User;
 import com.ssafy.nyamnyam.global.error.CustomException;
 import com.ssafy.nyamnyam.global.error.ErrorCode;
@@ -48,6 +49,7 @@ import static org.mockito.Mockito.lenient;
 
 @ExtendWith(MockitoExtension.class)
 class ExplorationSelectionTest {
+    @Mock private ShortSaveRepository shortSaveRepository;
     @Mock private PreferenceProfileService profiles;
     @Spy private ExplorationSelectionPolicy selectionPolicy = new ExplorationSelectionPolicy();
 

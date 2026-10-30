@@ -1,7 +1,7 @@
 # 냠냠취미 백엔드 작업 (91건)
 
 > 프로젝트 명세서 v0.4 · 기능 요구사항 CSV(10/21) 반영 · 디자인 컨셉북 v1.0 · 2026-10-21 · Team SSabby D104  
-> 필수 36 · 권장 27 · 후순위 9 · 제외 19 · 진척 관리: `requirements-progress.xlsx`의 '백엔드' 시트 · 전체 안내: [README](README.md)
+> 필수 38 · 권장 27 · 후순위 9 · 제외 17 (MY/TODO 2026-10-30 개정) · 진척 관리: `requirements-progress.xlsx`의 '백엔드' 시트 · 전체 안내: [README](README.md)
 
 ## 목차
 
@@ -13,8 +13,8 @@
 | [숏폼 탐색](#숏폼-탐색) | 9 | 2 | 0 | 2 | 13 | SHORT-F01~F09 |
 | [취미 검색·상세](#취미-검색상세) | 2 | 0 | 0 | 0 | 2 | HOBBY-F01~F03 |
 | [추천](#추천) | 5 | 2 | 0 | 0 | 7 | RECO-F01~F03 |
-| [내 취미](#내-취미) | 3 | 0 | 0 | 1 | 4 | MY-F01~F04 |
-| [주차별 TODO](#주차별-todo) | 2 | 0 | 0 | 2 | 4 | TODO-F01~F03 |
+| [내 취미](#내-취미) | 4 | 0 | 0 | 0 | 4 | MY-F01~F04 |
+| [주차별 TODO/전체 계획](#주차별-todo--전체-계획) | 3 | 0 | 0 | 1 | 4 | TODO-F01~F04 |
 | [장소](#장소) | 0 | 5 | 0 | 0 | 5 | PLACE-F01~F03 |
 | [정보 피드](#정보-피드) | 0 | 4 | 0 | 0 | 4 | FEED-F01 |
 | [알림](#알림) | 0 | 0 | 0 | 3 | 3 | NOTI-F01~F02 |
@@ -23,7 +23,7 @@
 | [문의·공지](#문의공지) | 0 | 0 | 2 | 0 | 2 | CS-F01~F03 |
 | [관리자](#관리자) | 0 | 0 | 5 | 5 | 10 | ADM-F01~F08 |
 | [서비스 피드백](#서비스-피드백) | 0 | 0 | 0 | 4 | 4 | FB-F01~F02 |
-| **합계** | **36** | **27** | **9** | **19** | **91** | |
+| **합계** | **38** | **27** | **9** | **17** | **91** | |
 
 ## 표기
 - **ID**: `도메인-파트번호`. 파트 F = 프론트엔드, B = 백엔드, P = 기획·운영. 같은 도메인의 F·B 작업이 짝입니다.
@@ -294,46 +294,46 @@
 
 ## 내 취미
 
-필수 3 · 권장 0 · 후순위 0 · 제외 1 · 프론트엔드 짝: MY-F01~F04
+필수 4 · 권장 0 · 후순위 0 · 제외 0 · 프론트엔드 짝: MY-F01~F04
 
-- [ ] **MY-B01 내 취미 목록 API** · `필수` · 목록
-  - GET /users/me/hobbies?status=(진행률 포함, 상태별 묶음).
-  - API·배치: /users/me/hobbies · user_hobbies
-  - 근거: FR-MY-01~03
-- [ ] **MY-B02 관심 저장·해제** · `필수` · 관심 저장
-  - PUT·DELETE /users/me/hobbies/{id}/save: SAVED 생성·삭제(사용자 × 취미 1행), 진행 중(일시중지 [P2])은 해제 불가, save_count 증감.
-  - API·배치: /users/me/hobbies/{id}/save
+> 2026-10-30: 화면 기준 동시 진행 3개, 중지·재개·그만두기와 계획 편집 포함. [정식 계약](../spec/api-changes-2026-10-30-todo.md). 아래 완료는 코드·단위/MVC 테스트 기준이며 PostgreSQL 검증 결과는 변경 기록에 별도 기재한다.
+
+- [x] **MY-B01 내 취미 목록 API** · `필수` · 목록
+  - GET /users/me/hobbies: 실제 planId·전체/주차 진행·주차 제목·총 주차·원본 숙련도 목록. 기존 배열 응답 유지.
+  - GET /users/me/todos/summary: 상태별 개수·maxInProgressCount=3·현재 주차 TODO 남은 수·진행 중 카드, 밀림 별도.
+  - 근거: FR-MY-01~03 · 00-2/06-1
+- [x] **MY-B02 관심 저장·해제** · `필수` · 관심 저장
+  - SAVED만 생성/삭제. IN_PROGRESS·PAUSED 및 종료 상태 보호. 사용자 행 잠금·실제 생성/삭제 시 save_count 증감.
   - 근거: FR-MY-01
-- [ ] **MY-B03 시작하기** · `필수` · 시작하기
-  - POST start: 숙련도 원본을 사용자 계획으로 복사(없으면 하위 숙련도, 하나도 없으면 거부), 동시 진행 5개 초과 409 MY_HOBBY_LIMIT[P2 도입 시 일시중지는 제외], STOPPED·COMPLETED 재시작 시 새 계획 + 이전 ARCHIVED는 [P2·MVP 제외].
-  - API·배치: /users/me/hobbies/{id}/start · user_plans · user_plan_items
+- [x] **MY-B03 시작하기** · `필수` · 시작하기
+  - 공개 원본의 버전·제목·주차 제목·활동 복사. 숙련도 자동 대체 없음, 미준비 409 MY_PLAN_NOT_READY.
+  - IN_PROGRESS 최대 3개(중지 제외), 사용자 행 잠금 후 검사. 중복 시작 거부. 종료 후 새 계획 생성은 제외.
+  - V10 주차 제목·정지 초·활성 계획 유일 인덱스, V11 클라이밍/드로잉/사진 촬영 BEGINNER 3주 원본 시드.
   - 근거: FR-MY-02
-  - 비고: 11장 #10: 동시 진행 5개로 변경
-- [ ] **MY-B04 일시중지·다시 시작·그만두기** · `제외` · 상태 변경
-  - PATCH status(PAUSED·IN_PROGRESS·STOPPED, paused_days 누적), 모든 활동이 DONE·SKIPPED면 COMPLETED.
-  - API·배치: /users/me/hobbies/{id}/status
+- [x] **MY-B04 일시중지·재개·그만두기** · `필수` · 상태 변경
+  - IN_PROGRESS ↔ PAUSED, IN_PROGRESS/PAUSED → STOPPED. 반복 요청 멱등. 재개 제한 3개 재검사, 동일 계획/시작일/이력 유지.
+  - UTC 정지 초 누적·서울 날짜 기준 주차 동결/재개. 자동 COMPLETED 전환·축하 제외.
   - 근거: FR-MY-03
-  - 비고: MVP 제외(P2): 취미 상태 변경(FR-MY-03). COMPLETED 자동 전환도 P2
 
-## 주차별 TODO
+## 주차별 TODO / 전체 계획
 
-필수 2 · 권장 0 · 후순위 0 · 제외 2 · 프론트엔드 짝: TODO-F01~F03
+필수 3 · 권장 0 · 후순위 0 · 제외 1 · 프론트엔드 짝: TODO-F01~F04
 
-- [ ] **TODO-B01 계획 조회 API** · `필수` · 조회
-  - GET /plans/{id}?week=: 현재 주차(시작일부터 주 수 + 1, 최대 N, 일시중지 기간 제외는 [P2]), 밀린 활동 수 [P1], 진행률 = DONE ÷ 전체(삭제 제외), 본인만.
-  - API·배치: /plans/{id}
-  - 근거: FR-TODO-01
-  - 비고: 밀린 활동 표시는 권장(P1)
-- [ ] **TODO-B02 활동 상태·메모** · `필수` · 상태 변경
-  - PATCH items: DONE ↔ TODO, SKIPPED, completed_at, 메모 500자 [P1], PAUSED·STOPPED는 409 TODO_PLAN_NOT_ACTIVE [P2], 응답에 progress.
-  - API·배치: /plans/{id}/items/{itemId}
+- [x] **TODO-B01 계획 조회 API** · `필수` · 조회
+  - GET /plans/{id}?week=, /plans/{id}/overview. currentWeek/selectedWeek 분리, 모든 주차 요약·사용자 사본 미리보기.
+  - 전체/주차 진행·예상 시간 합계·밀림/건너뜀 상세·준비물 문자열 배열·권한 제공.
+  - 진행률 DONE/삭제 제외 전체, 빈 주차 완료=false. 서버 준비물 체크 저장 없음.
+  - 근거: FR-TODO-01 · 06-2/06-3A/B
+- [x] **TODO-B02 활동 상태·메모** · `필수` · 상태 변경
+  - 상태 PATCH·메모 단독 500자. 생략=유지, memo null=삭제. 완료 재시도 시 completedAt 유지, 취소/건너뜀 시 제거.
+  - ACTIVE+IN_PROGRESS만 수정, 미래 주차 상태/메모 거부. 이동 동시 전송도 우회 불가.
+  - 주차 완료=DONE+SKIPPED, 전체 처리 완료는 신호만 반환. mutation 응답 집계 갱신.
   - 근거: FR-TODO-02
-  - 비고: 메모는 권장(P1), 409 TODO_PLAN_NOT_ACTIVE는 제외(P2)
-- [ ] **TODO-B03 내 계획 수정** · `제외` · 계획 수정
-  - POST·DELETE items(원본 활동 삭제는 soft delete), PATCH weekNo·expectedMinutes. 원본·다른 사용자에 영향 없음.
-  - API·배치: /plans/{id}/items
-  - 근거: FR-TODO-03
-  - 비고: 11장 #11: MVP 제외(P2)로 변경
+- [x] **TODO-B03 내 계획 수정** · `필수` · 계획 수정
+  - POST·soft DELETE items, PATCH weekNo·expectedMinutes. 원본·사용자 추가·완료 활동 모두 적용.
+  - 사용자 사본만 변경. 도착 주차 끝 삽입·출발 주차 순서 정리, 삭제 즉시 집계 제외.
+  - 소유자·계획/item 조합·상태·주차·필드 길이·시간 범위 검증. 미래 주차 편집 허용.
+  - 근거: FR-TODO-03 · 06-3 진입
 - [ ] **TODO-B04 주간 TODO 알림(월 09:00)** · `제외` · 알림
   - 진행 중 계획마다 이번 주 TODO 알림을 notification.create로 발행(dedup WEEKLY_TODO:{planId}:{yyyy-ww}).
   - API·배치: notifications

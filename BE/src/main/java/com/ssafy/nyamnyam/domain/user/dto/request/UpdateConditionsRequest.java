@@ -3,6 +3,7 @@ package com.ssafy.nyamnyam.domain.user.dto.request;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Positive;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
@@ -23,6 +24,7 @@ public class UpdateConditionsRequest {
     @Pattern(regexp = "^(ALONE|TOGETHER|ANY)$", message = "소셜 선호는 ALONE, TOGETHER, ANY 중 하나여야 합니다.")
     private String socialPref;
 
+    @Positive(message = "지역 ID는 양수여야 합니다.")
     private Long regionId;
 
     public UpdateConditionsRequest(Short weeklyHours, Integer monthlyBudget, String placePref, String socialPref, Long regionId) {

@@ -1,6 +1,9 @@
 package com.ssafy.nyamnyam.domain.user.controller;
 
 import com.ssafy.nyamnyam.domain.user.dto.request.ChangePasswordRequest;
+import com.ssafy.nyamnyam.domain.user.dto.request.OnboardingRequest;
+import com.ssafy.nyamnyam.domain.user.dto.response.OnboardingResponse;
+import com.ssafy.nyamnyam.domain.user.dto.response.OnboardingOptionsResponse;
 import com.ssafy.nyamnyam.domain.user.dto.request.UpdateConditionsRequest;
 import com.ssafy.nyamnyam.domain.user.dto.request.UpdateProfileRequest;
 import com.ssafy.nyamnyam.domain.user.dto.request.WithdrawRequest;
@@ -25,6 +28,19 @@ import java.util.Map;
 public class UserController {
 
     private final UserService userService;
+
+    @GetMapping("/onboarding/options")
+    public ApiResponse<OnboardingOptionsResponse> onboardingOptions() {
+        return ApiResponse.success(userService.getOnboardingOptions());
+    }
+
+    @PutMapping("/onboarding")
+    public ApiResponse<OnboardingResponse> saveOnboarding(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @Valid @RequestBody OnboardingRequest request
+    ) {
+        return ApiResponse.success(userService.saveOnboarding(principal.getUserId(), request));
+    }
 
     /**
      * 1) 내 프로필 및 환경 정보 조회 (200 OK)

@@ -60,6 +60,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET,
                                 "/api/v1/hobbies/*/posts",
                                 "/api/v1/posts/*",
+                                "/api/v1/posts/*/comments",
                                 "/api/v1/uploads/images/**",
                                 "/api/v1/hobbies/*/shorts").permitAll()
                         // 그 외 모든 요청은 인증 필요

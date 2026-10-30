@@ -8,6 +8,8 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDateTime;
+import java.util.Collection;
+import java.util.List;
 
 public interface ContentLikeRepository extends JpaRepository<ContentLike, Long> {
 
@@ -33,4 +35,11 @@ public interface ContentLikeRepository extends JpaRepository<ContentLike, Long> 
                    @Param("targetId") Long targetId);
 
     boolean existsByUserIdAndTargetTypeAndTargetId(Long userId, LikeTargetType targetType, Long targetId);
+
+    /** 대상들 중 사용자가 좋아요한 대상 ID(댓글 목록의 isLiked를 한 번에 채운다) */
+    @Query("SELECT l.targetId FROM ContentLike l " +
+           "WHERE l.userId = :userId AND l.targetType = :targetType AND l.targetId IN :targetIds")
+    List<Long> findLikedTargetIds(@Param("userId") Long userId,
+                                  @Param("targetType") LikeTargetType targetType,
+                                  @Param("targetIds") Collection<Long> targetIds);
 }

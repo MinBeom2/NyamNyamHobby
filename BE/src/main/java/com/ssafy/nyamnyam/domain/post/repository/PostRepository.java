@@ -37,4 +37,10 @@ public interface PostRepository extends JpaRepository<Post, Long>, JpaSpecificat
 
     @Query("SELECT p.likeCount FROM Post p WHERE p.id = :id")
     int findLikeCount(@Param("id") Long id);
+
+    /** 댓글 수(노출 중인 댓글+대댓글) 증감. 0 아래로는 내려가지 않는다 */
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("UPDATE Post p SET p.commentCount = CASE WHEN p.commentCount + :delta < 0 THEN 0 ELSE p.commentCount + :delta END " +
+           "WHERE p.id = :id")
+    int addCommentCount(@Param("id") Long id, @Param("delta") int delta);
 }

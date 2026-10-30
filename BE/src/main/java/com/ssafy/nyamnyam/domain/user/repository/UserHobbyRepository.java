@@ -19,10 +19,10 @@ public interface UserHobbyRepository extends JpaRepository<UserHobby, Long> {
 
     long countByUserIdAndStatus(Long userId, UserHobbyStatus status);
 
-    @Query("SELECT uh FROM UserHobby uh JOIN FETCH uh.hobby WHERE uh.user.id = :userId ORDER BY uh.savedAt DESC")
+    @Query("SELECT uh FROM UserHobby uh JOIN FETCH uh.hobby WHERE uh.user.id = :userId ORDER BY uh.savedAt DESC, uh.id DESC")
     List<UserHobby> findAllByUserIdWithHobby(@Param("userId") Long userId);
 
-    @Query("SELECT uh FROM UserHobby uh JOIN FETCH uh.hobby WHERE uh.user.id = :userId AND uh.status = :status ORDER BY uh.savedAt DESC")
+    @Query("SELECT uh FROM UserHobby uh JOIN FETCH uh.hobby WHERE uh.user.id = :userId AND uh.status = :status ORDER BY uh.savedAt DESC, uh.id DESC")
     List<UserHobby> findAllByUserIdAndStatusWithHobby(@Param("userId") Long userId, @Param("status") UserHobbyStatus status);
 }
 

@@ -127,10 +127,12 @@
 | **409** | `AUTH_SOCIAL_ACCOUNT` | `[P1]` 이메일 가입 계정인데 소셜(Google) 로그인으로 접근했거나 그 반대인 경우 (예: "Google로 가입된 이메일이에요", "Google 로그인을 이용해 주세요") |
 | **409** | `SHORT_SESSION_ENDED` | 포기한 탐색 세션 또는 이미 추천이 생성된 세션의 시청·반응 변경. 자연 종료 후 최초 추천 생성 및 종료 재요청은 허용하며, 시간 만료는 현재 도입하지 않음 |
 | **409** | `SHORT_NOT_ACTIVE` | 비공개, 삭제, 자동 숨김 처리된 숏폼에 반응 시도 |
-| **409** | `MY_HOBBY_LIMIT` | 동시 진행 중인 취미가 최대 허용 수치(5개) 초과 [P2 도입 시 일시중지는 제외] |
+| **409** | `MY_HOBBY_LIMIT` | 시작/재개 시 IN_PROGRESS 최대 3개 초과. PAUSED 제외 |
 | **409** | `MY_PLAN_NOT_READY` | 해당 취미/숙련도에 공개된 TODO 원본 템플릿 부재 |
-| **409** | `MY_HOBBY_IN_PROGRESS` | 진행 중(`IN_PROGRESS`)인 취미는 관심 해제 불가 |
-| **409** | `TODO_PLAN_NOT_ACTIVE` | `[P2·MVP 제외]` 일시중지(`PAUSED`) 또는 종료(`STOPPED`)된 취미의 TODO 수정 시도 (취미 상태 변경이 P2라 MVP에서는 발생하지 않음) |
+| **409** | `MY_HOBBY_IN_PROGRESS` | 진행 중(IN_PROGRESS)·일시중지(PAUSED) 취미의 중복 시작 또는 관심 저장/해제 |
+| **409** | `MY_HOBBY_INVALID_TRANSITION` | 허용되지 않은 취미 상태 전환·종료 후 재시작·종료 이력 관심 변경 |
+| **409** | `TODO_FUTURE_WEEK` | 미래 주차 활동의 상태·메모 변경 시도 |
+| **409** | `TODO_PLAN_NOT_ACTIVE` | PAUSED·STOPPED·COMPLETED 취미 또는 ARCHIVED 계획 수정 시도 |
 | **409** | `REPORT_DUPLICATED` | `[P3]` 동일한 사용자가 같은 대상을 중복 신고한 경우 |
 | **409** | `INQUIRY_ALREADY_ANSWERED` | `[P3]` 관리자 답변이 완료된 문의에 대한 수정/삭제 시도 |
 | **409** | `ADMIN_RELEASE_IN_PROGRESS` | `[P2·MVP 제외]` 숏폼 주간 반영 배치가 이미 실행 중인 경우 (수동 반영 API가 P2) |
@@ -798,7 +800,7 @@
   "error": null
 }
 ```
-*(myStatus: `NONE`, `SAVED`, `IN_PROGRESS`, `PAUSED`, `COMPLETED`, `STOPPED` — `PAUSED`·`COMPLETED`·`STOPPED`는 취미 상태 변경(FR-MY-03) `[P2·MVP 제외]` 도입 시에만 나온다)*
+*(myStatus: `NONE`, `SAVED`, `IN_PROGRESS`, `PAUSED`, `COMPLETED`, `STOPPED` — PAUSED·STOPPED는 현재 상태 변경 API에서 사용하며 COMPLETED 자동 전환은 제외)*
 
 #### 3) 취미 상세 관련 숏폼 목록 `[P1]`
 - **Endpoint**: `GET /api/v1/hobbies/{hobbyId}/shorts?limit=6`
@@ -918,176 +920,188 @@
 
 ---
 
-### 3.5 내 취미 및 주차별 TODO (`/api/v1/users/me/hobbies`, `/api/v1/plans`)
+### 3.5 내 취미 및 TODO (`/api/v1/users/me/hobbies`, `/api/v1/plans`)
 
-#### 1) 내 취미 목록 조회
-- **Endpoint**: `GET /api/v1/users/me/hobbies?status={status}`
-- **Permission**: `회원 (USER)`
-- **Query Parameter**: `status` (`SAVED`, `IN_PROGRESS`, `PAUSED`, `COMPLETED`, `STOPPED` — `PAUSED`·`COMPLETED`·`STOPPED`는 `[P2·MVP 제외]`)
-- **Response (200 OK)**:
-```json
-{
-  "success": true,
-  "data": [
-    {
-      "userHobbyId": 12,
-      "hobbyId": 3,
-      "name": "클라이밍",
-      "thumbnailUrl": "https://cdn.example.com/hobbies/3.jpg",
-      "status": "IN_PROGRESS",
-      "skillLevel": "BEGINNER",
-      "planId": 55,
-      "progressRate": 0.375,
-      "startedAt": "2026-10-15T09:00:00+09:00"
-    }
-  ],
-  "error": null
-}
-```
+> **2026-10-30 구현 계약**: 00-2 홈, 06-1 내 취미, 06-2 이번 주 TODO, 06-3A/B 전체 계획을 지원한다. 일시중지·재개·그만두기와 개인 계획 편집을 현재 범위에 포함한다. 전체 계획 자동 `COMPLETED` 전환·축하, 종료 후 새 계획 시작·지난 취미 UI는 제외한다. 상세 변경·연동 안내는 [TODO API 변경 기록](api-changes-2026-10-30-todo.md)을 따른다.
+
+#### 공통 정책
+
+- 모든 경로는 로그인 필요. 계획 조회·수정은 소유자만 가능하다. 타인 계획은 `403 COMMON_FORBIDDEN`, 없는 계획·다른 계획 소속 itemId·삭제된 활동 PATCH는 `404 COMMON_NOT_FOUND`.
+- 동시 진행은 **IN_PROGRESS 최대 3개**. PAUSED는 제외한다. 시작·재개·상태 변경·관심 저장/해제·활동 변경은 같은 사용자 행을 잠근 후 상태를 읽고 변경한다.
+- DB 날짜는 UTC. 이 절의 응답 날짜는 ISO 8601 `+09:00`. 현재 주차는 서울 달력 날짜 기준 `floor(시작 후 유효 경과 일수 / 7) + 1`, 최대 `totalWeeks`. 누적 일시중지 시간을 초 단위로 제외하며 중지 중에는 pausedAt에서 동결한다. STOPPED는 endedAt에서 동결한다. 열람·조기 완료는 현재 주차를 이동시키지 않는다.
+- 모든 집계에서 soft delete 활동 제외. `Progress = {done, skipped, total, rate}`, `rate = DONE / total` (0~1, total=0이면 0). SKIPPED는 분모에 포함한다.
+- `weekCompleted`는 **해당 주차가 비어 있지 않고 DONE+SKIPPED=total**일 때 true. `planCompleted`도 같은 규칙을 전체 계획에 적용한 처리 완료 신호다. 상태를 COMPLETED로 자동 변경하지 않는다.
+- `ACTIVE` 계획이면서 취미가 `IN_PROGRESS`일 때만 계획 편집 가능. 상태·메모 변경은 현재/과거 주차만 허용한다. 미래 주차는 미리보기와 활동 추가·삭제·주차 이동·시간 변경만 허용한다.
+- 06-3 전체 계획의 펼침은 읽기 전용 UI다. API의 `canEditPlan`은 별도 편집 기능의 권한이며, 전체 계획 화면에서 완료 버튼을 표시하라는 뜻이 아니다.
+
+#### 1) 내 취미 목록
+
+`GET /api/v1/users/me/hobbies?status=` → **200**, 기존 `data: []` 형식 유지.
+
+- status 생략 시 모든 상태. `SAVED|IN_PROGRESS|PAUSED|COMPLETED|STOPPED` 필터 가능(기존과 같이 대소문자·주변 공백 허용), 잘못된 값은 400.
+- 정렬은 savedAt 내림차순, userHobbyId 내림차순. 페이지 제한 없음. 06-1은 상태별로 묶어 사용하며 종료 이력 UI는 이번 범위에 포함하지 않는다.
+- 기존 `userHobbyId, hobbyId, name, thumbnailUrl, status, skillLevel, planId, progressRate, startedAt` 유지. planId·progressRate는 실제 현재 계획에서 계산한다.
+- 추가 필드: `title, totalWeeks, currentWeek, weekTitle, planProgress, weekProgress, remainingThisWeekCount, overdueCount, pausedAt, availableSkillLevels, planReady`.
+- 현재 계획 없는 SAVED 항목의 planId·계획 정보·진행 집계는 null, progressRate·남은 수·밀린 수는 0.
+- `availableSkillLevels`는 해당 취미의 공개 템플릿 숙련도 목록(문자열 오름차순). `planReady`는 저장된 skillLevel의 공개 템플릿 존재 여부이며, 시작 시 원본의 주차·활동 완전성을 다시 검사한다. 기본 skillLevel은 BEGINNER.
+- 상태별 총 개수와 최대 진행 수는 9)의 summary에서 함께 제공한다.
 
 #### 2) 관심 취미 저장 / 해제
-- **Endpoint**: `PUT /api/v1/users/me/hobbies/{hobbyId}/save` (저장)
-- **Endpoint**: `DELETE /api/v1/users/me/hobbies/{hobbyId}/save` (해제)
-- **Permission**: `회원 (USER)`
-- **Response (200 OK)**
 
-#### 3) 취미 시작하기 (TODO 인스턴스 생성)
-- **Endpoint**: `POST /api/v1/users/me/hobbies/{hobbyId}/start`
-- **Permission**: `회원 (USER)`
-- **Request Body**:
-```json
-{
-  "skillLevel": "BEGINNER"
-}
-```
-- **Response (201 Created)**:
+- `PUT /api/v1/users/me/hobbies/{hobbyId}/save` → **200**, `data: {"saved": true}`.
+- `DELETE /api/v1/users/me/hobbies/{hobbyId}/save` → **200**, `data: {"saved": false}`.
+- PUT은 공개 취미만 허용(없는/비공개 취미는 404 HOBBY_NOT_FOUND). 기존 SAVED면 유지, 없으면 생성. DELETE는 SAVED만 삭제하며 이미 없으면 성공한다.
+- IN_PROGRESS·PAUSED는 양쪽 모두 `409 MY_HOBBY_IN_PROGRESS`. STOPPED·COMPLETED는 `409 MY_HOBBY_INVALID_TRANSITION`. 계획이 있는 취미를 SAVED로 덮거나 삭제하지 않는다.
+- 실제 SAVED 생성/삭제 때만 hobby.saveCount 증감. SAVED에서 시작하면 관심 수를 1 줄인다. 재시도는 중복 증감하지 않는다.
+
+#### 3) 취미 시작하기
+
+`POST /api/v1/users/me/hobbies/{hobbyId}/start`
+
+요청: `{"skillLevel":"BEGINNER"}`. 필수, `BEGINNER|NOVICE|INTERMEDIATE`.
+
+- 선택한 숙련도의 공개 원본만 사용하며 자동 하위 숙련도 대체는 하지 않는다. 선택 가능한 숙련도는 목록의 availableSkillLevels로 제공한다.
+- 공개 원본의 제목·totalWeeks·버전·주차 제목·전체 활동을 사용자 사본으로 복사한다. 이후 원본 변경은 반영하지 않는다.
+- 원본 없음·빈 활동·누락된 주차 제목·잘못된 주차/순서/시간은 `409 MY_PLAN_NOT_READY`. 시작에는 최소 한 활동이 필요하다. 빈 주차는 허용한다.
+- 네 번째 진행 취미 시작은 `409 MY_HOBBY_LIMIT`. 관심 저장 없이도 바로 시작 가능하다.
+- IN_PROGRESS·PAUSED 중복 시작은 `409 MY_HOBBY_IN_PROGRESS` (PAUSED 재개는 4) 사용). STOPPED·COMPLETED 새 계획 생성은 지원하지 않으며 `409 MY_HOBBY_INVALID_TRANSITION`.
+- 성공 **201 Created**:
+
 ```json
 {
   "success": true,
-  "data": {
-    "userHobbyId": 12,
-    "planId": 55,
-    "status": "IN_PROGRESS",
-    "title": "클라이밍 · 입문 8주 계획"
-  },
+  "data": {"userHobbyId": 12, "planId": 55, "status": "IN_PROGRESS", "title": "클라이밍 · 입문 3주 계획"},
   "error": null
 }
 ```
-*(동시 진행 5개 초과 시 409 `MY_HOBBY_LIMIT` [P2 도입 시 일시중지는 제외], 원본 템플릿 부재 시 409 `MY_PLAN_NOT_READY`)*
 
-#### 4) 취미 상태 변경 (일시중지 / 재개 / 그만두기) `[P2·MVP 제외]`
-> 취미 상태 변경(FR-MY-03: 일시중지·다시 시작, 그만두기, 완료 처리·축하)은 P2다. `COMPLETED` 자동 전환도 P2.
+#### 4) 일시중지 / 재개 / 그만두기
 
-- **Endpoint**: `PATCH /api/v1/users/me/hobbies/{hobbyId}/status`
-- **Permission**: `회원 (USER)`
-- **Request Body**:
+`PATCH /api/v1/users/me/hobbies/{hobbyId}/status`, 요청 `{"status":"PAUSED"}`.
+
+- 허용 전이: `IN_PROGRESS → PAUSED`, `PAUSED → IN_PROGRESS`, `IN_PROGRESS|PAUSED → STOPPED`. 같은 상태 요청은 성공하며 pausedAt·endedAt을 덮지 않는다.
+- 재개 시 3개 제한 재검사. planId·startedAt·주차 제목·활동·메모·완료 기록 유지. 재개는 신규 시작이 아니다.
+- 나머지 전이는 `409 MY_HOBBY_INVALID_TRANSITION`. 관계가 없으면 404.
+- **200** data: `{userHobbyId, planId, status, currentWeek, startedAt, pausedAt}`. 날짜는 +09:00, 미중지 pausedAt은 null. 그만두기는 계획·활동을 삭제하지 않는다.
+
+#### 5) 주차별 TODO 조회
+
+`GET /api/v1/plans/{planId}?week={weekNo}` → **200**.
+
+week 생략 시 currentWeek. 1~totalWeeks 범위를 벗어나면 400. 미래 주차도 내 사본을 조회한다.
+
+| data 필드 | 의미 |
+|---|---|
+| planId, userHobbyId, hobbyId, title | 계획·취미 식별 및 제목 |
+| hobbyStatus, planStatus, skillLevel, startedAt | 취미 상태, ACTIVE/ARCHIVED, 숙련도, 시작일 |
+| totalWeeks, currentWeek, selectedWeek, weekTitle | 총 주차, 시간상 현재 주차, 조회 주차, 복사된 주차 제목 |
+| progress, planProgress | 전체 계획 Progress. progress는 기존 계약의 호환 별칭 |
+| weekProgress, weekExpectedMinutes | 조회 주차 Progress 및 삭제 제외 전체 활동 시간 합계(완료·건너뜀 포함) |
+| overdueCount, overdueItems | 계획 전체의 currentWeek 이전 TODO 수·상세 목록. SKIPPED 제외 |
+| skippedItems | 계획 전체 SKIPPED 상세 목록 |
+| canEditPlan, canUpdateItems | 계획 편집 권한, 조회 주차 상태·메모 변경 권한 |
+| weekCompleted, nextWeek, planCompleted | 주차 처리 완료, selectedWeek+1(마지막이면 null), 전체 처리 완료 |
+| weeks | 1~totalWeeks 모든 주차 요약 |
+| items | 조회 주차의 삭제되지 않은 활동 |
+| supplies | 조회 주차 준비물 표시 문자열 배열. 쉼표·전각 쉼표·줄바꿈 분리, trim·빈 값 제거·등장순 중복 제거 |
+
+`weeks[]` 필드:
+`{weekNo, title, status, current, progress, expectedMinutes, overdueCount, weekCompleted, canUpdateItems, canEditPlan}`.
+status는 시간상 `PAST|CURRENT|FUTURE`이며 완료 여부는 별도 weekCompleted로 판단한다. 진행이 멈춘 계획도 동결된 주차를 기준으로 분류한다.
+
+`items[]`, `overdueItems[]`, `skippedItems[]` 공통:
+`{itemId, weekNo, seq, title, description, expectedMinutes, supplies, doneCriteria, status, memo, isCustom, completedAt}`.
+itemId는 사용자 사본 ID, status는 `TODO|DONE|SKIPPED`. 정렬은 weekNo·seq·itemId 오름차순이다.
+
+준비물 체크는 **프론트 임시 상태**이며 서버 쓰기 API·영속 ID·체크 상태는 제공하지 않는다. 원문 items[].supplies도 유지한다.
+
+#### 6) 활동 상태 / 메모 / 주차 / 시간 변경
+
+`PATCH /api/v1/plans/{planId}/items/{itemId}`
+
 ```json
-{
-  "status": "PAUSED"
-}
+{"status":"DONE","memo":"활동 기록"}
 ```
-*(status: `IN_PROGRESS`, `PAUSED`, `STOPPED`)*
-- **Response (200 OK)**
 
-#### 5) 주차별 TODO 계획 조회
-- **Endpoint**: `GET /api/v1/plans/{planId}?week={weekNo}`
-- **Permission**: `본인 소유자`
-- **Response (200 OK)**:
+각 필드는 선택 사항이지만 최소 하나 필요하다.
+
+| 필드 | 계약 |
+|---|---|
+| status | TODO/DONE/SKIPPED. 생략=유지, null 불가 |
+| memo | 500자 이하. 생략=유지, null=삭제, 빈 문자열=빈 메모 저장. 메모만 PATCH 가능 |
+| weekNo | 정수 1~totalWeeks. 생략=유지, null 불가. 이동하면 도착 주차 마지막 순서에 삽입 |
+| expectedMinutes | 정수 1~1440분. 생략=유지, null 불가 |
+
+- 원본 활동·사용자 추가 활동 모두 위 필드 수정 가능. 기존 제목·설명·준비물·완료 기준과 임의 seq 재정렬은 PATCH 대상이 아니다.
+- DONE 최초 전환에 completedAt 기록, 동일 DONE 재시도는 최초 시각 유지. TODO/SKIPPED 전환은 completedAt 제거.
+- 미래 주차 활동의 status/memo 변경은 `409 TODO_FUTURE_WEEK`. 주차 이동을 같이 보내도 **이동 전·후 주차 중 하나라도 미래면** 상태·메모를 동시에 변경할 수 없다.
+- PAUSED·STOPPED·COMPLETED·ARCHIVED 수정은 `409 TODO_PLAN_NOT_ACTIVE`.
+- **200** data: `{itemId, status, memo, completedAt, item, progress, planProgress, weekProgress, weekCompleted, nextWeek, planCompleted}`. item은 위 활동 DTO, weekProgress는 **수정 후 활동 소속 주차**, progress는 planProgress 호환 별칭이다.
+
+#### 7) 활동 추가
+
+`POST /api/v1/plans/{planId}/items` → **201**, 6)과 같은 mutation data.
+
+```json
+{"weekNo":2,"title":"보조 연습","description":"연습 방법","expectedMinutes":15,"supplies":"연습 도구","doneCriteria":"한 번 수행"}
+```
+
+- weekNo·title·expectedMinutes 필수. title은 공백만 불가, 최대 50자(trim 저장). description 최대 500자, supplies·doneCriteria 각각 최대 200자, 선택 필드는 null 허용.
+- weekNo는 1~totalWeeks, 시간은 정수 1~1440. 해당 주차 마지막에 추가, status=TODO, isCustom=true, templateItemId=null.
+- 1주차 활동 최대 32767개. 추가·이동 시 순서는 마지막 seq+1이며 필요하면 압축한다.
+- 현재 진행 중인 ACTIVE 사본만 편집, 미래 주차 추가도 가능. 추가 후 집계에 즉시 반영한다.
+
+#### 8) 활동 삭제
+
+`DELETE /api/v1/plans/{planId}/items/{itemId}` → **204 No Content**.
+
+- 원본·사용자 추가·완료·건너뜀 활동 모두 soft delete. 이력 행 유지, 이후 모든 조회·집계에서 제외한다.
+- 같은 활동 재삭제는 204. 삭제된 활동 PATCH·다른 계획 소속 활동 삭제는 404.
+- 삭제·이동 후 출발 주차의 남은 활동은 기존 순서를 보존해 1부터 seq를 정리한다. 빈 주차/계획 조회는 허용하며 total=0·rate=0·완료=false.
+- 재조회: 해당 주차 GET과 overview, 내 취미 목록, 홈 summary. 이동 시 원래 주차도 재조회한다.
+
+#### 9) 홈 TODO 및 상태별 요약 (신규)
+
+`GET /api/v1/users/me/todos/summary` → **200**.
+
 ```json
 {
   "success": true,
   "data": {
-    "planId": 55,
-    "title": "클라이밍 · 입문 8주 계획",
-    "hobbyStatus": "IN_PROGRESS",
-    "totalWeeks": 8,
-    "currentWeek": 2,
-    "progress": {
-      "done": 5,
-      "skipped": 1,
-      "total": 16,
-      "rate": 0.3125
-    },
-    "weeks": [
-      { "weekNo": 1, "overdueCount": 0 },
-      { "weekNo": 2, "overdueCount": 0 },
-      { "weekNo": 3, "overdueCount": 0 }
-    ],
-    "items": [
+    "remainingThisWeekCount": 1,
+    "overdueCount": 1,
+    "inProgressCount": 1,
+    "maxInProgressCount": 3,
+    "statusCounts": {"SAVED":0,"IN_PROGRESS":1,"PAUSED":0,"COMPLETED":0,"STOPPED":0},
+    "plans": [
       {
-        "itemId": 901,
-        "weekNo": 2,
-        "seq": 1,
-        "title": "기본 홀드 잡기 연습",
-        "description": "오픈 그립과 클림프 그립의 차이를 이해하고 실습합니다.",
-        "expectedMinutes": 40,
-        "supplies": "암벽화, 초크",
-        "doneCriteria": "기초 밸런스로 V0 문제 3개 완등",
-        "status": "TODO",
-        "memo": null,
-        "isCustom": false,
-        "completedAt": null
+        "userHobbyId":12,"hobbyId":3,"name":"클라이밍","thumbnailUrl":null,
+        "status":"IN_PROGRESS","skillLevel":"BEGINNER","planId":55,"progressRate":0.0,
+        "startedAt":"2026-10-02T00:00:00+09:00","title":"클라이밍 · 입문 3주 계획",
+        "totalWeeks":3,"currentWeek":2,"weekTitle":"기본 동작 익히기",
+        "planProgress":{"done":0,"skipped":0,"total":3,"rate":0.0},
+        "weekProgress":{"done":0,"skipped":0,"total":1,"rate":0.0},
+        "remainingThisWeekCount":1,"overdueCount":1,"pausedAt":null,
+        "availableSkillLevels":["BEGINNER"],"planReady":true
       }
     ]
   },
   "error": null
 }
 ```
-*(`weeks[].overdueCount`(밀린 활동 표시)는 `[P1]`. `hobbyStatus`의 `PAUSED`·`STOPPED`·`COMPLETED`는 `[P2·MVP 제외]`)*
 
-#### 6) TODO 활동 상태 / 메모 변경
-- **Endpoint**: `PATCH /api/v1/plans/{planId}/items/{itemId}`
-- **Permission**: `본인 소유자`
-- **Request Body**:
-```json
-{
-  "status": "DONE",
-  "memo": "오른손 그립 시 엄지 손가락 지지 연습 완료"
-}
-```
-*(status: `TODO`, `DONE`, `SKIPPED` — 완료·건너뛰기·취소는 P0, `memo`(500자)는 `[P1]`. 일시중지·종료 취미의 수정 거부(409 `TODO_PLAN_NOT_ACTIVE`)는 `[P2·MVP 제외]`. `planCompleted`에 따른 `COMPLETED` 자동 전환·축하는 `[P2·MVP 제외]`)*
-- **Response (200 OK)**:
-```json
-{
-  "success": true,
-  "data": {
-    "itemId": 901,
-    "status": "DONE",
-    "memo": "오른손 그립 시 엄지 손가락 지지 연습 완료",
-    "completedAt": "2026-10-20T14:30:00+09:00",
-    "progress": {
-      "done": 6,
-      "skipped": 1,
-      "total": 16,
-      "rate": 0.375
-    },
-    "planCompleted": false
-  },
-  "error": null
-}
-```
+- plans는 실제 계획이 있는 IN_PROGRESS 취미 전체이며 1)과 같은 DTO·정렬. 최대 카드 수를 별도 제한하지 않는다.
+- remainingThisWeekCount는 진행 중 계획의 **currentWeek TODO만** 합산. overdueCount는 같은 계획들의 **과거 주차 TODO만** 합산하며 남은 수에 더하지 않는다. PAUSED 제외.
+- inProgressCount·statusCounts는 사용자 취미 전체 범위이며 필터/노출 수와 무관하다. 데이터가 정상 연결된 경우 inProgressCount=plans.length.
+- 기존 `GET /users/me/summary`의 마이페이지 수치 계약과 별도다. 홈에서 계획별 추가 GET 없이 카드 표시 가능.
 
-#### 7) 사용자 정의 TODO 활동 추가 `[P2·MVP 제외]`
-> 내 계획 수정(FR-TODO-03: 활동 추가·삭제, 주차·시간 변경)은 P2다.
+#### 10) 전체 계획 조회 (신규)
 
-- **Endpoint**: `POST /api/v1/plans/{planId}/items`
-- **Permission**: `본인 소유자`
-- **Request Body**:
-```json
-{
-  "weekNo": 2,
-  "title": "보조 악력기 트레이닝 15분",
-  "expectedMinutes": 15,
-  "supplies": "악력기",
-  "doneCriteria": "양손 3세트 완수"
-}
-```
-- **Response (201 Created)**
+`GET /api/v1/plans/{planId}/overview` → **200**, 5)의 View 공통 DTO 사용.
 
-#### 8) TODO 활동 삭제 (Soft Delete) `[P2·MVP 제외]`
-- **Endpoint**: `DELETE /api/v1/plans/{planId}/items/{itemId}`
-- **Permission**: `본인 소유자`
-- **Response (204 No Content)**
+- weeks는 모든 주차, overdueItems·skippedItems는 계획 전체. 06-3A/B는 하나의 화면으로 totalWeeks를 따르며 8주로 고정하지 않는다.
+- overview에서는 selectedWeek·weekTitle·weekProgress·nextWeek=null, weekExpectedMinutes=0, items·supplies=[], canUpdateItems·weekCompleted=false. 전체 집계·planCompleted·canEditPlan은 실제 값이다.
+- 주차를 펼칠 때 5)의 `?week=N` 조회 재사용. 미래 주차도 사용자 사본을 사용한다.
 
 ---
 
@@ -1411,7 +1425,7 @@
 3. **Validation**: `@Valid`, `@NotBlank`, `@Size`, `@Min`, `@Max` 선언 및 `MethodArgumentNotValidException` 필드 매핑
 4. **Swagger (springdoc)**: 모든 Controller와 DTO에 `@Tag`, `@Operation`, `@Schema` 어노테이션 적용하여 `/swagger-ui/index.html` 자동 문서화 동기화
 5. **우선순위별 구현 범위** (개발 순서 P0 → P1 → P3, P2는 구현하지 않음)
-   - **P0 (11/04 마감)**: 이메일 회원가입·인증·로그인·로그아웃·토큰 재발급·비밀번호 재설정(3.1), 회원 탈퇴 `DELETE /users/me`, 내 정보·마이페이지 요약(3.2 1)·5)), 숏폼 탐색 세션·다음 영상(무작위)·시청 기록·반응·진행 현황·종료(3.3, 보관 제외), 취미 검색·상세·추천 생성/조회·별로예요(3.4, 관련 숏폼·미리보기·직접 선택 제외), 관심 저장·시작하기(동시 진행 5개)·주차별 TODO 조회·완료/건너뛰기(3.5 1)~3)·5)·6)), 설정값 `exploration.session-size`(기본안 12)
+   - **P0 (11/04 마감)**: 이메일 회원가입·인증·로그인·로그아웃·토큰 재발급·비밀번호 재설정(3.1), 회원 탈퇴 `DELETE /users/me`, 내 정보·마이페이지 요약(3.2 1)·5)), 숏폼 탐색 세션·다음 영상(무작위)·시청 기록·반응·진행 현황·종료(3.3, 보관 제외), 취미 검색·상세·추천 생성/조회·별로예요(3.4, 관련 숏폼·미리보기·직접 선택 제외), 관심 저장·시작하기(동시 진행 3개)·일시중지/재개/그만두기·주차/전체 계획/홈 TODO 요약·완료/건너뛰기·메모·내 계획 편집(3.5), 설정값 `exploration.session-size`(기본안 12)
    - **P1 (11/09~11/12)**: Google 소셜 로그인(`/oauth2/**`), 비밀번호 변경, 온보딩·이용 상황 수정(3.2 3)·4)), 다음 영상 분류 분산·선호 70%/탐색 30%, 추천 기준 문구·AI 추천 이유·이용 상황 정렬·탐색용 제안, 취미 상세 관련 숏폼·TODO 미리보기, 밀린 활동·TODO 메모, 지역·장소·정보 피드(3.6), 게시판·댓글·좋아요(3.7), 이미지 업로드(3.8 2)), 탈퇴 시 개인정보 익명화
    - **P3 (여유 시)**: 신고(3.8 1)), 고객 문의·공지(3.9 3)·4)), 관리자 신고 검토·문의 답변·공지 관리·숏폼 검수(채널·영상 승인·복구)(3.10 `[P3]` 행), 요청량 제한(Rate Limit)
-   - **P2 (MVP 제외)**: 비회원 체험(`guest_key`, `/explorations/merge`), 프로필 닉네임·이미지 수정, 숏폼 보관·보관함, 관심사 직접 선택(`DIRECT_SELECTION`), 취미 상태 변경(`PAUSED`·`STOPPED`·`COMPLETED`), 내 계획 수정(TODO 추가·삭제), 알림 전체(`/notifications/**`, `notification.create`), 서비스 피드백(`/feedbacks`, `feedback.analyze`), 관리자 콘텐츠·수동 반영(지금 반영)·배치 이력·피드백 API(3.10 `[P2·MVP 제외]` 행)
+   - **P2 (MVP 제외)**: 비회원 체험(`guest_key`, `/explorations/merge`), 프로필 닉네임·이미지 수정, 숏폼 보관·보관함, 관심사 직접 선택(`DIRECT_SELECTION`), 전체 계획 자동 COMPLETED 전환·축하, 종료 취미 재시작·지난 취미 UI, 알림 전체(`/notifications/**`, `notification.create`), 서비스 피드백(`/feedbacks`, `feedback.analyze`), 관리자 콘텐츠·수동 반영(지금 반영)·배치 이력·피드백 API(3.10 `[P2·MVP 제외]` 행)

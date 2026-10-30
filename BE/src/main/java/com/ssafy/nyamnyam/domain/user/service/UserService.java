@@ -1,6 +1,7 @@
 package com.ssafy.nyamnyam.domain.user.service;
 
 import com.ssafy.nyamnyam.domain.auth.repository.AuthTokenRepository;
+import com.ssafy.nyamnyam.domain.plan.service.PlanQueryService;
 import com.ssafy.nyamnyam.domain.hobby.entity.Hobby;
 import com.ssafy.nyamnyam.domain.hobby.entity.HobbyStatus;
 import com.ssafy.nyamnyam.domain.user.dto.request.OnboardingRequest;
@@ -31,6 +32,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.annotation.Isolation;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -51,6 +53,7 @@ public class UserService {
     private final HobbyRepository hobbyRepository;
     private final AuthTokenRepository authTokenRepository;
     private final PasswordEncoder passwordEncoder;
+    private final PlanQueryService planQueryService;
 
     @Transactional(readOnly = true)
     public OnboardingOptionsResponse getOnboardingOptions() {
@@ -218,7 +221,7 @@ public class UserService {
     /**
      * 내 취미 목록 조회 (status 필터 가능)
      */
-    @Transactional(readOnly = true)
+    @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
     public List<UserHobbyResponse> getUserHobbies(Long userId, String status) {
         List<UserHobby> list;
         if (status != null && !status.isBlank()) {
@@ -232,7 +235,7 @@ public class UserService {
             list = userHobbyRepository.findAllByUserIdWithHobby(userId);
         }
 
-        return list.stream().map(UserHobbyResponse::from).toList();
+        return planQueryService.enrich(userId, list);
     }
 
     /**
@@ -240,13 +243,14 @@ public class UserService {
      */
     @Transactional
     public void saveHobby(Long userId, Long hobbyId) {
-        User user = getUser(userId);
-        Hobby hobby = hobbyRepository.findById(hobbyId)
+        User user = userRepository.findByIdForUpdate(userId)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+        Hobby hobby = hobbyRepository.findById(hobbyId).filter(h -> h.getStatus() == HobbyStatus.PUBLISHED)
                 .orElseThrow(() -> new CustomException(ErrorCode.HOBBY_NOT_FOUND));
 
         var existing = userHobbyRepository.findByUserIdAndHobbyId(userId, hobbyId);
         if (existing.isPresent()) {
-            existing.get().updateStatus(UserHobbyStatus.SAVED);
+            requireSaved(existing.get());
         } else {
             UserHobby userHobby = UserHobby.builder()
                     .user(user)
@@ -255,6 +259,7 @@ public class UserService {
                     .savedAt(LocalDateTime.now())
                     .build();
             userHobbyRepository.save(userHobby);
+            hobbyRepository.adjustSaveCount(hobbyId, 1);
         }
     }
 
@@ -263,8 +268,21 @@ public class UserService {
      */
     @Transactional
     public void unsaveHobby(Long userId, Long hobbyId) {
+        userRepository.findByIdForUpdate(userId)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
         userHobbyRepository.findByUserIdAndHobbyId(userId, hobbyId)
-                .ifPresent(userHobbyRepository::delete);
+                .ifPresent(entry -> {
+                    requireSaved(entry);
+                    userHobbyRepository.delete(entry);
+                    hobbyRepository.adjustSaveCount(hobbyId, -1);
+                });
+    }
+
+    private void requireSaved(UserHobby entry) {
+        if (entry.getStatus() != UserHobbyStatus.SAVED)
+            throw new CustomException(entry.getStatus() == UserHobbyStatus.IN_PROGRESS
+                    || entry.getStatus() == UserHobbyStatus.PAUSED ? ErrorCode.MY_HOBBY_IN_PROGRESS
+                    : ErrorCode.MY_HOBBY_INVALID_TRANSITION);
     }
 
     private User getUser(Long userId) {

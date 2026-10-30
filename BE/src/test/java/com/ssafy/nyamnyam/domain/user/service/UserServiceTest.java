@@ -1,6 +1,7 @@
 package com.ssafy.nyamnyam.domain.user.service;
 
 import com.ssafy.nyamnyam.domain.auth.repository.AuthTokenRepository;
+import com.ssafy.nyamnyam.domain.plan.service.PlanQueryService;
 import com.ssafy.nyamnyam.domain.hobby.entity.*;
 import com.ssafy.nyamnyam.domain.hobby.repository.HobbyRepository;
 import com.ssafy.nyamnyam.domain.user.dto.request.ChangePasswordRequest;
@@ -21,6 +22,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -58,6 +61,8 @@ class UserServiceTest {
 
     @Mock
     private PasswordEncoder passwordEncoder;
+
+    @Mock private PlanQueryService planQueryService;
 
     @InjectMocks
     private UserService userService;
@@ -210,13 +215,45 @@ class UserServiceTest {
     @Test
     @DisplayName("취미 관심 저장 성공")
     void saveHobby_success() {
-        given(userRepository.findById(1L)).willReturn(Optional.of(testUser));
+        given(userRepository.findByIdForUpdate(1L)).willReturn(Optional.of(testUser));
+        testHobby = Hobby.builder().name("클라이밍").status(HobbyStatus.PUBLISHED).build();
         given(hobbyRepository.findById(5L)).willReturn(Optional.of(testHobby));
         given(userHobbyRepository.findByUserIdAndHobbyId(1L, 5L)).willReturn(Optional.empty());
 
         userService.saveHobby(1L, 5L);
 
         verify(userHobbyRepository).save(any(UserHobby.class));
+        verify(hobbyRepository).adjustSaveCount(5L, 1);
+    }
+
+    @ParameterizedTest
+    @EnumSource(value = UserHobbyStatus.class, names = {"IN_PROGRESS", "PAUSED", "STOPPED", "COMPLETED"})
+    void saveAndUnsaveCannotOverwriteOrDeletePlannedHobby(UserHobbyStatus status) {
+        var hobby = Hobby.builder().name("클라이밍").status(HobbyStatus.PUBLISHED).build();
+        var entry = UserHobby.builder().user(testUser).hobby(hobby).status(status).build();
+        given(userRepository.findByIdForUpdate(1L)).willReturn(Optional.of(testUser));
+        given(hobbyRepository.findById(5L)).willReturn(Optional.of(hobby));
+        given(userHobbyRepository.findByUserIdAndHobbyId(1L, 5L)).willReturn(Optional.of(entry));
+        assertThatThrownBy(() -> userService.saveHobby(1L, 5L)).isInstanceOf(CustomException.class);
+        assertThatThrownBy(() -> userService.unsaveHobby(1L, 5L)).isInstanceOf(CustomException.class);
+        assertThat(entry.getStatus()).isEqualTo(status);
+        verify(userHobbyRepository, never()).delete(any());
+        verify(userHobbyRepository, never()).save(any());
+        verify(hobbyRepository, never()).adjustSaveCount(any(), anyInt());
+    }
+
+    @Test void repeatedSaveAndUnsaveAreIdempotent() {
+        var hobby = Hobby.builder().name("클라이밍").status(HobbyStatus.PUBLISHED).build();
+        var entry = UserHobby.builder().user(testUser).hobby(hobby).build();
+        given(userRepository.findByIdForUpdate(1L)).willReturn(Optional.of(testUser));
+        given(hobbyRepository.findById(5L)).willReturn(Optional.of(hobby));
+        given(userHobbyRepository.findByUserIdAndHobbyId(1L, 5L)).willReturn(Optional.of(entry), Optional.of(entry), Optional.empty());
+        userService.saveHobby(1L, 5L);
+        userService.unsaveHobby(1L, 5L);
+        userService.unsaveHobby(1L, 5L);
+        verify(userHobbyRepository, times(1)).delete(entry);
+        verify(hobbyRepository, times(1)).adjustSaveCount(5L, -1);
+        verify(hobbyRepository, never()).adjustSaveCount(5L, 1);
     }
 
     @Test
@@ -229,6 +266,7 @@ class UserServiceTest {
                 .build();
         given(userHobbyRepository.findAllByUserIdAndStatusWithHobby(1L, UserHobbyStatus.SAVED))
                 .willReturn(List.of(userHobby));
+        given(planQueryService.enrich(1L, List.of(userHobby))).willReturn(List.of(UserHobbyResponse.from(userHobby)));
 
         List<UserHobbyResponse> result = userService.getUserHobbies(1L, "SAVED");
 

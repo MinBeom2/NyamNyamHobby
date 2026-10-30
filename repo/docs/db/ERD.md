@@ -7,7 +7,7 @@
 > **타입 표기**: 아래 다이어그램은 PostgreSQL 타입 기준입니다(`timestamp` = TIMESTAMP(6) UTC, `smallint` = MySQL 원안의 TINYINT, `jsonb` = JSON).  
 > **프로젝트 명세서**: [spec/project-spec-v0.3.md](../spec/project-spec-v0.3.md) 7장 (데이터 구조)  
 > **아키텍처 특징**: 2대 핵심 허브(`users`, `hobbies`)를 중심으로 7개 도메인이 유기적으로 연결된 구조입니다.  
-> **기준**: 기능 요구사항 CSV(10/21) 반영 — 스키마는 그대로이며, MVP 제외(P2) 기능(비회원 체험, 관심사 직접 선택·탐색 초기화, 숏폼 보관함, 취미 상태 변경, 내 계획 수정, 알림, 서비스 피드백, 피드·장소 관리자 검토)용 테이블·컬럼은 고도화 대비로 남겨 둡니다. 설명의 `[P2]` 표시는 MVP에서 쓰지 않는다는 뜻입니다.
+> **기준**: 상단 41개는 V1+V2 기준입니다. 2026-10-30 V10은 주차 제목 테이블 2개·정지 초·활성 계획 유일 인덱스를 추가하며 2.5절에 반영했습니다. 취미 일시중지·재개·그만두기 및 내 계획 편집은 현재 범위입니다. 자동 완료·축하와 종료 후 새 계획 시작은 제외합니다. 나머지 `[P2]` 표시는 해당 기능의 제외 상태를 유지합니다.
 
 ---
 
@@ -369,8 +369,12 @@ erDiagram
 ---
 
 ### 2.5 내 취미 및 주차별 TODO 도메인 (User Hobby & TODO Plans)
-- **템플릿-인스턴스 분리 (Copy-on-Start)**: 관리자가 작성한 마스터 템플릿(`plan_templates`, `plan_template_items`)을 사용자가 '시작하기'를 누를 때 사용자 전용 사본(`user_plans`, `user_plan_items`)으로 통째로 복사합니다. 이를 통해 원본 변경이나 타 사용자와 무관하게 독립적인 커스텀(활동 추가/삭제/수정, 내 계획 수정은 `[P2]`)이 가능합니다. MVP에서 마스터 템플릿은 관리자 화면(`[P2]`) 대신 시드 SQL로 넣습니다.
-- **취미 상태 변경** `[P2]`: `PAUSED`·`COMPLETED`·`STOPPED`와 일시중지 관련 컬럼은 MVP에서 쓰지 않습니다(MVP는 `SAVED`·`IN_PROGRESS`, 동시 진행 최대 5개).
+- **2026-10-30 V10/V11**: [V10](../../../BE/src/main/resources/db/migration/V10__todo_plan_weeks_and_pause_time.sql)에서 주차 제목 테이블 2개·정지 초·활성 계획 유일 인덱스 추가. V1은 변경하지 않습니다. [V11](../../../BE/src/main/resources/db/migration/V11__seed_beginner_todo_templates.sql)은 클라이밍·드로잉·사진 촬영의 BEGINNER 3주 원본을 신규 생성하며 기존 원본을 덮지 않습니다.
+- **사본 분리**: 원본 제목·주차 제목·버전·활동을 사용자 사본으로 복사하며 이후 원본 변경과 독립적입니다. 활동 추가·삭제·주차/시간 편집을 현재 범위에 포함합니다. 관리자 원본 편집 UI는 P2로 유지합니다.
+- **상태·잠금**: IN_PROGRESS 최대 3개, PAUSED 제외. 시작/재개/활동/관심 변경은 사용자 행을 잠근 뒤 처리합니다. 같은 user_hobby_id의 ACTIVE 계획은 부분 UNIQUE 인덱스로 1개 보장합니다. STOPPED 이력 유지, 자동 COMPLETED 전환·종료 후 새 계획 생성은 제외합니다.
+- **시간**: UTC timestamp 저장, 서울 달력 날짜 기준 주차. paused_seconds는 완료된 중지 구간의 누적 초이며 paused_at 진행 구간은 조회 시 동결합니다. paused_days는 호환용 몫입니다. 기존 paused_days는 V10에서 초로 변환합니다.
+- **기존 데이터**: V10은 기존 원본/사용자 주차 제목을 중립적인 'N주차'로 채웁니다. 기존 ACTIVE 중복이 있으면 유일 인덱스 생성이 실패하므로 운영 데이터 확인 후 적용합니다. 활동을 삭제하거나 이전 Flyway 파일을 고치지 않습니다.
+- **준비물**: supplies 자유 문자열 유지, API에서 표시 배열을 제공합니다. 체크 상태는 프론트 임시 상태로 결정하여 저장 테이블을 추가하지 않습니다.
 
 ```mermaid
 erDiagram
@@ -382,19 +386,21 @@ erDiagram
     PLAN_TEMPLATES ||--o{ USER_PLANS : "복사 원본 참조"
     USER_PLANS ||--o{ USER_PLAN_ITEMS : "사용자 실천 항목"
     PLAN_TEMPLATE_ITEMS ||--o{ USER_PLAN_ITEMS : "원본 항목 참조 (NULL 허용)"
+    PLAN_TEMPLATES ||--o{ PLAN_TEMPLATE_WEEKS : "원본 주차 제목"
+    USER_PLANS ||--o{ USER_PLAN_WEEKS : "복사된 주차 제목"
 
     USER_HOBBIES {
         bigint id PK
         bigint user_id FK "users.id"
         bigint hobby_id FK "hobbies.id"
-        varchar status "SAVED | IN_PROGRESS | PAUSED | COMPLETED | STOPPED (PAUSED 이후는 P2)"
+        varchar status "SAVED | IN_PROGRESS | PAUSED | COMPLETED | STOPPED"
         varchar skill_level "BEGINNER | NOVICE | INTERMEDIATE"
         timestamp started_at "시작 일시"
-        timestamp paused_at "일시중지 일시 [P2]"
-        timestamp completed_at "계획 완료 일시 [P2]"
-        timestamp stopped_at "그만둔 일시 [P2]"
-        timestamp created_at
-        timestamp updated_at
+        timestamp paused_at "현재 정지 시작 UTC"
+        int paused_days "누적 초/86400 호환 값"
+        bigint paused_seconds "누적 정지 초 V10"
+        timestamp ended_at "종료 UTC"
+        timestamp saved_at "관심 저장 시각"
     }
 
     PLAN_TEMPLATES {
@@ -430,6 +436,18 @@ erDiagram
         smallint total_weeks "총 주차"
         varchar status "ACTIVE | ARCHIVED"
         timestamp started_at "계획 시작 일시"
+    }
+
+    PLAN_TEMPLATE_WEEKS {
+        bigint template_id PK,FK "plan_templates.id"
+        smallint week_no PK "1 이상"
+        varchar title "50자 필수"
+    }
+
+    USER_PLAN_WEEKS {
+        bigint user_plan_id PK,FK "user_plans.id"
+        smallint week_no PK "1 이상"
+        varchar title "시작 시 고정한 50자 제목"
     }
 
     USER_PLAN_ITEMS {

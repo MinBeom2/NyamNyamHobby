@@ -23,4 +23,12 @@ public interface HobbyRepository extends JpaRepository<Hobby, Long> {
            "LEFT JOIN FETCH ht.tag " +
            "WHERE h.status = :status")
     List<Hobby> findAllWithTagsByStatus(HobbyStatus status);
+
+    /** 상세 조회용: 분류·태그까지 한 번에 읽는다(지연 로딩 추가 쿼리 방지) */
+    @Query("SELECT h FROM Hobby h " +
+           "LEFT JOIN FETCH h.category " +
+           "LEFT JOIN FETCH h.hobbyTags ht " +
+           "LEFT JOIN FETCH ht.tag " +
+           "WHERE h.id = :id")
+    Optional<Hobby> findWithCategoryAndTagsById(@Param("id") Long id);
 }

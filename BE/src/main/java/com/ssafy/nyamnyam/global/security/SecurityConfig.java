@@ -56,8 +56,9 @@ public class SecurityConfig {
                         .requestMatchers("/oauth2/**", "/login/oauth2/**").permitAll()
                         // Actuator health
                         .requestMatchers("/actuator/health", "/actuator/info").permitAll()
-                        // 커뮤니티 게시판·업로드 이미지·취미별 관련 숏폼 조회는 공개. 변경 요청은 인증 필요.
+                        // 커뮤니티 게시판·업로드 이미지·취미 상세·취미별 관련 숏폼 조회는 공개. 변경 요청은 인증 필요.
                         .requestMatchers(HttpMethod.GET,
+                                "/api/v1/hobbies/*",
                                 "/api/v1/hobbies/*/posts",
                                 "/api/v1/posts/*",
                                 "/api/v1/uploads/images/**",

@@ -14,6 +14,7 @@ import com.ssafy.nyamnyam.domain.recommendation.service.PreferenceProfileService
 import com.ssafy.nyamnyam.domain.shortform.entity.Short;
 import com.ssafy.nyamnyam.domain.shortform.entity.ShortStatus;
 import com.ssafy.nyamnyam.domain.shortform.repository.ShortRepository;
+import com.ssafy.nyamnyam.domain.shortform.repository.ShortSaveRepository;
 import com.ssafy.nyamnyam.domain.user.entity.User;
 import com.ssafy.nyamnyam.global.error.CustomException;
 import com.ssafy.nyamnyam.global.error.ErrorCode;
@@ -39,6 +40,7 @@ public class ExplorationService {
     private final ExplorationViewRepository viewRepository;
     private final ShortReactionRepository reactionRepository;
     private final ShortRepository shortRepository;
+    private final ShortSaveRepository shortSaveRepository;
     private final ExplorationProperties explorationProperties;
     private final RecommendationRepository recommendationRepository;
     private final PreferenceProfileService profiles;
@@ -75,7 +77,8 @@ public class ExplorationService {
                 .map(ShortReaction::getType)
                 .orElse(null);
 
-        ShortDetailResponse shortResponse = ShortDetailResponse.of(firstShort, myReaction, false);
+        ShortDetailResponse shortResponse = ShortDetailResponse.of(firstShort, myReaction,
+                shortSaveRepository.exists(user.getId(), firstShort.getId()));
 
         return new StartExplorationResponse(
                 session.getId(),
@@ -124,7 +127,8 @@ public class ExplorationService {
                 .map(ShortReaction::getType)
                 .orElse(null);
 
-        ShortDetailResponse shortResponse = ShortDetailResponse.of(nextShort, myReaction, false);
+        ShortDetailResponse shortResponse = ShortDetailResponse.of(nextShort, myReaction,
+                shortSaveRepository.exists(user.getId(), nextShort.getId()));
 
         return new NextShortResponse(false, (int) session.getViewedCount(), shortResponse);
     }

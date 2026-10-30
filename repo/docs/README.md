@@ -13,6 +13,7 @@
 | [spec/project-spec-v0.3.pdf](spec/project-spec-v0.3.pdf) | 같은 명세서의 PDF 판 **v0.3**(ERD · 화면 흐름 · 시스템 구성 · 일정 도식 포함, 81쪽). 우선순위·규칙은 md(v0.4)를 따름 | 〃 |
 | [spec/취미태그_유사도기준표.xlsx](spec/취미태그_유사도기준표.xlsx) | **취미 태그 기준표**: 태그 결정 기록, 분류 목록, 성향(장소·사교·활동성)·주제(소재·얻는 것) 태그 목록, 취미 30개 × 분류·태그 입력표(드롭다운), 취미 간 유사도 미리보기(가중치 조정 가능) | 팀 결정(10/23~) |
 | [spec/api-spec.md](spec/api-spec.md) | REST API 상세 명세서: 공통 봉투, 에러 코드, 도메인별 요청·응답 DTO 및 예시 | 명세서 8장 |
+| [spec/api-changes-2026-10-30-onboarding-short-save.md](spec/api-changes-2026-10-30-onboarding-short-save.md) | **프론트 연동용**: 01-6A·01-6B 온보딩 요청, 선택지 ID 조회, 02-1 숏폼 보관·해제 변경 사항 | 현재 Figma v2 · 10/30 요청 |
 | [db/ERD.md](db/ERD.md) | 데이터베이스 ERD: V1 + V2(`tags.tag_group` 추가) 기준 전체 도메인 관계도 및 7개 도메인별 상세 Mermaid 다이어그램 | Flyway V1 + V2 기반 |
 | [db/V1__init.sql](db/V1__init.sql) | PostgreSQL 17 초기 스키마(pgvector 포함 이미지 사용, 확장·임베딩 스키마는 후속 마이그레이션), 테이블 41개. 백엔드 Flyway 마이그레이션 `BE/src/main/resources/db/migration/V1__init.sql`의 사본이며 명세서 7.5와 같은 내용입니다 | 명세서 7.5 |
 | [tasks/README.md](tasks/README.md) | 작업 목록 안내: 일정 기준, 영역 × 파트 ID, 먼저 시작할 것, 확인 필요 사항 | — |

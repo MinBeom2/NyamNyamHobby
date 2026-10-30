@@ -2,6 +2,11 @@ package com.ssafy.nyamnyam.domain.user.service;
 
 import com.ssafy.nyamnyam.domain.auth.repository.AuthTokenRepository;
 import com.ssafy.nyamnyam.domain.hobby.entity.Hobby;
+import com.ssafy.nyamnyam.domain.hobby.entity.HobbyStatus;
+import com.ssafy.nyamnyam.domain.user.dto.request.OnboardingRequest;
+import com.ssafy.nyamnyam.domain.user.dto.response.OnboardingResponse;
+import com.ssafy.nyamnyam.domain.user.dto.response.OnboardingOptionsResponse;
+import com.ssafy.nyamnyam.domain.user.dto.response.RegionResponse;
 import com.ssafy.nyamnyam.domain.hobby.repository.HobbyRepository;
 import com.ssafy.nyamnyam.domain.user.dto.request.ChangePasswordRequest;
 import com.ssafy.nyamnyam.domain.user.dto.request.UpdateConditionsRequest;
@@ -29,6 +34,10 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Comparator;
+import java.util.HashSet;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -42,6 +51,64 @@ public class UserService {
     private final HobbyRepository hobbyRepository;
     private final AuthTokenRepository authTokenRepository;
     private final PasswordEncoder passwordEncoder;
+
+    @Transactional(readOnly = true)
+    public OnboardingOptionsResponse getOnboardingOptions() {
+        var hobbies = hobbyRepository.findByStatus(HobbyStatus.PUBLISHED).stream()
+                .sorted(Comparator.comparing((Hobby h) -> h.getCategory().getId()).thenComparing(Hobby::getId))
+                .map(h -> new OnboardingOptionsResponse.HobbyOption(
+                        h.getId(), h.getName(), h.getCategory().getId(), h.getCategory().getName()))
+                .toList();
+        var regions = regionRepository.findAll().stream()
+                .sorted(Comparator.comparing(Region::getSido).thenComparing(Region::getSigungu))
+                .map(RegionResponse::from).toList();
+        return new OnboardingOptionsResponse(hobbies, regions);
+    }
+
+    /** PUT 재시도 시 중복 없이 관심 취미 목록을 교체한다. 진행 중인 취미의 상태는 유지한다. */
+    @Transactional
+    public OnboardingResponse saveOnboarding(Long userId, OnboardingRequest request) {
+        User user = userRepository.findByIdForUpdate(userId)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+        var selected = request.getInitialHobbies() == null ? List.<OnboardingRequest.InitialHobby>of()
+                : request.getInitialHobbies();
+        Set<Long> hobbyIds = selected.stream().map(OnboardingRequest.InitialHobby::hobbyId)
+                .collect(Collectors.toSet());
+        if (hobbyIds.size() != selected.size()) {
+            throw new CustomException(ErrorCode.COMMON_INVALID_INPUT, "관심 취미 ID는 중복될 수 없습니다.");
+        }
+        // 모든 선택값을 검증한 다음 변경하며, 이용 상황과 관심 취미는 같은 트랜잭션으로 저장한다.
+        List<Hobby> hobbies = hobbyRepository.findAllById(hobbyIds);
+        if (hobbies.size() != hobbyIds.size()
+                || hobbies.stream().anyMatch(h -> h.getStatus() != HobbyStatus.PUBLISHED)) {
+            throw new CustomException(ErrorCode.HOBBY_NOT_FOUND);
+        }
+        updateConditions(userId, request);
+
+        List<UserHobby> existing = userHobbyRepository.findAllByUserIdWithHobby(userId);
+        Set<Long> existingIds = new HashSet<>();
+        int savedCount = 0;
+        for (UserHobby entry : existing) {
+            Long hobbyId = entry.getHobby().getId();
+            existingIds.add(hobbyId);
+            if (entry.getStatus() == UserHobbyStatus.SAVED) {
+                if (hobbyIds.contains(hobbyId)) {
+                    savedCount++;
+                } else {
+                    userHobbyRepository.delete(entry);
+                    hobbyRepository.adjustSaveCount(hobbyId, -1);
+                }
+            }
+        }
+        for (Hobby hobby : hobbies.stream().sorted(Comparator.comparing(Hobby::getId)).toList()) {
+            if (!existingIds.contains(hobby.getId())) {
+                userHobbyRepository.save(UserHobby.builder().user(user).hobby(hobby).build());
+                hobbyRepository.adjustSaveCount(hobby.getId(), 1);
+                savedCount++;
+            }
+        }
+        return new OnboardingResponse(true, savedCount);
+    }
 
     /**
      * 내 프로필 및 환경 정보 조회

@@ -8,6 +8,8 @@ import com.ssafy.nyamnyam.domain.recommendation.dto.response.FinishExplorationRe
 import com.ssafy.nyamnyam.domain.recommendation.dto.response.RecommendationResponse;
 import com.ssafy.nyamnyam.domain.recommendation.service.RecommendationService;
 import com.ssafy.nyamnyam.domain.shortform.controller.ShortController;
+import com.ssafy.nyamnyam.domain.shortform.dto.response.ShortSaveResponse;
+import com.ssafy.nyamnyam.domain.shortform.service.ShortSaveService;
 import com.ssafy.nyamnyam.domain.user.entity.User;
 import com.ssafy.nyamnyam.domain.user.repository.UserRepository;
 import com.ssafy.nyamnyam.global.error.CustomException;
@@ -26,6 +28,7 @@ import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.List;
 import java.util.Optional;
@@ -40,6 +43,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @WebMvcTest({ExplorationController.class, ShortController.class})
 @Import({SecurityConfig.class, JwtAuthenticationEntryPoint.class, JwtAccessDeniedHandler.class})
 class ExplorationControllerTest {
+    @MockitoBean ShortSaveService saves;
     @Autowired MockMvc mvc;
     @MockitoBean ExplorationService explorations;
     @MockitoBean RecommendationService recommendations;
@@ -52,8 +56,32 @@ class ExplorationControllerTest {
     private final UserPrincipal principal = new UserPrincipal(1L, "mvc@example.com", "USER");
     private User member;
 
+    @Test void savesShortWithoutReactionOrSession() throws Exception {
+        given(saves.save(1L, 100L)).willReturn(new ShortSaveResponse(100L, true));
+        mvc.perform(put("/api/v1/shorts/100/save").with(user(principal)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.shortId").value(100))
+                .andExpect(jsonPath("$.data.isSaved").value(true));
+        verifyNoInteractions(explorations);
+    }
+
+    @Test void unsavesShortWithoutReactionOrSession() throws Exception {
+        given(saves.unsave(1L, 100L)).willReturn(new ShortSaveResponse(100L, false));
+        mvc.perform(delete("/api/v1/shorts/100/save").with(user(principal)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.isSaved").value(false));
+        verifyNoInteractions(explorations);
+    }
+
+    @Test void savingRequiresAuthentication() throws Exception {
+        mvc.perform(put("/api/v1/shorts/100/save")).andExpect(status().isUnauthorized());
+        mvc.perform(delete("/api/v1/shorts/100/save")).andExpect(status().isUnauthorized());
+        verifyNoInteractions(saves);
+    }
+
     @BeforeEach void setUp() {
         member = User.builder().email("mvc@example.com").nickname("mvc").build();
+        ReflectionTestUtils.setField(member, "id", 1L);
         given(users.findById(1L)).willReturn(Optional.of(member));
     }
 

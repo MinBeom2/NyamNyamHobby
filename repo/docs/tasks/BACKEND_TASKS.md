@@ -430,11 +430,11 @@
   - GET /posts/{id}: 조회수는 회원 기준(비회원 체험 도입 시 guestKey 포함) 24시간에 1회.
   - API·배치: /posts/{id}
   - 근거: FR-BOARD-03
-- [ ] **BOARD-B04 댓글·대댓글 API** · `권장` · 댓글
+- [x] **BOARD-B04 댓글·대댓글 API** · `권장` · 댓글
   - GET·POST /posts/{id}/comments, PATCH·DELETE /comments/{id}: 1~500자, 대댓글 1단계(답글의 답글도 부모 아래), 대댓글 있으면 '삭제된 댓글입니다'. 댓글 알림 발행은 [P2·MVP 제외].
   - API·배치: comments
   - 근거: FR-BOARD-03
-- [ ] **BOARD-B05 좋아요 API** · `권장` · 좋아요
+- [x] **BOARD-B05 좋아요 API** · `권장` · 좋아요
   - PUT·DELETE /posts/{id}/like, /comments/{id}/like: UNIQUE(user, targetType, targetId), like_count.
   - API·배치: likes
   - 근거: FR-BOARD-04

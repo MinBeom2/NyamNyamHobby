@@ -45,7 +45,7 @@ export function CommunityListPage() {
 
   return (
     <div className="site-shell">
-      <AppHeader authenticated notificationCount={3} />
+      <AppHeader notificationCount={3} />
       <main className="page-container community-page">
         <div className="community-layout">
           <aside className="board-sidebar">
@@ -125,9 +125,9 @@ export function CommunityDetailPage() {
   const navigate = useNavigate();
   const navigateToCommunity = () => navigate('/community', { replace: true });
 
-  if (postQuery.isLoading) return <div className="site-shell"><AppHeader authenticated /><main className="page-container empty-state"><h1>게시글을 불러오는 중이에요</h1></main></div>;
+  if (postQuery.isLoading) return <div className="site-shell"><AppHeader /><main className="page-container empty-state"><h1>게시글을 불러오는 중이에요</h1></main></div>;
   if (!post) {
-    return <div className="site-shell"><AppHeader authenticated /><main className="page-container empty-state"><h1>게시글을 찾을 수 없어요</h1><Button to="/community">목록으로</Button></main></div>;
+    return <div className="site-shell"><AppHeader /><main className="page-container empty-state"><h1>게시글을 찾을 수 없어요</h1><Button to="/community">목록으로</Button></main></div>;
   }
 
   const visibleCommentCount = comments.reduce((count, item) => count + countVisibleComments(item), 0);
@@ -158,7 +158,7 @@ export function CommunityDetailPage() {
 
   return (
     <div className="site-shell">
-      <AppHeader authenticated notificationCount={3} />
+      <AppHeader notificationCount={3} />
       <main className="page-container post-page">
         <Link className="back-link" to="/community">커뮤니티 · {post.hobby.name}</Link>
         <article className="post-detail">
@@ -308,7 +308,7 @@ export function CommunityWritePage() {
 
   return (
     <div className="site-shell">
-      <AppHeader authenticated notificationCount={3} />
+      <AppHeader notificationCount={3} />
       <main className="page-container write-page">
         <h1>{isEdit ? '글 수정' : '글쓰기'}</h1>
         <form onSubmit={submit}>

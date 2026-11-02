@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
+import { Navigate, Outlet, Route, Routes, useLocation } from 'react-router-dom';
 import { GuestHomePage, MemberHomePage } from '../pages/home/HomePage';
 import { LoginPage } from '../pages/auth/LoginPage';
 import { SignupPage } from '../pages/auth/SignupPage';
@@ -21,21 +21,26 @@ import { InfoFeedDetailPage, InfoFeedPage, PlaceSearchPage } from '../pages/plac
 import { CommunityDetailPage, CommunityListPage, CommunityWritePage } from '../pages/community/CommunityPages';
 import { getCurrentUserProfile } from '../features/auth/api/authApi';
 import { useAuthStore } from '../features/auth/model/authStore';
+import { getMemberMenu } from '../features/auth/model/accessPolicy';
+import { AppHeader } from '../shared/ui/AppHeader';
 
 function AuthSessionBootstrap() {
-  const user = useAuthStore((state) => state.user);
+  const sessionInitialized = useAuthStore((state) => state.sessionInitialized);
   const setUser = useAuthStore((state) => state.setUser);
+  const finishSessionCheck = useAuthStore((state) => state.finishSessionCheck);
   const profileQuery = useQuery({
     queryKey: ['auth', 'current-user'],
     queryFn: getCurrentUserProfile,
-    enabled: user === null,
+    enabled: !sessionInitialized,
     retry: false,
   });
 
   useEffect(() => {
-    // A disabled query can still expose its previous successful data. Wait for the
-    // current session check to settle so an intentional logout is not undone by
-    // stale profile data from the previous session.
+    if (sessionInitialized) return;
+    if (profileQuery.isError) {
+      finishSessionCheck();
+      return;
+    }
     if (!profileQuery.isSuccess || profileQuery.fetchStatus !== 'idle' || !profileQuery.data) return;
     setUser({
       id: profileQuery.data.id,
@@ -44,9 +49,29 @@ function AuthSessionBootstrap() {
       role: profileQuery.data.role,
       onboarded: profileQuery.data.conditions !== null,
     });
-  }, [profileQuery.data, profileQuery.fetchStatus, profileQuery.isSuccess, setUser]);
+  }, [sessionInitialized, profileQuery.data, profileQuery.fetchStatus, profileQuery.isSuccess, profileQuery.isError, setUser, finishSessionCheck]);
 
   return null;
+}
+
+function SessionLoadingPage() {
+  return <div className="site-shell"><AppHeader /><main className="page-container" role="status">로그인 상태를 확인하고 있어요.</main></div>;
+}
+
+function HomePage() {
+  const user = useAuthStore((state) => state.user);
+  const initialized = useAuthStore((state) => state.sessionInitialized);
+  if (!initialized) return <SessionLoadingPage />;
+  return user ? <MemberHomePage /> : <GuestHomePage />;
+}
+
+function MemberRoute() {
+  const user = useAuthStore((state) => state.user);
+  const initialized = useAuthStore((state) => state.sessionInitialized);
+  const location = useLocation();
+  if (!initialized) return <SessionLoadingPage />;
+  if (!user) return <Navigate replace to="/" state={{ signupRequired: getMemberMenu(location.pathname) ?? '회원 전용 기능', returnTo: '/' }} />;
+  return <Outlet />;
 }
 
 function ScrollToTop() {
@@ -73,7 +98,7 @@ export function App() {
       <AuthSessionBootstrap />
       <ScrollToTop />
       <Routes>
-        <Route path="/" element={<GuestHomePage />} />
+        <Route path="/" element={<HomePage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/oauth/callback" element={<OAuthCallbackPage />} />
         <Route path="/signup" element={<SignupPage />} />
@@ -86,32 +111,34 @@ export function App() {
         <Route path="/onboarding/interests" element={<HobbyInterestPage />} />
         <Route path="/onboarding/conditions" element={<UsageConditionPage />} />
         <Route path="/explore" element={<ExplorePage />} />
-        <Route path="/home" element={<MemberHomePage />} />
-        <Route path="/mypage" element={<MyPage />} />
-        <Route path="/mypage/profile" element={<MyPage profileEditorOpen />} />
-        <Route path="/mypage/edit" element={<PersonalInfoEditPage />} />
-        <Route path="/mypage/saved-shorts" element={<SavedShortsPage />} />
-        <Route path="/notifications" element={<NotificationsPage />} />
-        <Route path="/support/inquiries" element={<InquiryListPage />} />
-        <Route path="/support/inquiries/new" element={<InquiryWritePage />} />
-        <Route path="/support/inquiries/:inquiryId" element={<InquiryDetailPage />} />
         <Route path="/notices" element={<NoticeListPage />} />
         <Route path="/notices/:noticeId" element={<NoticeDetailPage />} />
-        <Route path="/hobbies" element={<HobbySearchPage />} />
-        <Route path="/hobbies/interests" element={<HobbyInterestSelectPage />} />
-        <Route path="/hobbies/recommendations" element={<HobbySearchPage recommended />} />
-        <Route path="/hobbies/:hobbyId/plan-preview" element={<HobbyPlanPreviewPage />} />
-        <Route path="/hobbies/:hobbyId" element={<HobbyDetailPage />} />
-        <Route path="/my-hobbies" element={<MyHobbiesPage />} />
-        <Route path="/my-hobbies/:hobbyId/plan" element={<HobbyPlanPage />} />
-        <Route path="/my-hobbies/:hobbyId/todos" element={<TodoFocusPage />} />
-        <Route path="/places" element={<PlaceSearchPage />} />
-        <Route path="/info-feed" element={<InfoFeedPage />} />
-        <Route path="/info-feed/:feedId" element={<InfoFeedDetailPage />} />
-        <Route path="/community" element={<CommunityListPage />} />
-        <Route path="/community/new" element={<CommunityWritePage />} />
-        <Route path="/community/:postId/edit" element={<CommunityWritePage />} />
-        <Route path="/community/:postId" element={<CommunityDetailPage />} />
+        <Route element={<MemberRoute />}>
+          <Route path="/home" element={<MemberHomePage />} />
+          <Route path="/mypage" element={<MyPage />} />
+          <Route path="/mypage/profile" element={<MyPage profileEditorOpen />} />
+          <Route path="/mypage/edit" element={<PersonalInfoEditPage />} />
+          <Route path="/mypage/saved-shorts" element={<SavedShortsPage />} />
+          <Route path="/notifications" element={<NotificationsPage />} />
+          <Route path="/support/inquiries" element={<InquiryListPage />} />
+          <Route path="/support/inquiries/new" element={<InquiryWritePage />} />
+          <Route path="/support/inquiries/:inquiryId" element={<InquiryDetailPage />} />
+          <Route path="/hobbies" element={<HobbySearchPage />} />
+          <Route path="/hobbies/interests" element={<HobbyInterestSelectPage />} />
+          <Route path="/hobbies/recommendations" element={<HobbySearchPage recommended />} />
+          <Route path="/hobbies/:hobbyId/plan-preview" element={<HobbyPlanPreviewPage />} />
+          <Route path="/hobbies/:hobbyId" element={<HobbyDetailPage />} />
+          <Route path="/my-hobbies" element={<MyHobbiesPage />} />
+          <Route path="/my-hobbies/:hobbyId/plan" element={<HobbyPlanPage />} />
+          <Route path="/my-hobbies/:hobbyId/todos" element={<TodoFocusPage />} />
+          <Route path="/places" element={<PlaceSearchPage />} />
+          <Route path="/info-feed" element={<InfoFeedPage />} />
+          <Route path="/info-feed/:feedId" element={<InfoFeedDetailPage />} />
+          <Route path="/community" element={<CommunityListPage />} />
+          <Route path="/community/new" element={<CommunityWritePage />} />
+          <Route path="/community/:postId/edit" element={<CommunityWritePage />} />
+          <Route path="/community/:postId" element={<CommunityDetailPage />} />
+        </Route>
         <Route path="*" element={<Navigate replace to="/" />} />
       </Routes>
     </>

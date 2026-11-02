@@ -46,7 +46,7 @@ function fallbackError(status: number): ApiErrorBody {
   };
 }
 
-async function refreshAccessToken() {
+async function performTokenRefresh(sessionRevision: number) {
   const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
     method: 'POST',
     credentials: 'include',
@@ -54,15 +54,31 @@ async function refreshAccessToken() {
   const envelope = await readEnvelope<{ accessToken: string; expiresIn: number }>(response);
 
   if (!response.ok || !envelope?.success) {
-    useAuthStore.getState().clearSession();
+    if ((response.status === 401 || response.status === 403) && useAuthStore.getState().sessionRevision === sessionRevision) {
+      useAuthStore.getState().clearSession();
+    }
     throw new ApiError(response.status, envelope?.error ?? fallbackError(response.status));
   }
 
-  useAuthStore.getState().setAccessToken(envelope.data.accessToken, envelope.data.expiresIn);
+  // A request from the previous session must not restore tokens after logout.
+  if (useAuthStore.getState().sessionRevision === sessionRevision) {
+    useAuthStore.getState().setAccessToken(envelope.data.accessToken, envelope.data.expiresIn);
+  }
+}
+
+let pendingRefresh: { sessionRevision: number; promise: Promise<void> } | null = null;
+
+function refreshAccessToken(sessionRevision: number) {
+  if (pendingRefresh?.sessionRevision === sessionRevision) return pendingRefresh.promise;
+  const promise = performTokenRefresh(sessionRevision).finally(() => {
+    if (pendingRefresh?.promise === promise) pendingRefresh = null;
+  });
+  pendingRefresh = { sessionRevision, promise };
+  return promise;
 }
 
 export async function apiRequest<T>(path: string, init: RequestInit = {}, retryOnExpiredToken = true): Promise<T> {
-  const accessToken = useAuthStore.getState().accessToken;
+  const { accessToken, sessionRevision } = useAuthStore.getState();
 
   let response: Response;
   try {
@@ -82,6 +98,10 @@ export async function apiRequest<T>(path: string, init: RequestInit = {}, retryO
 
   const envelope = await readEnvelope<T>(response);
 
+  if (sessionRevision !== useAuthStore.getState().sessionRevision) {
+    throw new ApiError(401, { code: 'AUTH_SESSION_CHANGED', message: '로그인 상태가 변경되었어요. 다시 시도해 주세요.', fields: null, retryAfterSeconds: null });
+  }
+
   if (response.ok && response.status === 204) {
     return undefined as T;
   }
@@ -92,7 +112,11 @@ export async function apiRequest<T>(path: string, init: RequestInit = {}, retryO
     envelope?.success === false &&
     (envelope.error.code === 'AUTH_TOKEN_EXPIRED' || envelope.error.code === 'COMMON_UNAUTHORIZED')
   ) {
-    await refreshAccessToken();
+    // Another request may already have refreshed the expired token.
+    if (accessToken === useAuthStore.getState().accessToken) await refreshAccessToken(sessionRevision);
+    if (sessionRevision !== useAuthStore.getState().sessionRevision) {
+      throw new ApiError(401, { code: 'AUTH_SESSION_CHANGED', message: '로그인 상태가 변경되었어요. 다시 시도해 주세요.', fields: null, retryAfterSeconds: null });
+    }
     return apiRequest<T>(path, init, false);
   }
 

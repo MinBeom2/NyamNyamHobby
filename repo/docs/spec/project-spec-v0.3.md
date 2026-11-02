@@ -510,9 +510,9 @@ Oct 16, 2026 · @Sihoo
   1. 내 글에 댓글 / 내 댓글에 대댓글 (즉시)
   2. 문의 답변 등록, 내 신고 처리 완료 (즉시)
   3. 새 공지 (관리자가 "알림 보내기"를 고른 경우)
-  4. 진행 중 취미의 이번 주 TODO 안내 (매주 월요일 09:00)
+  4. 진행 중 취미의 주차 시작 안내: 계획을 시작하면 바로 1주차 안내, 이후 시작일 기준 7일마다 다음 주차 안내(매일 09:00에 확인해 그날 바뀐 주차를 보냄, 일시중지 기간은 빼고 셈)
   5. 관심 취미의 새 정보 피드 (하루 1회 묶음, 09:00)
-- **중복 방지** `dedup_key` UNIQUE. 예: `COMMENT:{commentId}`, `WEEKLY_TODO:{userPlanId}:{yyyy-ww}`.
+- **중복 방지** `dedup_key` UNIQUE. 예: `COMMENT:{commentId}`, `WEEKLY_TODO:{userPlanId}:{주차}`.
 - 생성은 RabbitMQ 큐로 비동기 처리하고, 90일 지난 알림은 삭제한다. 프론트는 화면 포커스 시와 60초마다 `GET /notifications/unread-count`를 호출한다.
 - 이메일·브라우저 푸시·모바일 푸시는 보내지 않는다.
 
@@ -2120,7 +2120,7 @@ X-RateLimit-Remaining: 0
 | 공공 강좌 수집(서울 교육 공공서비스예약) → `feed.summarize` | 매일 05:30 | Spring `@Scheduled` | P1 |
 | 숏폼 주간 반영: 후보(`CANDIDATE`) → `ACTIVE`(`NEEDS_REVIEW`는 승인 전까지 제외) \[기본안\] | 매주 목 06:00 | Spring `@Scheduled` | P0 |
 | 신뢰 채널 발굴(`search.list`) → `youtube_channels` 후보 저장 | 매주 월 06:00 | Spring `@Scheduled` | P0 |
-| 주간 TODO 알림 | 매주 월 09:00 | Spring `@Scheduled` → `notification.create` | P2 |
+| 주차 시작 TODO 알림(시작일 기준 7일마다 바뀐 주차, 1주차는 시작 즉시) | 매일 09:00 | Spring `@Scheduled` | P2 |
 | 관심 취미 새 피드 알림 | 매일 09:00 | 상동 | P2 |
 | 피드백 정기 요약 → Mattermost | 매일 18:00 | Spring `@Scheduled` | P2 |
 

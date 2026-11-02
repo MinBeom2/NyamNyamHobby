@@ -1,5 +1,7 @@
 package com.ssafy.nyamnyam.domain.plan.service;
 
+import com.ssafy.nyamnyam.domain.notification.event.PlanStartedEvent;
+import org.springframework.context.ApplicationEventPublisher;
 import com.ssafy.nyamnyam.domain.hobby.entity.HobbyStatus;
 import com.ssafy.nyamnyam.domain.hobby.repository.HobbyRepository;
 import com.ssafy.nyamnyam.domain.plan.dto.*;
@@ -25,6 +27,7 @@ public class PlanService {
     private final PlanTemplateRepository templates;
     private final UserPlanRepository plans;
     private final PlanQueryService query;
+    private final ApplicationEventPublisher events;
 
     /** All plan mutations acquire this same lock BEFORE loading hobby/plan state. */
     private User lockUser(Long userId) {
@@ -58,6 +61,7 @@ public class PlanService {
         }
         entry.start(request.skillLevel(), now);
         var plan = plans.saveAndFlush(new UserPlan(entry, template, now));
+        events.publishEvent(new PlanStartedEvent(plan.getId())); // 커밋 뒤 1주차 알림(notification 도메인)
         return new Started(entry.getId(), plan.getId(), entry.getStatus().name(), plan.getTitle());
     }
 

@@ -19,6 +19,9 @@ import com.ssafy.nyamnyam.domain.user.repository.UserRepository;
 import com.ssafy.nyamnyam.global.common.PageResponse;
 import com.ssafy.nyamnyam.global.error.CustomException;
 import com.ssafy.nyamnyam.global.error.ErrorCode;
+import com.ssafy.nyamnyam.domain.notification.event.CommentCreatedEvent;
+import org.mockito.ArgumentCaptor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -51,6 +54,7 @@ class CommentServiceTest {
     @Mock private PostRepository postRepository;
     @Mock private ContentLikeRepository likeRepository;
     @Mock private UserRepository userRepository;
+    @Mock private ApplicationEventPublisher eventPublisher;
 
     private CommentService service;
     private Post post;
@@ -59,7 +63,7 @@ class CommentServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new CommentService(commentRepository, postRepository, likeRepository, userRepository);
+        service = new CommentService(commentRepository, postRepository, likeRepository, userRepository, eventPublisher);
         Hobby climbing = Hobby.builder().name("클라이밍").status(HobbyStatus.PUBLISHED).build();
         ReflectionTestUtils.setField(climbing, "id", 1L);
         penguin = user(15L, "벽타는펭귄");
@@ -132,6 +136,28 @@ class CommentServiceTest {
 
         assertThat(response.parentId()).isEqualTo(1L);
         assertThat(response.content()).isEqualTo("@산토끼 감사해요!");
+    }
+
+    @Test
+    @DisplayName("작성하면 알림용 이벤트 발행: 글 작성자와 답글 대상(답글에 단 답글이면 그 답글 작성자)을 담는다")
+    void createCommentPublishesNotificationEvent() {
+        Comment parent = comment(1L, penguin, null, "질문 있어요");
+        Comment reply = comment(2L, rabbit, parent, "답변이에요");
+        givenActivePost();
+        given(userRepository.findById(15L)).willReturn(Optional.of(penguin));
+        given(commentRepository.findWithRelationsById(2L)).willReturn(Optional.of(reply));
+
+        service.createComment(100L, 15L, new CommentCreateRequest("감사해요!", 2L));
+
+        ArgumentCaptor<CommentCreatedEvent> captor = ArgumentCaptor.forClass(CommentCreatedEvent.class);
+        verify(eventPublisher).publishEvent(captor.capture());
+        CommentCreatedEvent event = captor.getValue();
+        assertThat(event.postId()).isEqualTo(100L);
+        assertThat(event.postTitle()).isEqualTo("암벽화 추천");
+        assertThat(event.postAuthorId()).isEqualTo(15L);
+        assertThat(event.commenterId()).isEqualTo(15L);
+        assertThat(event.replyTargetUserId()).isEqualTo(16L);
+        assertThat(event.content()).isEqualTo("감사해요!");
     }
 
     @Test

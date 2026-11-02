@@ -179,7 +179,7 @@ public class UserService {
                     .socialPref(request.getSocialPref())
                     .region(region)
                     .build();
-            userConditionRepository.save(condition);
+            condition = userConditionRepository.save(condition);
         }
 
         return UserConditionsResponse.from(condition);

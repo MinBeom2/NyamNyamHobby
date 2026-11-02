@@ -173,6 +173,24 @@ class UserServiceTest {
     }
 
     @Test
+    @DisplayName("활동 조건 신규 생성 성공 - 기존 조건이 없을 때 신규 저장")
+    void updateConditions_createNew_success() {
+        given(userRepository.findById(1L)).willReturn(Optional.of(testUser));
+        given(userConditionRepository.findByUserIdWithRegion(1L)).willReturn(Optional.empty());
+        given(userConditionRepository.save(any(UserCondition.class))).willAnswer(invocation -> invocation.getArgument(0));
+
+        UpdateConditionsRequest request = new UpdateConditionsRequest((short) 3, 150000, "ANY", "ANY", null);
+        UserConditionsResponse response = userService.updateConditions(1L, request);
+
+        assertThat(response.getWeeklyHours()).isEqualTo((short) 3);
+        assertThat(response.getMonthlyBudget()).isEqualTo(150000);
+        assertThat(response.getPlacePref()).isEqualTo("ANY");
+        assertThat(response.getSocialPref()).isEqualTo("ANY");
+        assertThat(response.getRegion()).isNull();
+        verify(userConditionRepository).save(any(UserCondition.class));
+    }
+
+    @Test
     @DisplayName("비밀번호 변경 성공")
     void changePassword_success() {
         given(userRepository.findById(1L)).willReturn(Optional.of(testUser));

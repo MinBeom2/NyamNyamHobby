@@ -5,6 +5,7 @@ import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.springframework.data.domain.Persistable;
 
 import java.time.LocalDateTime;
 
@@ -12,7 +13,7 @@ import java.time.LocalDateTime;
 @Table(name = "user_conditions")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class UserCondition {
+public class UserCondition implements Persistable<Long> {
 
     @Id
     @Column(name = "user_id")
@@ -42,6 +43,25 @@ public class UserCondition {
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
 
+    @Transient
+    private boolean isNew = true;
+
+    @Override
+    public Long getId() {
+        return userId;
+    }
+
+    @Override
+    public boolean isNew() {
+        return isNew;
+    }
+
+    @PostPersist
+    @PostLoad
+    void markNotNew() {
+        this.isNew = false;
+    }
+
     @Builder
     public UserCondition(User user, Short weeklyHours, Integer monthlyBudget, String placePref, String socialPref,
             Region region) {
@@ -53,6 +73,7 @@ public class UserCondition {
         this.socialPref = socialPref;
         this.region = region;
         this.updatedAt = LocalDateTime.now();
+        this.isNew = true;
     }
 
     public void update(Short weeklyHours, Integer monthlyBudget, String placePref, String socialPref, Region region) {

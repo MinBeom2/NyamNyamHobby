@@ -8,14 +8,13 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.http.HttpMethod;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
-
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
@@ -56,7 +55,7 @@ public class SecurityConfig {
                         .requestMatchers("/oauth2/**", "/login/oauth2/**").permitAll()
                         // Actuator health
                         .requestMatchers("/actuator/health", "/actuator/info").permitAll()
-                        // 커뮤니티 게시판·업로드 이미지·취미 검색·상세·플랜 미리보기·취미별 관련 숏폼 조회는 공개. 변경 요청은 인증 필요.
+                        // 커뮤니티 게시판·업로드 이미지·취미 검색·상세·플랜 미리보기·취미별 관련 숏폼·지역·장소·피드 조회는 공개. 변경 요청은 인증 필요.
                         .requestMatchers(HttpMethod.GET,
                                 "/api/v1/hobbies",
                                 "/api/v1/hobbies/*",
@@ -65,7 +64,10 @@ public class SecurityConfig {
                                 "/api/v1/posts/*",
                                 "/api/v1/posts/*/comments",
                                 "/api/v1/uploads/images/**",
-                                "/api/v1/hobbies/*/shorts").permitAll()
+                                "/api/v1/hobbies/*/shorts",
+                                "/api/v1/regions",
+                                "/api/v1/places",
+                                "/api/v1/feeds").permitAll()
                         // 그 외 모든 요청은 인증 필요
                         .anyRequest().authenticated())
                 .oauth2Login(oauth2 -> oauth2

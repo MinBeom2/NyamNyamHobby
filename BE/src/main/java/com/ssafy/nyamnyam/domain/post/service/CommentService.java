@@ -1,5 +1,6 @@
 package com.ssafy.nyamnyam.domain.post.service;
 
+import com.ssafy.nyamnyam.domain.notification.event.CommentCreatedEvent;
 import com.ssafy.nyamnyam.domain.post.dto.request.CommentCreateRequest;
 import com.ssafy.nyamnyam.domain.post.dto.request.CommentUpdateRequest;
 import com.ssafy.nyamnyam.domain.post.dto.response.CommentLikeResponse;
@@ -17,6 +18,7 @@ import com.ssafy.nyamnyam.global.error.CustomException;
 import com.ssafy.nyamnyam.global.error.ErrorCode;
 import com.ssafy.nyamnyam.global.util.HtmlEscaper;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -53,6 +55,7 @@ public class CommentService {
     private final PostRepository postRepository;
     private final ContentLikeRepository likeRepository;
     private final UserRepository userRepository;
+    private final ApplicationEventPublisher eventPublisher;
 
     /** 댓글 목록(공개). viewerId는 비로그인이면 null */
     public PageResponse<CommentResponse> getComments(Long postId, Long viewerId, int page) {
@@ -89,11 +92,13 @@ public class CommentService {
 
         String raw = normalize(request.content());
         Comment parent = null;
+        User replyTarget = null;
         if (request.parentId() != null) {
             Comment target = commentRepository.findWithRelationsById(request.parentId())
                     .filter(Comment::isActive)
                     .filter(c -> c.getPost().getId().equals(postId))
                     .orElseThrow(() -> new CustomException(ErrorCode.COMMON_NOT_FOUND, "답글을 달 댓글을 찾을 수 없어요."));
+            replyTarget = target.getUser();
             if (target.isReply()) {
                 // 답글의 답글: 원래 부모 아래로 붙이고 누구에게 단 답글인지 @닉네임으로 남긴다
                 parent = target.getParent();
@@ -113,6 +118,10 @@ public class CommentService {
         CommentResponse response = CommentResponse.of(comment, false, userId, List.of());
 
         postRepository.addCommentCount(postId, 1);
+        // 커밋된 뒤 글 작성자·답글 대상에게 알림을 보낸다(notification 도메인)
+        eventPublisher.publishEvent(new CommentCreatedEvent(comment.getId(), postId, post.getTitle(),
+                post.getUser().getId(), userId, user.getNickname(),
+                replyTarget != null ? replyTarget.getId() : null, request.content()));
         return response;
     }
 

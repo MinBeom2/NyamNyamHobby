@@ -15,9 +15,9 @@ import { PersonalInfoEditPage } from '../pages/mypage/ProfileEditPages';
 import { NoticeDetailPage, NoticeListPage } from '../pages/notices/NoticePages';
 import { OAuthCallbackPage } from '../pages/auth/OAuthCallbackPage';
 import { SavedShortsPage } from '../pages/mypage/SavedShortsPage';
-import { HobbyDetailPage, HobbyInterestSelectPage, HobbySearchPage } from '../pages/hobbies/HobbyPages';
+import { HobbyDetailPage, HobbyInterestSelectPage, HobbyPlanPreviewPage, HobbySearchPage } from '../pages/hobbies/HobbyPages';
 import { HobbyPlanPage, MyHobbiesPage, TodoFocusPage } from '../pages/activities/ActivityPages';
-import { InfoFeedPage, PlaceSearchPage } from '../pages/places/PlacePages';
+import { InfoFeedDetailPage, InfoFeedPage, PlaceSearchPage } from '../pages/places/PlacePages';
 import { CommunityDetailPage, CommunityListPage, CommunityWritePage } from '../pages/community/CommunityPages';
 import { getCurrentUserProfile } from '../features/auth/api/authApi';
 import { useAuthStore } from '../features/auth/model/authStore';
@@ -33,7 +33,10 @@ function AuthSessionBootstrap() {
   });
 
   useEffect(() => {
-    if (!profileQuery.data) return;
+    // A disabled query can still expose its previous successful data. Wait for the
+    // current session check to settle so an intentional logout is not undone by
+    // stale profile data from the previous session.
+    if (!profileQuery.isSuccess || profileQuery.fetchStatus !== 'idle' || !profileQuery.data) return;
     setUser({
       id: profileQuery.data.id,
       email: profileQuery.data.email,
@@ -41,17 +44,25 @@ function AuthSessionBootstrap() {
       role: profileQuery.data.role,
       onboarded: profileQuery.data.conditions !== null,
     });
-  }, [profileQuery.data, setUser]);
+  }, [profileQuery.data, profileQuery.fetchStatus, profileQuery.isSuccess, setUser]);
 
   return null;
 }
 
 function ScrollToTop() {
-  const { pathname } = useLocation();
+  const { pathname, hash } = useLocation();
 
   useEffect(() => {
+    if (hash) {
+      const frameId = window.requestAnimationFrame(() => {
+        document.getElementById(hash.slice(1))?.scrollIntoView({ block: 'start' });
+      });
+
+      return () => window.cancelAnimationFrame(frameId);
+    }
+
     window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
-  }, [pathname]);
+  }, [pathname, hash]);
 
   return null;
 }
@@ -89,12 +100,14 @@ export function App() {
         <Route path="/hobbies" element={<HobbySearchPage />} />
         <Route path="/hobbies/interests" element={<HobbyInterestSelectPage />} />
         <Route path="/hobbies/recommendations" element={<HobbySearchPage recommended />} />
+        <Route path="/hobbies/:hobbyId/plan-preview" element={<HobbyPlanPreviewPage />} />
         <Route path="/hobbies/:hobbyId" element={<HobbyDetailPage />} />
         <Route path="/my-hobbies" element={<MyHobbiesPage />} />
         <Route path="/my-hobbies/:hobbyId/plan" element={<HobbyPlanPage />} />
         <Route path="/my-hobbies/:hobbyId/todos" element={<TodoFocusPage />} />
         <Route path="/places" element={<PlaceSearchPage />} />
         <Route path="/info-feed" element={<InfoFeedPage />} />
+        <Route path="/info-feed/:feedId" element={<InfoFeedDetailPage />} />
         <Route path="/community" element={<CommunityListPage />} />
         <Route path="/community/new" element={<CommunityWritePage />} />
         <Route path="/community/:postId/edit" element={<CommunityWritePage />} />

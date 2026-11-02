@@ -26,11 +26,28 @@ export type PostDetailDto = {
 export type PageDto<T> = { content: T[]; page: { number: number; size: number; totalElements: number; totalPages: number; hasNext: boolean } };
 export type PostWriteRequest = { hobbyId: number; type: PostType; title: string; content: string; imageUrls: string[] };
 export type PostUpdateRequest = Partial<Omit<PostWriteRequest, 'hobbyId'>>;
+export type CommentDto = {
+  id: number;
+  parentId: number | null;
+  author: PostAuthorDto | null;
+  content: string | null;
+  isDeleted: boolean;
+  likeCount: number;
+  isLiked: boolean;
+  isMine: boolean;
+  createdAt: string;
+  updatedAt: string;
+  replies: CommentDto[];
+};
+export type CommentWriteRequest = { content: string; parentId: number | null };
+export type CommentLikeResponse = { likeCount: number; isLiked: boolean };
+export type ImageUploadResponse = { url: string; width: number | null; height: number | null };
 
 export const communityQueryKeys = {
   all: ['community'] as const,
   posts: (hobbyId: number, type?: PostType, keyword?: string, page = 0) => ['community', 'posts', hobbyId, type ?? 'ALL', keyword ?? '', page] as const,
   post: (postId: number) => ['community', 'post', postId] as const,
+  comments: (postId: number, page = 0) => ['community', 'post', postId, 'comments', page] as const,
 };
 
 export function getPosts(hobbyId: number, options: { type?: PostType; keyword?: string; page?: number; size?: number } = {}) {
@@ -45,8 +62,26 @@ export function updatePost(postId: number, request: PostUpdateRequest) { return 
 export function deletePost(postId: number) { return apiRequest<void>(`/posts/${postId}`, { method: 'DELETE' }); }
 export function likePost(postId: number) { return apiRequest<{ likeCount: number; isLiked: boolean }>(`/posts/${postId}/like`, { method: 'PUT' }); }
 export function unlikePost(postId: number) { return apiRequest<{ likeCount: number; isLiked: boolean }>(`/posts/${postId}/like`, { method: 'DELETE' }); }
+export function getComments(postId: number, page = 0) {
+  return apiRequest<PageDto<CommentDto>>(`/posts/${postId}/comments?page=${page}`);
+}
+export function createComment(postId: number, request: CommentWriteRequest) {
+  return apiRequest<CommentDto>(`/posts/${postId}/comments`, { method: 'POST', body: JSON.stringify(request) });
+}
+export function updateComment(commentId: number, content: string) {
+  return apiRequest<CommentDto>(`/comments/${commentId}`, { method: 'PATCH', body: JSON.stringify({ content }) });
+}
+export function deleteComment(commentId: number) {
+  return apiRequest<void>(`/comments/${commentId}`, { method: 'DELETE' });
+}
+export function likeComment(commentId: number) {
+  return apiRequest<CommentLikeResponse>(`/comments/${commentId}/like`, { method: 'PUT' });
+}
+export function unlikeComment(commentId: number) {
+  return apiRequest<CommentLikeResponse>(`/comments/${commentId}/like`, { method: 'DELETE' });
+}
 export function uploadPostImage(file: File) {
   const body = new FormData();
   body.append('file', file);
-  return apiRequest<{ url: string; width: number; height: number }>('/uploads/images?purpose=POST', { method: 'POST', body });
+  return apiRequest<ImageUploadResponse>('/uploads/images?purpose=POST', { method: 'POST', body });
 }

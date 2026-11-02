@@ -1,6 +1,7 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuthStore } from '../../features/auth/model/authStore';
+import { logout as logoutRequest } from '../../features/auth/api/authApi';
 import { useOnboardingStore, type PlacePreference, type SocialPreference } from '../../features/onboarding/model/onboardingStore';
 import {
   getOnboardingOptions,
@@ -149,7 +150,15 @@ function ChoiceField<T extends string>({ label, value, options, onChange }: { la
 }
 
 function OnboardingLayout({ children, guestMode = false }: { children: React.ReactNode; guestMode?: boolean }) {
+  const navigate = useNavigate();
   const clearSession = useAuthStore((state) => state.clearSession);
   const resetOnboarding = useOnboardingStore((state) => state.resetOnboarding);
-  return <div className="site-shell"><AppHeader authenticated={!guestMode} onLogout={guestMode ? undefined : clearSession} onBrandClick={guestMode ? resetOnboarding : undefined} /><main className="page-container onboarding-page">{children}</main></div>;
+  const logoutMutation = useMutation({
+    mutationFn: logoutRequest,
+    onSettled: () => {
+      clearSession();
+      navigate('/', { replace: true });
+    },
+  });
+  return <div className="site-shell"><AppHeader authenticated={!guestMode} onLogout={guestMode ? undefined : () => logoutMutation.mutate()} logoutPending={logoutMutation.isPending} onBrandClick={guestMode ? resetOnboarding : undefined} /><main className="page-container onboarding-page">{children}</main></div>;
 }

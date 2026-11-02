@@ -320,7 +320,7 @@ strong, b { font-weight: 700; }
 @keyframes hobby-scroll-cue { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(5px); } }
 
 .hobby-guide { min-height: calc(100vh - 68px); scroll-margin-top: 68px; padding-bottom: 24px; }
-.hobby-guide__summary { position: sticky; z-index: 30; top: 68px; min-height: 72px; margin: 0 calc(50% - 50vw); padding: 10px max(24px, calc((100vw - 1240px) / 2)); border-top: 1px solid var(--color-line); border-bottom: 1px solid var(--color-line); display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 16px; background: rgb(255 255 255 / 96%); backdrop-filter: blur(12px); transition: opacity .15s ease; }
+.hobby-guide__summary { position: fixed; z-index: 30; top: 68px; left: 0; right: 0; min-height: 72px; margin: 0; padding: 10px max(24px, calc((100vw - 1240px) / 2)); border-top: 1px solid var(--color-line); border-bottom: 1px solid var(--color-line); display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 16px; background: rgb(255 255 255 / 96%); backdrop-filter: blur(12px); transition: opacity .15s ease; }
 .hobby-guide__summary.is-hidden { visibility: hidden; opacity: 0; border-color: transparent; background: transparent; backdrop-filter: none; pointer-events: none; }
 .hobby-guide__summary.is-visible { visibility: visible; opacity: 1; }
 .hobby-guide__summary-media { width: 48px; height: 48px; border: 1px dashed var(--color-primary); border-radius: 50%; display: grid; place-items: center; align-content: center; color: var(--color-primary); background: var(--color-primary-soft); font-size: 9px; }
@@ -357,7 +357,7 @@ strong, b { font-weight: 700; }
 .hobby-guide__check-list, .hobby-guide__materials { margin: 0; padding: 0; list-style: none; }
 .hobby-guide__check-list li { min-height: 46px; display: flex; align-items: center; gap: 10px; font-size: 13px; }
 .hobby-guide__check-list svg { width: 15px; color: var(--color-primary); }
-.hobby-guide__preparation { padding-bottom: 24px; border-bottom: 1px solid var(--color-line); }
+.hobby-guide__preparation { padding-bottom: 24px; }
 .hobby-guide__preparation .hobby-guide__facts > div { grid-template-columns: 80px 1fr; }
 .hobby-guide__columns .button { margin-top: 18px; min-width: 150px; }
 .hobby-guide__columns ol { margin: 0 0 10px; padding-left: 20px; font-size: 13px; line-height: 30px; }
@@ -371,6 +371,19 @@ strong, b { font-weight: 700; }
 .hobby-guide__week-list > div { min-height: 58px; border-bottom: 1px solid var(--color-line); display: grid; grid-template-columns: 90px 1fr 80px 56px; align-items: center; gap: 12px; font-size: 12px; }
 .hobby-guide__week-list span, .hobby-guide__week-list small { color: var(--color-muted); }
 .hobby-guide__week-list button { padding: 0; border: 0; color: var(--color-primary); background: transparent; font-weight: 700; cursor: pointer; }
+.hobby-guide__week-list a { color: var(--color-primary); font-weight: 700; text-decoration: none; }
+.hobby-plan-preview { padding-top: 56px; padding-bottom: 80px; }
+.hobby-plan-preview > header { margin-bottom: 32px; }
+.hobby-plan-preview > header > p:first-child { color: var(--color-muted); }
+.hobby-plan-preview > header h1 { margin: 10px 0; }
+.hobby-plan-preview__weeks { display: grid; gap: 18px; margin-bottom: 28px; }
+.hobby-plan-preview__weeks article { scroll-margin-top: 88px; padding: 28px 32px; border: 1px solid var(--color-line); border-radius: 18px; background: var(--color-white); }
+.hobby-plan-preview__weeks article > div { display: flex; align-items: center; gap: 14px; margin-bottom: 20px; }
+.hobby-plan-preview__weeks article > div span { color: var(--color-primary); font-weight: 700; }
+.hobby-plan-preview__weeks article h2 { margin: 0; }
+.hobby-plan-preview__weeks ol { display: grid; gap: 14px; margin: 0; padding-left: 22px; }
+.hobby-plan-preview__weeks li p { margin: 5px 0; color: var(--color-text-2); }
+.hobby-plan-preview__weeks li small { color: var(--color-muted); }
 .hobby-guide__shorts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)) auto; align-items: center; gap: 14px; padding-bottom: 26px; border-bottom: 1px solid var(--color-line); }
 .hobby-guide__shorts article > div { height: 128px; border-radius: 10px; display: grid; place-items: center; align-content: center; gap: 5px; color: var(--color-primary); background: var(--color-primary-soft); font-size: 10px; }
 .hobby-guide__shorts article svg { width: 26px; opacity: .6; }
@@ -475,6 +488,14 @@ strong, b { font-weight: 700; }
 .feed-content small { color: var(--color-muted); font-size: 10px; }
 .feed-list > article > a { display: flex; align-items: center; gap: 5px; color: var(--color-primary); font-size: 11px; font-weight: 700; }
 .feed-list > article > a svg { width: 13px; }
+.feed-detail-page { padding-top: 48px; }
+.feed-detail-card { max-width: 1000px; min-height: 610px; margin: 0 auto; padding: 38px; border: 1px solid var(--color-line); border-radius: var(--radius-md); background: #fff; }
+.feed-detail-card__badges { display: flex; gap: 8px; }
+.feed-detail-card h1 { margin: 18px 0 10px; font-family: var(--font-title); font-size: var(--type-title-xl); font-weight: 400; }
+.feed-detail-card__meta { margin: 0 0 28px; color: var(--color-muted); font-size: var(--type-caption); }
+.feed-detail-card__image { min-height: 260px; border-radius: var(--radius-md); display: grid; place-items: center; align-content: center; gap: 10px; color: var(--color-primary); background: var(--color-primary-soft); }
+.feed-detail-card__image svg { width: 38px; height: 38px; }
+.feed-detail-card__summary { min-height: 110px; margin: 28px 0; font-size: var(--type-body-l); line-height: 1.8; }
 .mini-empty { min-height: 160px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; color: var(--color-muted); }
 
 /* community */
@@ -620,6 +641,7 @@ strong, b { font-weight: 700; }
   .feed-tabs label { min-width: 150px; }
   .feed-list > article { grid-template-columns: 82px 1fr; }
   .feed-list > article > a { grid-column: 2; }
+  .feed-detail-card { min-height: auto; padding: 26px 20px; }
   .board-tools { flex-direction: column; }
   .board-tools > div { overflow-x: auto; }
   .board-tools label { width: 100%; }

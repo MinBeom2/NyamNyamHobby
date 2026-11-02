@@ -46,7 +46,7 @@ export type ExplorationProgressResponse = {
 export type RecommendationResponse = {
   recommendationId: number;
   basis: string;
-  basisText: string;
+  basisText: string | null;
   isExploratory: boolean;
   reactionCount: number;
   items: Array<{
@@ -58,14 +58,14 @@ export type RecommendationResponse = {
       name: string;
       thumbnailUrl: string | null;
       difficulty: string | null;
-      sessionMinutes: { min: number; max: number } | null;
-      monthlyCost: { min: number; max: number } | null;
+      sessionMinutes: { min: number; max: number };
+      monthlyCost: { min: number; max: number };
     };
     reason: string | null;
     reasonStatus: string;
-    fallbackReason: string | null;
-    conditionWarning: boolean;
+    fallbackReason: string;
     saved: boolean;
+    conditionWarning: boolean;
   }>;
 };
 

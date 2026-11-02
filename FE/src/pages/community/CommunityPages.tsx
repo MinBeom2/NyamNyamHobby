@@ -3,23 +3,25 @@ import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import {
-  communityCommentFixtures,
-  type CommunityComment,
-} from '../../features/community/model/communityFixtures';
 import { AppHeader } from '../../shared/ui/AppHeader';
 import { Button } from '../../shared/ui/Button';
 import { getOnboardingOptions, userQueryKeys } from '../../features/user/api/userApi';
 import {
   communityQueryKeys,
+  createComment,
   createPost,
+  deleteComment,
   deletePost,
+  getComments,
   getPost,
   getPosts,
+  likeComment,
   likePost,
+  unlikeComment,
   unlikePost,
-  updatePost,
   uploadPostImage,
+  updatePost,
+  type CommentDto,
   type PostType,
 } from '../../features/community/api/communityApi';
 
@@ -88,12 +90,12 @@ export function CommunityDetailPage() {
   const postNumber = Number(postId);
   const queryClient = useQueryClient();
   const postQuery = useQuery({ queryKey: communityQueryKeys.post(postNumber), queryFn: () => getPost(postNumber), enabled: Number.isFinite(postNumber) });
+  const commentsQuery = useQuery({ queryKey: communityQueryKeys.comments(postNumber), queryFn: () => getComments(postNumber), enabled: Number.isFinite(postNumber) });
   const post = postQuery.data;
-  const [comments, setComments] = useState<CommunityComment[]>(communityCommentFixtures);
+  const comments = commentsQuery.data?.content ?? [];
   const [comment, setComment] = useState('');
   const [replyTarget, setReplyTarget] = useState<number | null>(null);
   const [reply, setReply] = useState('');
-  const [likedComments, setLikedComments] = useState<Set<number>>(() => new Set());
   const [linkCopied, setLinkCopied] = useState(false);
   const [reportTarget, setReportTarget] = useState<string | null>(null);
 
@@ -102,6 +104,24 @@ export function CommunityDetailPage() {
     onSuccess: (result) => queryClient.setQueryData(communityQueryKeys.post(postNumber), (current: typeof post) => current ? { ...current, ...result } : current),
   });
   const deleteMutation = useMutation({ mutationFn: () => deletePost(postNumber), onSuccess: () => navigateToCommunity() });
+  const createCommentMutation = useMutation({
+    mutationFn: ({ content, parentId }: { content: string; parentId: number | null }) => createComment(postNumber, { content, parentId }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: communityQueryKeys.comments(postNumber) });
+      void queryClient.invalidateQueries({ queryKey: communityQueryKeys.post(postNumber) });
+    },
+  });
+  const commentLikeMutation = useMutation({
+    mutationFn: (target: CommentDto) => target.isLiked ? unlikeComment(target.id) : likeComment(target.id),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: communityQueryKeys.comments(postNumber) }),
+  });
+  const deleteCommentMutation = useMutation({
+    mutationFn: (commentId: number) => deleteComment(commentId),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: communityQueryKeys.comments(postNumber) });
+      void queryClient.invalidateQueries({ queryKey: communityQueryKeys.post(postNumber) });
+    },
+  });
   const navigate = useNavigate();
   const navigateToCommunity = () => navigate('/community', { replace: true });
 
@@ -110,41 +130,21 @@ export function CommunityDetailPage() {
     return <div className="site-shell"><AppHeader authenticated /><main className="page-container empty-state"><h1>게시글을 찾을 수 없어요</h1><Button to="/community">목록으로</Button></main></div>;
   }
 
-  const visibleCommentCount = comments.filter((item) => !item.deleted).length;
+  const visibleCommentCount = comments.reduce((count, item) => count + countVisibleComments(item), 0);
 
   function submitComment(event: FormEvent) {
     event.preventDefault();
     if (!comment.trim()) return;
-    setComments((items) => [...items, {
-      id: Date.now(), author: '취미찾는사람', avatar: '취', content: comment.trim(), date: '방금 전', likes: 0, mine: true, replies: [],
-    }]);
+    createCommentMutation.mutate({ content: comment.trim(), parentId: null });
     setComment('');
   }
 
   function submitReply(event: FormEvent, commentId: number) {
     event.preventDefault();
     if (!reply.trim()) return;
-    setComments((items) => items.map((item) => item.id === commentId ? {
-      ...item,
-      replies: [...item.replies, { id: Date.now(), author: '취미찾는사람', avatar: '취', content: reply.trim(), date: '방금 전', likes: 0, mine: true }],
-    } : item));
+    createCommentMutation.mutate({ content: reply.trim(), parentId: commentId });
     setReply('');
     setReplyTarget(null);
-  }
-
-  function toggleCommentLike(commentId: number) {
-    setLikedComments((current) => {
-      const next = new Set(current);
-      if (next.has(commentId)) next.delete(commentId);
-      else next.add(commentId);
-      return next;
-    });
-  }
-
-  function deleteComment(commentId: number) {
-    setComments((items) => items.map((item) => item.id === commentId
-      ? { ...item, author: '', avatar: '', content: '', deleted: true, replies: [] }
-      : item));
   }
 
   async function copyPostLink() {
@@ -182,34 +182,42 @@ export function CommunityDetailPage() {
           <label className="comments__label" htmlFor="comment-input">댓글</label>
           <form onSubmit={submitComment}>
             <input id="comment-input" value={comment} onChange={(event) => setComment(event.target.value)} placeholder="댓글을 입력하세요 (500자)" maxLength={500} />
-            <button type="submit">등록</button>
+            <button type="submit" disabled={createCommentMutation.isPending}>등록</button>
           </form>
 
           <div className="comment-list">
             {comments.map((item) => (
-              <article className={item.deleted ? 'comment-item comment-item--deleted' : 'comment-item'} key={item.id}>
-                {item.deleted ? <p>삭제된 댓글입니다.</p> : (
+              <article className={item.isDeleted ? 'comment-item comment-item--deleted' : 'comment-item'} key={item.id}>
+                {item.isDeleted ? <p>삭제된 댓글입니다.</p> : (
                   <>
-                    <span className="comment-avatar" aria-hidden="true">{item.avatar}</span>
+                    <span className="comment-avatar" aria-hidden="true">{item.author?.nickname.slice(0, 1) ?? ''}</span>
                     <div className="comment-item__body">
-                      <div className="comment-item__author"><b>{item.author}</b><small>{item.date}</small></div>
+                      <div className="comment-item__author"><b>{item.author?.nickname}</b><small>{formatDate(item.createdAt)}</small></div>
                       <p>{item.content}</p>
                       <div className="comment-item__actions">
                         <button type="button" onClick={() => { setReplyTarget((current) => current === item.id ? null : item.id); setReply(''); }}><MessageSquareReply aria-hidden="true" /> 답글</button>
-                        <button className={likedComments.has(item.id) ? 'active' : ''} type="button" onClick={() => toggleCommentLike(item.id)}><Heart aria-hidden="true" fill={likedComments.has(item.id) ? 'currentColor' : 'none'} /> 좋아요 {item.likes + (likedComments.has(item.id) ? 1 : 0)}</button>
-                        <button type="button" onClick={() => setReportTarget(`${item.author}님의 댓글`)}><Flag aria-hidden="true" /> 신고</button>
-                        {item.mine && <button type="button" onClick={() => deleteComment(item.id)}><Trash2 aria-hidden="true" /> 삭제</button>}
+                        <button className={item.isLiked ? 'active' : ''} type="button" disabled={commentLikeMutation.isPending} onClick={() => commentLikeMutation.mutate(item)}><Heart aria-hidden="true" fill={item.isLiked ? 'currentColor' : 'none'} /> 좋아요 {item.likeCount}</button>
+                        <button type="button" onClick={() => setReportTarget(`${item.author?.nickname ?? '사용자'}님의 댓글`)}><Flag aria-hidden="true" /> 신고</button>
+                        {item.isMine && <button type="button" disabled={deleteCommentMutation.isPending} onClick={() => deleteCommentMutation.mutate(item.id)}><Trash2 aria-hidden="true" /> 삭제</button>}
                       </div>
                       {replyTarget === item.id && (
                         <form className="reply-form" onSubmit={(event) => submitReply(event, item.id)}>
-                          <input value={reply} onChange={(event) => setReply(event.target.value)} placeholder={`${item.author}님에게 답글 쓰기`} maxLength={500} autoFocus />
-                          <button type="submit">등록</button>
+                          <input value={reply} onChange={(event) => setReply(event.target.value)} placeholder={`${item.author?.nickname ?? '사용자'}님에게 답글 쓰기`} maxLength={500} autoFocus />
+                          <button type="submit" disabled={createCommentMutation.isPending}>등록</button>
                         </form>
                       )}
                       {item.replies.map((replyItem) => (
                         <div className="comment-reply" key={replyItem.id}>
-                          <span className="comment-avatar" aria-hidden="true">{replyItem.avatar}</span>
-                          <div><div className="comment-item__author"><b>{replyItem.author}</b><small>{replyItem.date}</small></div><p>{replyItem.content}</p></div>
+                          <span className="comment-avatar" aria-hidden="true">{replyItem.author?.nickname.slice(0, 1) ?? ''}</span>
+                          <div>
+                            <div className="comment-item__author"><b>{replyItem.author?.nickname}</b><small>{formatDate(replyItem.createdAt)}</small></div>
+                            <p>{replyItem.isDeleted ? '삭제된 댓글입니다.' : replyItem.content}</p>
+                            {!replyItem.isDeleted && <div className="comment-item__actions">
+                              <button className={replyItem.isLiked ? 'active' : ''} type="button" disabled={commentLikeMutation.isPending} onClick={() => commentLikeMutation.mutate(replyItem)}><Heart aria-hidden="true" fill={replyItem.isLiked ? 'currentColor' : 'none'} /> 좋아요 {replyItem.likeCount}</button>
+                              <button type="button" onClick={() => setReportTarget(`${replyItem.author?.nickname ?? '사용자'}님의 답글`)}><Flag aria-hidden="true" /> 신고</button>
+                              {replyItem.isMine && <button type="button" disabled={deleteCommentMutation.isPending} onClick={() => deleteCommentMutation.mutate(replyItem.id)}><Trash2 aria-hidden="true" /> 삭제</button>}
+                            </div>}
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -283,8 +291,14 @@ export function CommunityWritePage() {
     },
     onError: (error: Error) => setMessage(error.message),
   });
-  const uploadMutation = useMutation({ mutationFn: uploadPostImage, onSuccess: (image) => setImageUrls((items) => [...items, image.url]), onError: (error: Error) => setMessage(error.message) });
-
+  const uploadMutation = useMutation({
+    mutationFn: uploadPostImage,
+    onSuccess: (result) => {
+      setImageUrls((current) => [...current, result.url].slice(0, 5));
+      setMessage('');
+    },
+    onError: (error: Error) => setMessage(error.message),
+  });
   function submit(event: FormEvent) {
     event.preventDefault();
     if (!hobbyId || title.trim().length < 2 || content.trim().length < 10) return;
@@ -301,9 +315,9 @@ export function CommunityWritePage() {
           <div className="write-grid"><label>게시판<select disabled={isEdit} value={hobbyId ?? ''} onChange={(event) => setHobbyId(Number(event.target.value))}>{isEdit && postQuery.data && <option value={postQuery.data.hobby.id}>{postQuery.data.hobby.name}</option>}{!isEdit && (optionsQuery.data?.hobbies ?? []).map((item) => <option value={item.hobbyId} key={item.hobbyId}>{item.name}</option>)}</select></label><label>글 유형<select value={type} onChange={(event) => setType(event.target.value as PostType)}><option value="REVIEW">후기</option><option value="QUESTION">질문</option><option value="INFO">정보 공유</option><option value="SHARE">모임</option></select></label></div>
           <label>제목<input value={title} onChange={(event) => setTitle(event.target.value)} placeholder="제목을 입력하세요 (50자)" maxLength={50} /></label>
           <label>내용<textarea value={content} onChange={(event) => setContent(event.target.value)} placeholder="내용을 입력하세요 (5,000자)" maxLength={5000} /></label>
-          <div className="image-upload">{imageUrls.map((url, index) => <span key={url}><Image /> 이미지 {index + 1}</span>)}{imageUrls.length < 5 && <label className="button button--secondary">＋ 추가<input hidden type="file" accept="image/jpeg,image/png,image/webp" onChange={(event) => { const file = event.target.files?.[0]; if (file) uploadMutation.mutate(file); }} /></label>}<small>JPG · PNG · WEBP · 용도별 BE 용량 제한</small></div>
+          <div className="image-upload">{imageUrls.map((url, index) => <span key={url}><Image /> 이미지 {index + 1}</span>)}{imageUrls.length < 5 && <label className="button button--secondary">{uploadMutation.isPending ? '업로드 중…' : '＋ 추가'}<input disabled={uploadMutation.isPending} hidden type="file" accept="image/jpeg,image/png,image/webp" onChange={(event) => { const file = event.target.files?.[0]; if (file) uploadMutation.mutate(file); event.target.value = ''; }} /></label>}<small>JPG · PNG · WEBP, 이미지당 5MB 이하</small></div>
           {message && <p role="alert" className="profile-edit-error">{message}</p>}
-          <div className="write-actions"><Button variant="secondary" onClick={() => navigate(isEdit ? `/community/${editPostId}` : '/community')}>취소</Button><Button type="submit" disabled={!hobbyId || title.trim().length < 2 || content.trim().length < 10 || createMutation.isPending || updateMutation.isPending || uploadMutation.isPending}>{createMutation.isPending || updateMutation.isPending ? '저장 중…' : isEdit ? '저장' : '등록'}</Button></div>
+          <div className="write-actions"><Button variant="secondary" onClick={() => navigate(isEdit ? `/community/${editPostId}` : '/community')}>취소</Button><Button type="submit" disabled={!hobbyId || title.trim().length < 2 || content.trim().length < 10 || createMutation.isPending || updateMutation.isPending}>{createMutation.isPending || updateMutation.isPending ? '저장 중…' : isEdit ? '저장' : '등록'}</Button></div>
         </form>
       </main>
     </div>
@@ -313,4 +327,9 @@ export function CommunityWritePage() {
 function formatDate(value: string) {
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? value : new Intl.DateTimeFormat('ko-KR', { month: '2-digit', day: '2-digit' }).format(date);
+}
+
+function countVisibleComments(comment: CommentDto): number {
+  const current = comment.isDeleted ? 0 : 1;
+  return current + comment.replies.reduce((count, reply) => count + countVisibleComments(reply), 0);
 }

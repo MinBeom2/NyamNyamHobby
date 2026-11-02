@@ -61,6 +61,17 @@ export type UserHobbyDto = {
   planId: number | null;
   progressRate: number;
   startedAt: string | null;
+  title: string | null;
+  totalWeeks: number | null;
+  currentWeek: number | null;
+  weekTitle: string | null;
+  planProgress: { done: number; skipped: number; total: number; rate: number } | null;
+  weekProgress: { done: number; skipped: number; total: number; rate: number } | null;
+  remainingThisWeekCount: number;
+  overdueCount: number;
+  pausedAt: string | null;
+  availableSkillLevels: string[];
+  planReady: boolean;
 };
 
 export const userQueryKeys = {

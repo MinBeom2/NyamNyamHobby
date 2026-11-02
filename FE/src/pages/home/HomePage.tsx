@@ -1,7 +1,6 @@
 import { ChartNoAxesColumnIncreasing, Check, CircleDollarSign, Clock3, MessageCircleQuestion, Play, Search } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate } from 'react-router-dom';
-import { logout } from '../../features/auth/api/authApi';
 import { useAuthStore } from '../../features/auth/model/authStore';
 import { activityQueryKeys, getTodoSummary } from '../../features/activity/api/activityApi';
 import { getHobbies, hobbyQueryKeys } from '../../features/hobby/api/hobbyApi';
@@ -13,26 +12,15 @@ import { MediaPlaceholder } from '../../shared/ui/MediaPlaceholder';
 import { characterAssets } from '../../shared/assets/assets';
 
 function PageShell({
-  authenticated,
   variant,
   children,
-  onLogout,
-  logoutPending,
 }: {
-  authenticated?: boolean;
   variant?: 'guest';
   children: React.ReactNode;
-  onLogout?: () => void;
-  logoutPending?: boolean;
 }) {
   return (
     <div className={variant === 'guest' ? 'site-shell site-shell--guest' : 'site-shell'}>
-      <AppHeader
-        authenticated={authenticated}
-        notificationCount={3}
-        onLogout={onLogout}
-        logoutPending={logoutPending}
-      />
+      <AppHeader notificationCount={3} />
       <main>{children}</main>
     </div>
   );
@@ -134,9 +122,7 @@ export function GuestHomePage() {
 }
 
 export function MemberHomePage() {
-  const navigate = useNavigate();
   const user = useAuthStore((state) => state.user);
-  const clearSession = useAuthStore((state) => state.clearSession);
   const recommendedQuery = useQuery({
     queryKey: hobbyQueryKeys.list({ sort: 'RECOMMEND', size: 4 }),
     queryFn: () => getHobbies({ sort: 'RECOMMEND', size: 4 }),
@@ -145,19 +131,9 @@ export function MemberHomePage() {
   const recommendedHobbies = recommendedQuery.data?.content.map(toHobbyCardModel) ?? [];
   const activeHobbies = todoSummaryQuery.data?.plans.filter((item) => item.status === 'IN_PROGRESS' || item.status === 'PAUSED').slice(0, 2) ?? [];
   const remainingTodoCount = todoSummaryQuery.data?.remainingThisWeekCount;
-  const logoutMutation = useMutation({
-    mutationFn: logout,
-    onSettled: () => {
-      clearSession();
-      navigate('/', { replace: true });
-    },
-  });
 
   return (
     <PageShell
-      authenticated
-      onLogout={() => logoutMutation.mutate()}
-      logoutPending={logoutMutation.isPending}
     >
       <div className="page-container member-home">
         <section className="member-hero">

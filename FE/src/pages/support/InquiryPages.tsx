@@ -17,7 +17,7 @@ type InquiryFormValues = z.infer<typeof inquirySchema>;
 
 function SupportHeader() {
   const unreadCount = useSupportMockStore((state) => state.notifications.filter((item) => !item.read).length);
-  return <AppHeader authenticated notificationCount={unreadCount} />;
+  return <AppHeader notificationCount={unreadCount} />;
 }
 
 export function InquiryListPage() {

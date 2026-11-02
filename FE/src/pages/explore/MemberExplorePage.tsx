@@ -1,8 +1,6 @@
 import { Bookmark, Check, ChevronDown, Heart, ThumbsDown } from 'lucide-react';
-import { useMutation } from '@tanstack/react-query';
-import { Link, useNavigate } from 'react-router-dom';
-import { logout } from '../../features/auth/api/authApi';
-import { useAuthStore, type AuthUser } from '../../features/auth/model/authStore';
+import { Link } from 'react-router-dom';
+import type { AuthUser } from '../../features/auth/model/authStore';
 import type { ExplorationProgress, ExplorationRecommendation, ExplorationShort } from '../../features/exploration/model/explorationModel';
 import { useMemberExploration } from '../../features/exploration/hooks/useMemberExploration';
 import { ApiError } from '../../shared/api/client';
@@ -11,20 +9,9 @@ import { AppHeader } from '../../shared/ui/AppHeader';
 import { RestartExploreControl } from './RestartExploreControl';
 
 export function MemberExplorePage({ user }: { user: AuthUser }) {
-  const navigate = useNavigate();
-  const clearSession = useAuthStore((state) => state.clearSession);
   const exploration = useMemberExploration();
-
-  const logoutMutation = useMutation({
-    mutationFn: logout,
-    onSettled: () => {
-      clearSession();
-      navigate('/', { replace: true });
-    },
-  });
-
   return <div className="site-shell">
-    <AppHeader authenticated onLogout={() => logoutMutation.mutate()} logoutPending={logoutMutation.isPending} />
+    <AppHeader />
     <main className="page-container explore-page">
       {exploration.recommendation ? <RecommendationComplete recommendation={exploration.recommendation} onRestart={exploration.restart} />
         : exploration.isStartError ? <ExploreError error={exploration.startError} onRetry={exploration.restart} />

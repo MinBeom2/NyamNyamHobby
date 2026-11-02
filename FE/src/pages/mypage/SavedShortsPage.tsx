@@ -28,7 +28,7 @@ export function SavedShortsPage() {
     setVisibleCount(5);
   };
 
-  return <div className="site-shell"><AppHeader authenticated /><main className="page-container saved-shorts-page">
+  return <div className="site-shell"><AppHeader /><main className="page-container saved-shorts-page">
     <header className="saved-shorts-heading"><h1>숏폼 보관함</h1><label><span>정렬</span><select value={sort} onChange={(event) => setSort(event.target.value as 'recent' | 'oldest')}><option value="recent">최근 보관순</option><option value="oldest">오래된 보관순</option></select></label></header>
     <nav className="saved-shorts-filters" aria-label="취미별 보관 영상 필터">{filters.map((item) => <button key={item.label} className={filter === item.label ? 'active' : ''} type="button" onClick={() => selectFilter(item.label)}>{filter === item.label && '✓ '}{item.label} {item.count}</button>)}</nav>
     <section className="saved-shorts-grid">{shorts.slice(0, visibleCount).map((short) => <article className={!short.playable ? 'saved-short-card unavailable' : 'saved-short-card'} key={short.id}>

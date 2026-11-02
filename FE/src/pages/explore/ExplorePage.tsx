@@ -1,8 +1,6 @@
 import { Bookmark, Check, ChevronDown, Heart, Play, ThumbsDown } from 'lucide-react';
-import { useMutation, useQuery } from '@tanstack/react-query';
-import { useEffect, useMemo, useState } from 'react';
-import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom';
-import { getCurrentUserProfile, logout } from '../../features/auth/api/authApi';
+import { useMemo, useState } from 'react';
+import { Link, Navigate, useSearchParams } from 'react-router-dom';
 import { useAuthStore } from '../../features/auth/model/authStore';
 import { useOnboardingStore } from '../../features/onboarding/model/onboardingStore';
 import { characterAssets } from '../../shared/assets/assets';
@@ -15,11 +13,9 @@ type Reaction = 'LIKE' | 'DISLIKE';
 
 export function ExplorePage() {
   const [searchParams] = useSearchParams();
-  const navigate = useNavigate();
   const guestRequested = searchParams.get('guest') === 'true';
   const user = useAuthStore((state) => state.user);
-  const setUser = useAuthStore((state) => state.setUser);
-  const clearSession = useAuthStore((state) => state.clearSession);
+  const sessionInitialized = useAuthStore((state) => state.sessionInitialized);
   const hobbies = useOnboardingStore((state) => state.hobbies);
   const conditions = useOnboardingStore();
   const shorts = useMemo(() => getExploreShorts(hobbies), [hobbies]);
@@ -27,35 +23,11 @@ export function ExplorePage() {
   const [reactions, setReactions] = useState<Record<string, Reaction>>({});
   const [savedIds, setSavedIds] = useState<string[]>([]);
   const [completed, setCompleted] = useState(false);
-  const sessionQuery = useQuery({
-    queryKey: ['auth', 'current-user'],
-    queryFn: getCurrentUserProfile,
-    enabled: !user,
-    retry: false,
-  });
-  const restoredUser = useMemo(() => sessionQuery.data ? {
-    id: sessionQuery.data.id,
-    email: sessionQuery.data.email,
-    nickname: sessionQuery.data.nickname,
-    role: sessionQuery.data.role,
-    onboarded: Boolean(sessionQuery.data.conditions),
-  } : null, [sessionQuery.data]);
-  const activeUser = user ?? restoredUser;
+  const activeUser = user;
   const guestMode = guestRequested && !activeUser;
 
-  useEffect(() => {
-    if (restoredUser) setUser(restoredUser);
-  }, [restoredUser, setUser]);
-  const logoutMutation = useMutation({
-    mutationFn: logout,
-    onSettled: () => {
-      clearSession();
-      navigate('/', { replace: true });
-    },
-  });
-
   if (activeUser && !guestMode) return <MemberExplorePage user={activeUser} />;
-  if (!activeUser && sessionQuery.isPending) return <ExploreSessionStatus />;
+  if (!sessionInitialized) return <ExploreSessionStatus />;
   if (!activeUser && !guestMode) return <Navigate replace to="/onboarding/interests?mode=guest" />;
 
   const current = shorts[index];
@@ -73,12 +45,7 @@ export function ExplorePage() {
 
   return (
     <div className="site-shell">
-      <AppHeader
-        authenticated={Boolean(activeUser)}
-        onLogout={activeUser ? () => logoutMutation.mutate() : undefined}
-        onBrandClick={guestMode ? conditions.resetOnboarding : undefined}
-        logoutPending={logoutMutation.isPending}
-      />
+      <AppHeader onBrandClick={guestMode ? conditions.resetOnboarding : undefined} />
       <main className="page-container explore-page">
         {completed ? (
           <ExploreComplete guestMode={guestMode} hobbies={hobbies} onRestart={restart} />

@@ -5,29 +5,9 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { getHobbies, getHobbyDetail, getHobbyPlanPreview, getHobbyShorts, hobbyQueryKeys, startHobby, type HobbyDifficulty } from '../../features/hobby/api/hobbyApi';
 import { toHobbyCardModel, toHobbyDetailModel, type HobbyCardModel } from '../../features/hobby/model/hobbyAdapter';
 import { useAuthStore } from '../../features/auth/model/authStore';
-import { logout as logoutRequest } from '../../features/auth/api/authApi';
 import { deleteUserHobby, getUserHobbies, saveUserHobby, userQueryKeys } from '../../features/user/api/userApi';
 import { AppHeader } from '../../shared/ui/AppHeader';
 import { Button } from '../../shared/ui/Button';
-
-function useHeaderProps() {
-  const navigate = useNavigate();
-  const user = useAuthStore((state) => state.user);
-  const clearSession = useAuthStore((state) => state.clearSession);
-  const logoutMutation = useMutation({
-    mutationFn: logoutRequest,
-    onSettled: () => {
-      clearSession();
-      navigate('/', { replace: true });
-    },
-  });
-  return {
-    authenticated: Boolean(user),
-    notificationCount: user ? 3 : undefined,
-    onLogout: user ? () => logoutMutation.mutate() : undefined,
-    logoutPending: logoutMutation.isPending,
-  };
-}
 
 function HobbyCard({ hobby }: { hobby: HobbyCardModel }) {
   const navigate = useNavigate();
@@ -44,7 +24,6 @@ function HobbyCard({ hobby }: { hobby: HobbyCardModel }) {
 
 export function HobbyInterestSelectPage() {
   const navigate = useNavigate();
-  const headerProps = useHeaderProps();
   const [keyword, setKeyword] = useState('');
   const [selected, setSelected] = useState<number[]>([]);
   const hobbiesQuery = useQuery({ queryKey: hobbyQueryKeys.list({ size: 100, sort: 'NAME' }), queryFn: () => getHobbies({ size: 100, sort: 'NAME' }) });
@@ -57,7 +36,7 @@ export function HobbyInterestSelectPage() {
   }, [allHobbies, normalizedKeyword]);
   const toggle = (id: number) => setSelected((current) => current.includes(id) ? current.filter((item) => item !== id) : current.length >= 10 ? current : [...current, id]);
   const submit = () => { const query = new URLSearchParams(); if (selected.length) query.set('interests', selected.join(',')); navigate(`/hobbies/recommendations${query.size ? `?${query}` : ''}`); };
-  return <div className="site-shell"><AppHeader {...headerProps} /><main className="page-container direct-interest-page">
+  return <div className="site-shell"><AppHeader /><main className="page-container direct-interest-page">
     <header className="direct-interest-heading"><h1>관심사를 직접 골라 주세요</h1><p>영상을 보지 않아도 추천을 받을 수 있어요. 최대 10개까지 고를 수 있어요.</p></header>
     <label className="direct-interest-search"><span>취미 검색</span><div><Search aria-hidden="true" /><input value={keyword} onChange={(event) => setKeyword(event.target.value)} placeholder="취미명이나 태그로 찾기" /></div></label>
     {hobbiesQuery.isLoading && <section className="direct-interest-empty"><p>취미를 불러오고 있어요.</p></section>}
@@ -72,7 +51,6 @@ const difficultyValues: Record<string, HobbyDifficulty | undefined> = { 전체: 
 const placeValues: Record<string, 'INDOOR' | 'OUTDOOR' | 'ANY' | undefined> = { 전체: undefined, 실내: 'INDOOR', 실외: 'OUTDOOR', 상관없음: 'ANY' };
 
 export function HobbySearchPage({ recommended = false }: { recommended?: boolean }) {
-  const headerProps = useHeaderProps();
   const [keyword, setKeyword] = useState('');
   const [submittedKeyword, setSubmittedKeyword] = useState('');
   const [category, setCategory] = useState('전체');
@@ -85,7 +63,7 @@ export function HobbySearchPage({ recommended = false }: { recommended?: boolean
   const hobbies = category === '전체' ? allHobbies : allHobbies.filter((hobby) => hobby.category === category);
   const reset = () => { setKeyword(''); setSubmittedKeyword(''); setCategory('전체'); setDifficulty('전체'); setPlace('전체'); };
   const search = () => { const value = keyword.trim(); if (!value || value.length >= 2) setSubmittedKeyword(value); };
-  return <div className="site-shell"><AppHeader {...headerProps} /><main className="page-container discovery-page">
+  return <div className="site-shell"><AppHeader /><main className="page-container discovery-page">
     <div className="discovery-title"><div><h1>{recommended ? '맞춤 취미 추천' : '취미 찾기'}</h1><p>{recommended ? '관심사와 이용 상황을 바탕으로 잘 맞는 취미를 모았어요.' : '취미명이나 태그로 찾고, 시간·비용·난이도로 좁혀 보세요.'}</p></div>{!recommended && <Button to="/hobbies/interests">맞춤 추천 보기</Button>}</div>
     <form className="search-bar" onSubmit={(event) => { event.preventDefault(); search(); }}><Search aria-hidden="true" /><input value={keyword} onChange={(event) => setKeyword(event.target.value)} placeholder="취미명이나 태그로 검색 (2자 이상)" /><button type="submit">검색</button></form>
     <div className="filter-row" aria-label="취미 필터"><select value={category} onChange={(event) => setCategory(event.target.value)}>{categories.map((item) => <option key={item}>{item}</option>)}</select><select value={difficulty} onChange={(event) => setDifficulty(event.target.value)}>{Object.keys(difficultyValues).map((item) => <option key={item}>{item}</option>)}</select><select value={place} onChange={(event) => setPlace(event.target.value)}>{Object.keys(placeValues).map((item) => <option key={item}>{item}</option>)}</select><button className="filter-reset" type="button" onClick={reset}>초기화</button></div>
@@ -100,7 +78,6 @@ export function HobbyDetailPage() {
   const { hobbyId } = useParams();
   const id = Number(hobbyId);
   const navigate = useNavigate();
-  const headerProps = useHeaderProps();
   const user = useAuthStore((state) => state.user);
   const queryClient = useQueryClient();
   const detailQuery = useQuery({ queryKey: hobbyQueryKeys.detail(id), queryFn: () => getHobbyDetail(id), enabled: Number.isFinite(id) });
@@ -130,10 +107,10 @@ export function HobbyDetailPage() {
     startMutation.mutate();
   };
   useEffect(() => { const update = () => { const guide = document.getElementById('hobby-guide'); const heading = document.getElementById('hobby-guide-heading'); if (guide && heading) { const guideRect = guide.getBoundingClientRect(); const headingRect = heading.getBoundingClientRect(); setShowGuideBar(headingRect.bottom <= 68 && guideRect.bottom > 68); } }; update(); window.addEventListener('scroll', update, { passive: true }); window.addEventListener('resize', update); return () => { window.removeEventListener('scroll', update); window.removeEventListener('resize', update); }; }, [hobbyId]);
-  if (detailQuery.isLoading) return <div className="site-shell"><AppHeader {...headerProps} /><main className="page-container"><section className="empty-state"><p>취미 정보를 불러오고 있어요.</p></section></main></div>;
-  if (!hobby || detailQuery.isError) return <div className="site-shell"><AppHeader {...headerProps} /><main className="page-container"><section className="empty-state"><h1>취미를 찾을 수 없어요</h1><Button to="/hobbies">목록으로</Button></section></main></div>;
+  if (detailQuery.isLoading) return <div className="site-shell"><AppHeader /><main className="page-container"><section className="empty-state"><p>취미 정보를 불러오고 있어요.</p></section></main></div>;
+  if (!hobby || detailQuery.isError) return <div className="site-shell"><AppHeader /><main className="page-container"><section className="empty-state"><h1>취미를 찾을 수 없어요</h1><Button to="/hobbies">목록으로</Button></section></main></div>;
   const plan = planQuery.data;
-  return <div className="site-shell hobby-detail-shell"><AppHeader {...headerProps} /><main className="page-container hobby-detail">
+  return <div className="site-shell hobby-detail-shell"><AppHeader /><main className="page-container hobby-detail">
     <section className="hobby-detail__above-fold"><p className="hobby-detail__breadcrumb">취미 찾기 › {hobby.category} › {hobby.name}</p><section className="hobby-detail__hero"><div className="hobby-detail__media">{hobby.thumbnailUrl ? <img src={hobby.thumbnailUrl} alt={`${hobby.name} 대표`} /> : <><Image aria-hidden="true" /><span>이미지 영역</span></>}<small>{hobby.name} 대표 이미지 · 콘텐츠 사진</small></div><div className="hobby-detail__summary"><h1>{hobby.name}</h1><div className="hobby-detail__tags"><span className="badge">#{hobby.place}</span>{hobby.tags.map((tag) => <span className="badge" key={tag}>#{tag}</span>)}</div><p>{hobby.longDescription}</p><dl><div><dt>소요 시간</dt><dd>{hobby.duration}</dd></div><div><dt>초기 비용</dt><dd>{hobby.initialCost}</dd></div><div><dt>난이도</dt><dd>{hobby.difficulty}</dd></div></dl><small className="hobby-detail__notice">※ 지역과 장비 대여 여부에 따라 비용이 달라질 수 있어요.</small><div className="hobby-detail__actions"><Button variant="secondary" disabled={interestMutation.isPending} onClick={toggleInterest}><Heart fill={interested ? 'currentColor' : 'none'} />{interested ? '관심 저장됨' : '관심 저장'}</Button><Button disabled={startMutation.isPending} onClick={beginHobby}>{startLabel}</Button></div></div></section><a className="hobby-detail__scroll-cue" href="#hobby-guide"><span>스크롤로 자세한 정보 보기</span><ChevronDown /></a></section>
     <section className="hobby-guide" id="hobby-guide"><div className={`hobby-guide__summary${showGuideBar ? ' is-visible' : ' is-hidden'}`} aria-hidden={!showGuideBar}><div className="hobby-guide__summary-media"><Image /><span>사진</span></div><div><strong>{hobby.name}</strong><p>{hobby.duration} · 초기 {hobby.initialCost} · 난이도 {hobby.difficulty}</p></div><div className="hobby-guide__summary-actions"><Button disabled={startMutation.isPending} onClick={beginHobby}>{startLabel}</Button><button type="button" onClick={toggleInterest}><Heart fill={interested ? 'currentColor' : 'none'} /></button></div></div>
       <header className="hobby-guide__heading" id="hobby-guide-heading"><h2>{hobby.name} 상세 가이드</h2><p>필요한 정보만 선택해서 확인하세요.</p></header><div className="hobby-guide__layout"><aside className="hobby-guide__nav" aria-label="상세 가이드 목차"><b>목차</b>{[['hobby-overview','취미 알아보기'],['hobby-preparation','시작 전 준비'],['hobby-plan','활동 계획'],['hobby-content','콘텐츠·장소']].map(([key,label]) => <button className={activeGuide === key ? 'active' : ''} type="button" key={key} onClick={() => setActiveGuide(key)}>{label}</button>)}<button type="button" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>↑ 핵심 정보로 돌아가기</button></aside><div className="hobby-guide__content">
@@ -148,7 +125,6 @@ export function HobbyDetailPage() {
 export function HobbyPlanPreviewPage() {
   const { hobbyId } = useParams();
   const id = Number(hobbyId);
-  const headerProps = useHeaderProps();
   const detailQuery = useQuery({ queryKey: hobbyQueryKeys.detail(id), queryFn: () => getHobbyDetail(id), enabled: Number.isFinite(id) });
   const planQuery = useQuery({ queryKey: hobbyQueryKeys.planPreview(id), queryFn: () => getHobbyPlanPreview(id), enabled: Number.isFinite(id) });
   const hobby = detailQuery.data ? toHobbyDetailModel(detailQuery.data) : null;
@@ -158,5 +134,5 @@ export function HobbyPlanPreviewPage() {
     const frame = window.requestAnimationFrame(() => document.getElementById(targetId)?.scrollIntoView({ block: 'start' }));
     return () => window.cancelAnimationFrame(frame);
   }, [planQuery.data]);
-  return <div className="site-shell"><AppHeader {...headerProps} /><main className="page-container hobby-plan-preview"><header><p>취미 찾기 › {hobby?.name ?? '취미'} › 전체 계획</p><h1>{planQuery.data?.title ?? '입문 계획 미리보기'}</h1><p>시작하기 전에 주차별 활동을 확인하세요.</p></header>{planQuery.isLoading && <section className="empty-state"><p>계획을 불러오고 있어요.</p></section>}{planQuery.isError && <section className="empty-state"><h2>계획을 불러오지 못했어요.</h2></section>}{planQuery.data && !planQuery.data.ready && <section className="empty-state"><h2>아직 준비된 계획이 없어요.</h2></section>}{planQuery.data?.ready && <section className="hobby-plan-preview__weeks">{planQuery.data.weeks.map((week) => <article id={`week-${week.weekNo}`} key={week.weekNo}><div><span>{week.weekNo}주차</span><h2>{week.title}</h2></div><ol>{week.items.map((item) => <li key={item.seq}><strong>{item.title}</strong><p>{item.description}</p><small>예상 {item.expectedMinutes}분 · 준비물 {item.supplies} · 완료 기준 {item.doneCriteria}</small></li>)}</ol></article>)}</section>}<Button variant="secondary" to={`/hobbies/${id}`}>취미 상세로</Button></main></div>;
+  return <div className="site-shell"><AppHeader /><main className="page-container hobby-plan-preview"><header><p>취미 찾기 › {hobby?.name ?? '취미'} › 전체 계획</p><h1>{planQuery.data?.title ?? '입문 계획 미리보기'}</h1><p>시작하기 전에 주차별 활동을 확인하세요.</p></header>{planQuery.isLoading && <section className="empty-state"><p>계획을 불러오고 있어요.</p></section>}{planQuery.isError && <section className="empty-state"><h2>계획을 불러오지 못했어요.</h2></section>}{planQuery.data && !planQuery.data.ready && <section className="empty-state"><h2>아직 준비된 계획이 없어요.</h2></section>}{planQuery.data?.ready && <section className="hobby-plan-preview__weeks">{planQuery.data.weeks.map((week) => <article id={`week-${week.weekNo}`} key={week.weekNo}><div><span>{week.weekNo}주차</span><h2>{week.title}</h2></div><ol>{week.items.map((item) => <li key={item.seq}><strong>{item.title}</strong><p>{item.description}</p><small>예상 {item.expectedMinutes}분 · 준비물 {item.supplies} · 완료 기준 {item.doneCriteria}</small></li>)}</ol></article>)}</section>}<Button variant="secondary" to={`/hobbies/${id}`}>취미 상세로</Button></main></div>;
 }

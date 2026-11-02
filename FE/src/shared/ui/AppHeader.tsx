@@ -1,14 +1,14 @@
 import { useCallback, useEffect } from 'react';
 import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { Bell, X } from 'lucide-react';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { logout } from '../../features/auth/api/authApi';
+import { useAuthStore } from '../../features/auth/model/authStore';
 import { brandAssets, characterAssets } from '../assets/assets';
 
 type AppHeaderProps = {
-  authenticated?: boolean;
   notificationCount?: number;
-  onLogout?: () => void;
   onBrandClick?: () => void;
-  logoutPending?: boolean;
 };
 
 const navigation = [
@@ -31,12 +31,24 @@ function getSignupRequiredState(value: unknown): SignupRequiredState | null {
   return { signupRequired: state.signupRequired, returnTo: state.returnTo };
 }
 
-export function AppHeader({ authenticated = false, notificationCount = 0, onLogout, onBrandClick, logoutPending = false }: AppHeaderProps) {
+export function AppHeader({ notificationCount = 0, onBrandClick }: AppHeaderProps) {
   const location = useLocation();
   const navigate = useNavigate();
+  const user = useAuthStore((state) => state.user);
+  const initialized = useAuthStore((state) => state.sessionInitialized);
+  const authenticated = Boolean(user);
+  const queryClient = useQueryClient();
+  const logoutMutation = useMutation({
+    mutationFn: logout,
+    onSettled: () => {
+      useAuthStore.getState().clearSession();
+      queryClient.clear();
+      navigate('/', { replace: true });
+    },
+  });
+  const logoutPending = logoutMutation.isPending;
   const restriction = authenticated ? null : getSignupRequiredState(location.state);
   const restrictedMenu = restriction?.signupRequired ?? null;
-  const headerAuthenticated = authenticated;
   const closeRestriction = useCallback(() => {
     if (!restriction) return;
     navigate(restriction.returnTo, { replace: true });
@@ -56,7 +68,7 @@ export function AppHeader({ authenticated = false, notificationCount = 0, onLogo
     <>
       <header className="app-header">
         <div className="app-header__inner">
-          <Link className="brand" to={headerAuthenticated ? '/home' : '/'} aria-label="냠냠취미 홈" onClick={onBrandClick}>
+          <Link className="brand" to={authenticated ? '/home' : '/'} aria-label="냠냠취미 홈" onClick={onBrandClick}>
             <img src={brandAssets.logo} alt="냠냠취미" />
           </Link>
 
@@ -66,12 +78,12 @@ export function AppHeader({ authenticated = false, notificationCount = 0, onLogo
                 key={item.to}
                 to={item.to}
                 onClick={(event) => {
-                  if (!headerAuthenticated && item.requiresAuth) {
+                  if (!authenticated && item.requiresAuth) {
                     event.preventDefault();
-                    navigate(item.to, {
+                    navigate(`${location.pathname}${location.search}${location.hash}`, {
                       state: {
                         signupRequired: item.label,
-                        returnTo: `${location.pathname}${location.search}`,
+                        returnTo: `${location.pathname}${location.search}${location.hash}`,
                       } satisfies SignupRequiredState,
                     });
                   }
@@ -83,14 +95,14 @@ export function AppHeader({ authenticated = false, notificationCount = 0, onLogo
           </nav>
 
           <div className="account-nav">
-            {headerAuthenticated ? (
+            {!initialized ? <span role="status">확인 중…</span> : authenticated ? (
               <>
                 <Link className="notification-link" to="/notifications" aria-label={`읽지 않은 알림 ${notificationCount}개`}>
                   <Bell aria-hidden="true" size={20} strokeWidth={1.8} />
                   {notificationCount > 0 && <b>{notificationCount}</b>}
                 </Link>
                 <Link to="/mypage">마이페이지</Link>
-                <button className="account-nav__button" type="button" onClick={onLogout} disabled={logoutPending}>
+                <button className="account-nav__button" type="button" onClick={() => logoutMutation.mutate()} disabled={logoutPending}>
                   {logoutPending ? '로그아웃 중…' : '로그아웃'}
                 </button>
               </>

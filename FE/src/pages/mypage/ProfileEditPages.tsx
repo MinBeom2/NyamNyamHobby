@@ -141,7 +141,7 @@ export function PersonalInfoEditPage() {
   });
   const submitConditions = handleSubmit((values) => conditionsMutation.mutate(values));
 
-  return <div className="site-shell"><AppHeader authenticated /><main className="page-container personal-edit-page">
+  return <div className="site-shell"><AppHeader /><main className="page-container personal-edit-page">
     <header><h1>개인정보 수정</h1><p>가입 정보와 활동 정보를 확인하고 필요한 항목을 변경할 수 있어요.</p></header>
     <form onSubmit={(event) => event.preventDefault()}>
       <section className="personal-edit-card"><h2>가입 정보</h2>

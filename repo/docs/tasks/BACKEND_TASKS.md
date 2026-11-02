@@ -334,8 +334,8 @@
   - 사용자 사본만 변경. 도착 주차 끝 삽입·출발 주차 순서 정리, 삭제 즉시 집계 제외.
   - 소유자·계획/item 조합·상태·주차·필드 길이·시간 범위 검증. 미래 주차 편집 허용.
   - 근거: FR-TODO-03 · 06-3 진입
-- [ ] **TODO-B04 주간 TODO 알림(월 09:00)** · `제외` · 알림
-  - 진행 중 계획마다 이번 주 TODO 알림을 notification.create로 발행(dedup WEEKLY_TODO:{planId}:{yyyy-ww}).
+- [ ] **TODO-B04 주차 시작 TODO 알림(시작일 기준 7일마다)** · `제외` · 알림
+  - 계획 시작 즉시 1주차 알림, 이후 매일 09:00에 진행 중 계획의 현재 주차를 계산해 바뀐 주차 알림 생성(dedup WEEKLY_TODO:{planId}:{주차}).
   - API·배치: notifications
   - 근거: FR-NOTI-01
   - 비고: MVP 제외(P2): 알림 전체

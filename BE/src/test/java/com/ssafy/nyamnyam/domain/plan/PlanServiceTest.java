@@ -1,5 +1,7 @@
 package com.ssafy.nyamnyam.domain.plan;
 
+import com.ssafy.nyamnyam.domain.notification.event.PlanStartedEvent;
+import org.springframework.context.ApplicationEventPublisher;
 import com.ssafy.nyamnyam.domain.hobby.repository.HobbyRepository;
 import com.ssafy.nyamnyam.domain.plan.dto.*;
 import com.ssafy.nyamnyam.domain.plan.entity.*;
@@ -28,6 +30,7 @@ class PlanServiceTest {
     @Mock HobbyRepository catalog;
     @Mock PlanTemplateRepository templates;
     @Mock UserPlanRepository plans;
+    @Mock ApplicationEventPublisher events;
     PlanQueryService query;
     PlanService service;
     User owner;
@@ -39,7 +42,7 @@ class PlanServiceTest {
         var entry = entry(owner, hobby(3), 12);
         fixture = new HobbyHolder(entry, plan(entry));
         query = new PlanQueryService(plans, templates, hobbies, Clock.fixed(START.plusDays(7).toInstant(ZoneOffset.UTC), ZoneOffset.UTC));
-        service = new PlanService(users, hobbies, catalog, templates, plans, query);
+        service = new PlanService(users, hobbies, catalog, templates, plans, query, events);
         when(users.findByIdForUpdate(1L)).thenReturn(Optional.of(owner));
     }
     void planLookup() { when(plans.findById(55L)).thenReturn(Optional.of(fixture.plan())); }
@@ -80,6 +83,7 @@ class PlanServiceTest {
         order.verify(hobbies).findByUserIdAndHobbyId(1L, 3L);
         order.verify(hobbies).countByUserIdAndStatus(1L, UserHobbyStatus.IN_PROGRESS);
         order.verify(plans).saveAndFlush(any());
+        verify(events).publishEvent(new PlanStartedEvent(70L)); // 커밋 뒤 1주차 알림용
     }
 
     @Test void startRejectsFourthActiveHobbyBeforeCopying() {
@@ -107,6 +111,7 @@ class PlanServiceTest {
         error(() -> service.start(1L, 3L, new StartPlanRequest("BEGINNER")), ErrorCode.MY_PLAN_NOT_READY);
         assertThat(fixture.entry().getStatus()).isEqualTo(UserHobbyStatus.SAVED);
         verify(plans, never()).saveAndFlush(any());
+        verify(events, never()).publishEvent(any());
     }
 
     @Test void resumeUsesSamePlanAndChecksLimit() {

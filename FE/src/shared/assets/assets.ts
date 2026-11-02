@@ -1,5 +1,5 @@
 export const brandAssets = {
-  logo: '/assets/brand/logo.png',
+  logo: '/assets/brand/logo_horizontal_600w.png',
 } as const;
 
 export const characterAssets = {

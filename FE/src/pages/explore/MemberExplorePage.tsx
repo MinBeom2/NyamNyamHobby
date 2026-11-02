@@ -37,7 +37,7 @@ export function MemberExplorePage({ user }: { user: AuthUser }) {
             <aside className="short-actions" aria-label="영상 반응">
               <ReactionButton active={exploration.current.reaction === 'LIKE'} disabled={exploration.isReactionPending || exploration.isAdvancePending} label="좋아요" onClick={() => exploration.react('LIKE')}><Heart fill={exploration.current.reaction === 'LIKE' ? 'currentColor' : 'none'} /></ReactionButton>
               <ReactionButton active={exploration.current.reaction === 'DISLIKE'} disabled={exploration.isReactionPending || exploration.isAdvancePending} label="별로예요" onClick={() => exploration.react('DISLIKE')}><ThumbsDown fill={exploration.current.reaction === 'DISLIKE' ? 'currentColor' : 'none'} /></ReactionButton>
-              <ReactionButton active={false} disabled label="보관 준비 중" onClick={() => undefined}><Bookmark /></ReactionButton>
+              <ReactionButton active={exploration.current.isSaved} disabled={exploration.isSavePending || exploration.isAdvancePending} label={exploration.isSavePending ? '처리 중…' : exploration.current.isSaved ? '보관 해제' : '보관'} onClick={() => exploration.toggleSave()}><Bookmark fill={exploration.current.isSaved ? 'currentColor' : 'none'} /></ReactionButton>
               <button className="short-actions__next" type="button" disabled={exploration.isAdvancePending} onClick={() => exploration.advance()}><ChevronDown />{exploration.isAdvancePending ? '처리 중…' : exploration.viewedCount >= exploration.maxCount ? '결과 보기' : '다음 영상'}</button>
             </aside>
           </div>

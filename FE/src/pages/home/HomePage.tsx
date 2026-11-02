@@ -1,13 +1,16 @@
 import { ChartNoAxesColumnIncreasing, Check, CircleDollarSign, Clock3, MessageCircleQuestion, Play, Search } from 'lucide-react';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate } from 'react-router-dom';
 import { logout } from '../../features/auth/api/authApi';
 import { useAuthStore } from '../../features/auth/model/authStore';
+import { activityQueryKeys, getTodoSummary } from '../../features/activity/api/activityApi';
+import { getHobbies, hobbyQueryKeys } from '../../features/hobby/api/hobbyApi';
+import { toHobbyCardModel, type HobbyCardModel } from '../../features/hobby/model/hobbyAdapter';
+import { deleteUserHobby, getUserHobbies, saveUserHobby, userQueryKeys, type UserHobbyDto } from '../../features/user/api/userApi';
 import { AppHeader } from '../../shared/ui/AppHeader';
 import { Button } from '../../shared/ui/Button';
 import { MediaPlaceholder } from '../../shared/ui/MediaPlaceholder';
 import { characterAssets } from '../../shared/assets/assets';
-import { popularHobbies, recommendedHobbies, type HobbyCardModel } from './homeFixtures';
 
 function PageShell({
   authenticated,
@@ -36,22 +39,44 @@ function PageShell({
 }
 
 function HobbyCard({ hobby }: { hobby: HobbyCardModel }) {
+  const navigate = useNavigate();
+  const user = useAuthStore((state) => state.user);
+  const queryClient = useQueryClient();
+  const savedHobbiesQuery = useQuery({
+    queryKey: userQueryKeys.hobbies(),
+    queryFn: () => getUserHobbies(),
+    enabled: Boolean(user),
+  });
+  const saved = savedHobbiesQuery.data?.some((item) => item.hobbyId === hobby.id && item.status === 'SAVED') ?? false;
+  const saveMutation = useMutation({
+    mutationFn: () => saved ? deleteUserHobby(hobby.id) : saveUserHobby(hobby.id),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: userQueryKeys.hobbies() }),
+  });
+
   return (
     <article className="hobby-card">
       <div className="hobby-card__visual">
         {hobby.relation && <span className="hobby-card__relation">{hobby.relation}</span>}
-        <MediaPlaceholder />
+        {hobby.thumbnailUrl
+          ? <img src={hobby.thumbnailUrl} alt="" />
+          : <MediaPlaceholder />}
       </div>
       <div className="hobby-card__body">
-        <h3>{hobby.title}</h3>
+        <h3>{hobby.name}</h3>
         <p>{hobby.description}</p>
         <div className="hobby-card__meta">
           <span><Clock3 aria-hidden="true" />{hobby.duration}</span>
-          <span><CircleDollarSign aria-hidden="true" />{hobby.budget}</span>
+          <span><CircleDollarSign aria-hidden="true" />{hobby.cost}</span>
           <span><ChartNoAxesColumnIncreasing aria-hidden="true" />{hobby.difficulty}</span>
         </div>
         <div className="hobby-card__actions">
-          <Button variant="secondary">관심 저장</Button>
+          <Button
+            variant="secondary"
+            disabled={saveMutation.isPending}
+            onClick={() => user ? saveMutation.mutate() : navigate('/login')}
+          >
+            {saved ? '저장 해제' : '관심 저장'}
+          </Button>
           <Button to={`/hobbies/${hobby.id}`}>상세 보기</Button>
         </div>
       </div>
@@ -60,6 +85,12 @@ function HobbyCard({ hobby }: { hobby: HobbyCardModel }) {
 }
 
 export function GuestHomePage() {
+  const popularQuery = useQuery({
+    queryKey: hobbyQueryKeys.list({ sort: 'POPULAR', size: 4 }),
+    queryFn: () => getHobbies({ sort: 'POPULAR', size: 4 }),
+  });
+  const popularHobbies = popularQuery.data?.content.map(toHobbyCardModel) ?? [];
+
   return (
     <PageShell variant="guest">
       <div className="page-container guest-home">
@@ -90,8 +121,10 @@ export function GuestHomePage() {
         </div>
 
         <section className="section-block">
-          <div className="section-heading"><h2>지금 인기 있는 취미</h2><a href="/hobbies">전체 보기</a></div>
+          <div className="section-heading"><h2>지금 인기 있는 취미</h2><Link to="/hobbies">전체 보기</Link></div>
           <div className="hobby-grid">
+            {popularQuery.isPending && <p>인기 취미를 불러오고 있어요.</p>}
+            {popularQuery.isError && <p>인기 취미를 불러오지 못했어요.</p>}
             {popularHobbies.map((hobby) => <HobbyCard key={hobby.id} hobby={hobby} />)}
           </div>
         </section>
@@ -104,6 +137,14 @@ export function MemberHomePage() {
   const navigate = useNavigate();
   const user = useAuthStore((state) => state.user);
   const clearSession = useAuthStore((state) => state.clearSession);
+  const recommendedQuery = useQuery({
+    queryKey: hobbyQueryKeys.list({ sort: 'RECOMMEND', size: 4 }),
+    queryFn: () => getHobbies({ sort: 'RECOMMEND', size: 4 }),
+  });
+  const todoSummaryQuery = useQuery({ queryKey: activityQueryKeys.summary(), queryFn: getTodoSummary });
+  const recommendedHobbies = recommendedQuery.data?.content.map(toHobbyCardModel) ?? [];
+  const activeHobbies = todoSummaryQuery.data?.plans.filter((item) => item.status === 'IN_PROGRESS' || item.status === 'PAUSED').slice(0, 2) ?? [];
+  const remainingTodoCount = todoSummaryQuery.data?.remainingThisWeekCount;
   const logoutMutation = useMutation({
     mutationFn: logout,
     onSettled: () => {
@@ -122,7 +163,7 @@ export function MemberHomePage() {
         <section className="member-hero">
           <div className="member-hero__copy">
             <h1>안녕하세요, {user?.nickname ?? '취미찾는사람'}님!</h1>
-            <p>숏폼으로 관심사를 찾고, 맞춤 취미를 추천받아 보세요. 이번 주 TODO는 3개 남았어요.</p>
+            <p>숏폼으로 관심사를 찾고, 맞춤 취미를 추천받아 보세요. {remainingTodoCount === undefined ? '이번 주 TODO를 확인해 보세요.' : `이번 주 TODO는 ${remainingTodoCount}개 남았어요.`}</p>
             <div><Button to="/explore">숏폼 탐색 이어하기</Button><Button to="/hobbies/interests" variant="secondary">관심사 직접 선택</Button></div>
           </div>
           <div className="member-hero__media">
@@ -133,8 +174,10 @@ export function MemberHomePage() {
         </section>
 
         <section className="section-block recommendations">
-          <div className="section-heading"><h2>맞춤 추천 취미</h2><a href="/hobbies/recommendations">추천 전체 보기</a></div>
+          <div className="section-heading"><h2>맞춤 추천 취미</h2><Link to="/hobbies/recommendations">추천 전체 보기</Link></div>
           <div className="hobby-grid">
+            {recommendedQuery.isPending && <p>추천 취미를 불러오고 있어요.</p>}
+            {recommendedQuery.isError && <p>추천 취미를 불러오지 못했어요.</p>}
             {recommendedHobbies.map((hobby) => <HobbyCard key={hobby.id} hobby={hobby} />)}
           </div>
         </section>
@@ -142,8 +185,10 @@ export function MemberHomePage() {
         <div className="dashboard-grid">
           <section className="dashboard-panel todo-panel">
             <div className="panel-heading"><h2>진행 중인 TODO</h2><Link to="/my-hobbies">내 취미</Link></div>
-            <TodoRow hobbyId={1} title="클라이밍" step="2주차 · 기본 동작 익히기" progress={70} remaining="남은 활동 2개" />
-            <TodoRow hobbyId={2} title="요가" step="1주차 · 매트 위 10분" progress={28} remaining="남은 활동 1개" />
+            {todoSummaryQuery.isPending && <p>진행 중인 계획을 불러오고 있어요.</p>}
+            {todoSummaryQuery.isError && <p>진행 중인 계획을 불러오지 못했어요.</p>}
+            {!todoSummaryQuery.isPending && !todoSummaryQuery.isError && activeHobbies.length === 0 && <p>진행 중인 취미가 없어요.</p>}
+            {activeHobbies.map((hobby) => <TodoRow key={hobby.userHobbyId} hobby={hobby} />)}
           </section>
 
           <section className="dashboard-panel news-panel">
@@ -167,10 +212,13 @@ export function MemberHomePage() {
   );
 }
 
-function TodoRow({ hobbyId, title, step, progress, remaining }: { hobbyId: number; title: string; step: string; progress: number; remaining: string }) {
+function TodoRow({ hobby }: { hobby: UserHobbyDto }) {
+  const progress = hobby.weekProgress?.rate ?? hobby.planProgress?.rate ?? hobby.progressRate;
+  const step = [hobby.currentWeek ? `${hobby.currentWeek}주차` : null, hobby.weekTitle].filter(Boolean).join(' · ');
+  const target = hobby.planId ? `/my-hobbies/${hobby.hobbyId}/plan?planId=${hobby.planId}` : `/hobbies/${hobby.hobbyId}`;
   return (
-    <Link aria-label={`${title} 진행 중인 계획 보기`} className="todo-row" to={`/my-hobbies/${hobbyId}/plan`}>
-      <div className="todo-row__title"><strong>{title}</strong><span>{step}</span><small>{remaining}</small></div>
+    <Link aria-label={`${hobby.name} 진행 중인 계획 보기`} className="todo-row" to={target}>
+      <div className="todo-row__title"><strong>{hobby.name}</strong><span>{step || '계획 준비 중'}</span><small>남은 활동 {hobby.remainingThisWeekCount}개</small></div>
       <div className="progress-track"><span style={{ width: `${progress}%` }} /></div>
     </Link>
   );
@@ -178,7 +226,7 @@ function TodoRow({ hobbyId, title, step, progress, remaining }: { hobbyId: numbe
 
 function NewsRow({ feedId, badge, title, meta, orange = false }: { feedId: number; badge: string; title: string; meta: string; orange?: boolean }) {
   return (
-    <Link aria-label={`${title} 정보 피드에서 보기`} className="news-row" to={`/info-feed?item=${feedId}`}>
+    <Link aria-label={`${title} 정보 피드에서 보기`} className="news-row" to={`/info-feed/${feedId}`}>
       <span className={orange ? 'badge badge--orange' : 'badge'}>{badge}</span>
       <strong>{title}</strong>
       <small>{meta}</small>

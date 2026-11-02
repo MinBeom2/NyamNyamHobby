@@ -1,6 +1,6 @@
 import { ExternalLink, Image, MapPin, Search } from 'lucide-react';
 import { useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, Navigate, useParams } from 'react-router-dom';
 import { infoFeedFixtures, placeFixtures } from '../../features/place/model/placeFixtures';
 import { characterAssets } from '../../shared/assets/assets';
 import { AppHeader } from '../../shared/ui/AppHeader';
@@ -44,6 +44,24 @@ export function InfoFeedPage() {
   return <div className="site-shell"><AppHeader authenticated notificationCount={3} /><main className="page-container feed-page"><div className="page-title-row"><div><h1>취미 정보 피드</h1><p>관심·진행 중인 취미의 축제, 강좌, 공연과 입문 자료를 모았어요.</p></div><Button variant="secondary" to="/places">장소 찾기</Button></div>
     <div className="feed-tabs">{['전체', '축제·행사', '강좌·클래스', '공연·전시', '입문 자료'].map((item) => <button className={type === item ? 'active' : ''} type="button" onClick={() => setType(item)} key={item}>{item}</button>)}<label><input checked={hideEnded} onChange={(event) => setHideEnded(event.target.checked)} type="checkbox" /> 종료된 행사 숨기기</label></div>
     <div className="place-hobbies feed-hobbies">{['전체 취미', '클라이밍', '요가', '도예'].map((item) => <button className={hobby === item ? 'active' : ''} type="button" onClick={() => setHobby(item)} key={item}>{item}</button>)}</div>
-    <section className="feed-list">{items.length ? items.map((item) => <article key={item.id}><div className="feed-thumb"><Image /><span>{item.type}</span></div><div className="feed-content"><div><span className="badge">{item.type}</span><span className="badge badge--soft">{item.hobby}</span>{item.ended && <span className="badge badge--paused">종료</span>}</div><h2>{item.title}</h2><p>{item.summary}</p><small>{item.source} · {item.location} · {item.period}</small></div><a href="#feed-detail">자세히 보기 <ExternalLink /></a></article>) : <section className="empty-state feed-empty"><img src={characterAssets.searching} alt="정보를 찾는 냠냠취미 캐릭터" /><h2>선택한 조건의 정보가 없어요</h2><p>다른 취미나 정보 유형을 선택해 보세요.</p></section>}</section>
+    <section className="feed-list">{items.length ? items.map((item) => <article key={item.id}><div className="feed-thumb"><Image /><span>{item.type}</span></div><div className="feed-content"><div><span className="badge">{item.type}</span><span className="badge badge--soft">{item.hobby}</span>{item.ended && <span className="badge badge--paused">종료</span>}</div><h2>{item.title}</h2><p>{item.summary}</p><small>{item.source} · {item.location} · {item.period}</small></div><Link to={`/info-feed/${item.id}`}>자세히 보기 <ExternalLink /></Link></article>) : <section className="empty-state feed-empty"><img src={characterAssets.searching} alt="정보를 찾는 냠냠취미 캐릭터" /><h2>선택한 조건의 정보가 없어요</h2><p>다른 취미나 정보 유형을 선택해 보세요.</p></section>}</section>
+  </main></div>;
+}
+
+export function InfoFeedDetailPage() {
+  const { feedId } = useParams();
+  const item = infoFeedFixtures.find((feed) => feed.id === Number(feedId));
+
+  if (!item) return <Navigate replace to="/info-feed" />;
+
+  return <div className="site-shell"><AppHeader authenticated notificationCount={3} /><main className="page-container feed-detail-page">
+    <article className="feed-detail-card">
+      <div className="feed-detail-card__badges"><span className="badge">{item.type}</span><span className="badge badge--soft">{item.hobby}</span>{item.ended && <span className="badge badge--paused">종료</span>}</div>
+      <h1>{item.title}</h1>
+      <p className="feed-detail-card__meta">{item.source} · {item.location} · {item.period}</p>
+      <div className="feed-detail-card__image"><Image aria-hidden="true" /><span>{item.type} 이미지</span></div>
+      <p className="feed-detail-card__summary">{item.summary}</p>
+      <Link className="button button--secondary" to="/info-feed">목록으로</Link>
+    </article>
   </main></div>;
 }

@@ -34,9 +34,9 @@ function getSignupRequiredState(value: unknown): SignupRequiredState | null {
 export function AppHeader({ authenticated = false, notificationCount = 0, onLogout, onBrandClick, logoutPending = false }: AppHeaderProps) {
   const location = useLocation();
   const navigate = useNavigate();
-  const restriction = getSignupRequiredState(location.state);
+  const restriction = authenticated ? null : getSignupRequiredState(location.state);
   const restrictedMenu = restriction?.signupRequired ?? null;
-  const headerAuthenticated = authenticated && !restriction;
+  const headerAuthenticated = authenticated;
   const closeRestriction = useCallback(() => {
     if (!restriction) return;
     navigate(restriction.returnTo, { replace: true });
@@ -65,7 +65,6 @@ export function AppHeader({ authenticated = false, notificationCount = 0, onLogo
               <NavLink
                 key={item.to}
                 to={item.to}
-                state={item.to === '/notices' ? { authenticatedContext: headerAuthenticated } : undefined}
                 onClick={(event) => {
                   if (!headerAuthenticated && item.requiresAuth) {
                     event.preventDefault();

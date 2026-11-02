@@ -21,7 +21,7 @@ export class ApiError extends Error {
 
 function buildHeaders(init?: RequestInit, accessToken?: string | null) {
   const headers = new Headers(init?.headers);
-  if (init?.body && !headers.has('Content-Type')) {
+  if (init?.body && !(init.body instanceof FormData) && !headers.has('Content-Type')) {
     headers.set('Content-Type', 'application/json');
   }
   if (accessToken) {

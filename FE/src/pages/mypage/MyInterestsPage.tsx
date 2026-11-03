@@ -40,7 +40,7 @@ export function MyInterestsPage() {
     mutationFn: () => updateMyInterests(selectedIds),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: userQueryKeys.all });
-      navigate('/mypage', { replace: true });
+      navigate('/my-hobbies', { replace: true });
     },
   });
 
@@ -88,7 +88,7 @@ export function MyInterestsPage() {
           </div>
         </div>
         <div className="onboarding-actions">
-          <button className="button button--secondary onboarding-cancel" onClick={() => navigate('/mypage')} type="button">취소</button>
+          <button className="button button--secondary onboarding-cancel" onClick={() => navigate('/my-hobbies')} type="button">취소</button>
           <div className="onboarding-actions__right">
             <button className="button button--primary onboarding-save" disabled={saveMutation.isPending} onClick={() => saveMutation.mutate()} type="button">
               {saveMutation.isPending ? '저장 중' : '저장'}

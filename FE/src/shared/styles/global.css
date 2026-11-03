@@ -134,6 +134,10 @@ strong, b { font-weight: 700; }
 .hobby-card__meta span { display: inline-flex; align-items: center; gap: 4px; }
 .hobby-card__meta svg { width: 14px; height: 14px; flex: 0 0 auto; }
 .hobby-card__actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 16px; }
+/* 설명·정보 줄 수와 상관없이 버튼을 카드 맨 아래에 고정(같은 줄 카드는 높이가 같아짐) */
+.hobby-card, .catalog-card { display: flex; flex-direction: column; }
+.hobby-card__body, .catalog-card__body { display: flex; flex: 1; flex-direction: column; }
+.hobby-card__actions { margin-top: auto; padding-top: 16px; }
 .hobby-card__actions .button { min-height: 35px; padding: 0 8px; font-size: 12px; }
 
 .member-home { padding-top: 40px; }
@@ -270,6 +274,7 @@ strong, b { font-weight: 700; }
 .catalog-card__actions button, .catalog-card__actions a { min-height: 34px; border: 1px solid var(--color-line); border-radius: 8px; display: flex; align-items: center; justify-content: center; gap: 5px; color: var(--color-ink); background: #fff; font-size: 11px; font-weight: 700; cursor: pointer; }
 .catalog-card__actions a { color: #fff; border-color: var(--color-primary); background: var(--color-primary); }
 .catalog-card__actions svg { width: 13px; height: 13px; }
+.catalog-card__actions { margin-top: auto; padding-top: 12px; }
 .empty-state { min-height: 330px; border-radius: var(--radius-md); display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--color-ink); background: #fff7dc; text-align: center; }
 .empty-state > svg { width: 54px; height: 54px; margin-bottom: 14px; color: var(--color-primary); }
 .empty-state h1, .empty-state h2 { margin: 0 0 10px; font-family: var(--font-title); font-weight: 400; }

@@ -8,7 +8,7 @@ import { useAuthStore } from '../../features/auth/model/authStore';
 import { deleteUserHobby, getUserHobbies, saveUserHobby, userQueryKeys } from '../../features/user/api/userApi';
 import { AppHeader } from '../../shared/ui/AppHeader';
 import { Button } from '../../shared/ui/Button';
-import { scrollToElement, scrollToTop } from '../../shared/scroll/smoothScroll';
+import { scrollToElement, scrollToTop, setWheelInterceptor } from '../../shared/scroll/smoothScroll';
 
 function HobbyCard({ hobby }: { hobby: HobbyCardModel }) {
   const navigate = useNavigate();
@@ -107,6 +107,22 @@ export function HobbyDetailPage() {
     }
     startMutation.mutate();
   };
+  // 상세는 '핵심 정보'와 '상세 가이드' 두 화면: 휠을 한 칸만 돌려도 다음 화면 맨 위로 넘긴다.
+  // 가이드 안에서는 평소처럼 스크롤하고, 가이드 맨 위에서 위로 돌리면 핵심 정보로 돌아간다.
+  useEffect(() => setWheelInterceptor(({ deltaY, event }) => {
+    if (!event.type.includes('wheel')) return true;
+    if (event.target instanceof Element && event.target.closest('[role="dialog"], .modal-backdrop')) return true;
+    const guide = document.getElementById('hobby-guide');
+    if (!guide) return true;
+    const guideTop = guide.getBoundingClientRect().top + window.scrollY - (Number.parseFloat(getComputedStyle(guide).scrollMarginTop) || 0);
+    const y = window.scrollY;
+    const toGuide = deltaY > 0 && y < guideTop - 2;
+    const toTop = deltaY < 0 && y > 2 && y <= guideTop + 2;
+    if (!toGuide && !toTop) return true;
+    if (event.cancelable) event.preventDefault();
+    if (toGuide) scrollToElement(guide); else scrollToTop();
+    return false;
+  }), [hobbyId]);
   useEffect(() => { const update = () => { const guide = document.getElementById('hobby-guide'); const heading = document.getElementById('hobby-guide-heading'); if (guide && heading) { const guideRect = guide.getBoundingClientRect(); const headingRect = heading.getBoundingClientRect(); setShowGuideBar(headingRect.bottom <= 68 && guideRect.bottom > 68); } }; update(); window.addEventListener('scroll', update, { passive: true }); window.addEventListener('resize', update); return () => { window.removeEventListener('scroll', update); window.removeEventListener('resize', update); }; }, [hobbyId]);
   if (detailQuery.isLoading) return <div className="site-shell"><AppHeader /><main className="page-container"><section className="empty-state"><p>취미 정보를 불러오고 있어요.</p></section></main></div>;
   if (!hobby || detailQuery.isError) return <div className="site-shell"><AppHeader /><main className="page-container"><section className="empty-state"><h1>취미를 찾을 수 없어요</h1><Button to="/hobbies">목록으로</Button></section></main></div>;

@@ -47,11 +47,11 @@
   - API·배치: 7.5 DDL
   - 근거: 9.2 · 9.5
   - 비고: 개발 시작 전 1순위
-- [ ] **SYS-B02 공통 응답·예외 처리** · `필수` · API 공통
+- [x] **SYS-B02 공통 응답·예외 처리** · `필수` · API 공통
   - 응답 봉투(success·data·error), 페이지 형식(content·page, size 최대 50), 에러 코드 체계(8.4), Bean Validation → error.fields, X-Request-Id 필터 + MDC 로그, CORS(프론트 도메인·credentials).
   - API·배치: 전체 API
   - 근거: 8.1 · 8.4 · NFR-SEC-05 · NFR-LOG-01
-- [ ] **SYS-B03 인증·인가 기반** · `필수` · 보안
+- [x] **SYS-B03 인증·인가 기반** · `필수` · 보안
   - Spring Security + JWT(Access 30분 응답 본문, Refresh 14일 HttpOnly·Secure·SameSite=Lax 쿠키, DB 해시 저장·재발급 시 교체), 권한 GUEST·USER·ADMIN, /api/v1/admin/** ADMIN 전용(관리자 기능은 P3·P2), 소유자 검사 공통 처리.
   - API·배치: auth_tokens · users
   - 근거: NFR-SEC-02~04 · 3장
@@ -65,7 +65,7 @@
   - API·배치: /uploads/images
   - 근거: NFR-SEC-06 · 11장 #19
   - 비고: 쓰는 기능이 게시판(P1)·문의(P3)·프로필 이미지(P2)라 권장
-- [ ] **SYS-B06 RabbitMQ 공통** · `권장` · 비동기
+- [x] **SYS-B06 RabbitMQ 공통** · `권장` · 비동기
   - 큐 reco.reason · feed.summarize 선언(notification.create · feedback.analyze는 [P2·MVP 제외]), 1분 → 5분 → 15분 지연 재시도 + DLQ, 메시지는 ID만 담고 소비자가 DB 최신 상태로 멱등 처리.
   - API·배치: 9.3
   - 근거: 9.3
@@ -74,7 +74,7 @@
   - GPT-4o 호출 공통 클라이언트(타임아웃 5초, 프롬프트 템플릿 관리, 실패 시 호출부 대체 처리), 키는 환경변수.
   - API·배치: —
   - 근거: 9.2 · NFR-OPS-03 · NFR-SEC-07
-- [ ] **SYS-B08 배치 공통** · `필수` · 배치
+- [x] **SYS-B08 배치 공통** · `필수` · 배치
   - @Scheduled(Asia/Seoul), batch_runs 기록(조회·저장·제외 수, 외부 API 사용량, 메시지), RUNNING 행으로 같은 작업 중복 실행 막기.
   - API·배치: batch_runs
   - 근거: 9.4 · NFR-OPS-04
@@ -82,7 +82,7 @@
   - 02:00 미종료 세션 ABANDONED(24시간) 처리(비회원 데이터 7일·알림 90일 삭제는 [P2·MVP 제외]), 02:30 좋아요·댓글·관심 저장·관련 없음 수 재집계.
   - API·배치: 9.4
   - 근거: 9.4 · 7.3
-- [ ] **SYS-B10 메일 발송** · `필수` · 메일
+- [x] **SYS-B10 메일 발송** · `필수` · 메일
   - SMTP(Gmail 앱 비밀번호) 템플릿 3종(가입 인증·비밀번호 재설정·소셜(Google) 계정 안내 [P1]), 실패 시 3회 재시도.
   - API·배치: —
   - 근거: FR-AUTH-01 · FR-AUTH-04 · 11장 #20
@@ -104,7 +104,7 @@
   - springdoc으로 요청·응답 예시 포함 문서, 서비스 계층 단위 테스트 라인 커버리지 60% 이상(추천·TODO 진행률 필수).
   - API·배치: Swagger
   - 근거: NFR-QA-01 · NFR-QA-02 · 10.3
-- [ ] **SYS-B15 시드 데이터 적재** · `필수` · 데이터
+- [x] **SYS-B15 시드 데이터 적재** · `필수` · 데이터
   - 관리자 편집 화면이 MVP 제외(P2)라 분류·태그·취미 콘텐츠·TODO 원본·데이터 매핑표·신뢰 채널(youtube_channels)·입문 자료·행정구역(regions)·개발용 ACTIVE 숏폼을 시드 SQL로 넣는다. 운영 중 수정도 시드 SQL 추가 또는 DB 직접 수정으로 한다. 채널 후보 승인·NEEDS_REVIEW 영상 승인·자동 숨김 복구는 숏폼 검수 화면(ADM-F08·ADM-B09·B10, 후순위 P3)이 생기기 전까지 DB 직접 수정.
   - API·배치: categories · tags · hobbies · plan_templates · hobby_source_mappings · youtube_channels · feed_items · regions · shorts
   - 근거: FR-SHORT-01 · FR-PLACE-03
@@ -126,7 +126,7 @@
   - 인증 토큰(24시간·1회용·SHA-256 해시), verify → ACTIVE 전환 + 로그인 토큰 발급, 재발송 60초 1회.
   - API·배치: /auth/email/verify · /auth/email/resend · auth_tokens
   - 근거: FR-AUTH-01
-- [ ] **AUTH-B03 로그인·토큰 재발급·로그아웃** · `필수` · 로그인
+- [x] **AUTH-B03 로그인·토큰 재발급·로그아웃** · `필수` · 로그인
   - login(5회 연속 실패 5분 잠금, 실패 문구 통일, PENDING 안내), refresh(Refresh 교체 발급), logout(Refresh 폐기·쿠키 삭제).
   - API·배치: /auth/login · /auth/refresh · /auth/logout
   - 근거: FR-AUTH-02
@@ -144,7 +144,7 @@
   - API·배치: /explorations/merge
   - 근거: FR-AUTH-05
   - 비고: MVP 제외(P2): 비회원 체험(11장 #1)
-- [ ] **AUTH-B07 회원 탈퇴** · `필수` · 탈퇴
+- [x] **AUTH-B07 회원 탈퇴** · `필수` · 탈퇴
   - DELETE /users/me: 비밀번호 확인, 이메일·닉네임 즉시 익명화 [P1], 글·댓글은 '탈퇴한 사용자'로 유지, 토큰 폐기, 같은 이메일 재가입 허용.
   - API·배치: /users/me
   - 근거: FR-AUTH-06
@@ -154,17 +154,17 @@
 
 필수 1 · 권장 3 · 후순위 0 · 제외 0 · 프론트엔드 짝: USER-F01~F04
 
-- [ ] **USER-B01 온보딩 저장** · `권장` · 온보딩
+- [x] **USER-B01 온보딩 저장** · `권장` · 온보딩
   - PUT /users/me/onboarding: 관심 취미(최대 5, SAVED로도 저장)·숙련도·이용 상황(시간 0~40, 예산 1만 원 단위)·선호 지역, 미입력은 null.
   - API·배치: /users/me/onboarding · user_conditions · user_hobbies
   - 근거: FR-USER-01
   - 비고: FR-USER-01 P1
-- [ ] **USER-B02 내 정보·수정** · `권장` · 프로필
+- [x] **USER-B02 내 정보·수정** · `권장` · 프로필
   - GET /users/me, PUT /users/me/conditions(관심 취미·이용 상황·선호 지역). PATCH /users/me(닉네임 중복·프로필 이미지)는 [P2·MVP 제외]. 저장해도 기존 추천은 그대로.
   - API·배치: /users/me · /users/me/conditions
   - 근거: FR-USER-02 · FR-PLACE-01
   - 비고: 닉네임·프로필 이미지 수정은 제외(P2)
-- [ ] **USER-B03 비밀번호 변경** · `권장` · 비밀번호
+- [x] **USER-B03 비밀번호 변경** · `권장` · 비밀번호
   - 현재 비밀번호 확인, 같은 비밀번호 거부, 다른 기기 Refresh 폐기, 소셜 계정 거부.
   - API·배치: /users/me/password
   - 근거: FR-USER-03
@@ -205,7 +205,7 @@
   - API·배치: /shorts/{id}/save · /users/me/saved-shorts · short_saves
   - 근거: FR-SHORT-06
   - 비고: 11장 #31 · MVP 제외(P2): 숏폼 보관함(FR-SHORT-06)
-- [ ] **SHORT-B07 숏폼 영상 수집(매일 04:00)** · `필수` · 수집 배치
+- [x] **SHORT-B07 숏폼 영상 수집(매일 04:00)** · `필수` · 수집 배치
   - ACTIVE 채널마다 playlistItems.list(last_collected_at 이후), videos.list 50개 묶음, 기계적 필터(180초 이하·embeddable·public·KR 재생 가능) 불합격은 REJECTED(사유), 실패 채널은 다음 날 이어서, 할당량 사용량 기록.
   - API·배치: YouTube Data API · youtube_channels · shorts · batch_runs
   - 근거: FR-SHORT-07 · NFR-EXT-01
@@ -262,12 +262,12 @@
   - API·배치: short_reactions · exploration_views
   - 근거: FR-RECO-01
   - 비고: 11장 #27
-- [ ] **RECO-B02 추천 생성** · `필수` · 추천 생성
+- [x] **RECO-B02 추천 생성** · `필수` · 추천 생성
   - 관심 취미 상위 3개, 연관 취미 3개(유사도 × 0.7 + 태그 점수 × 0.3, 관심·진행 중·별로예요 제외), 이용 상황은 정렬 가중치(×0.8 + 조건 확인 필요 / ×1.1), 정보 부족(LIKE 3개 미만) 시 탐색용 6개, 스냅샷 저장, 3초 이내.
   - API·배치: /recommendations · recommendations · recommendation_items
   - 근거: FR-RECO-01 · NFR-PERF-02
   - 비고: 11장 #5 · #7 · 이용 상황 반영 정렬·정보 부족 시 탐색용 제안은 권장(P1)
-- [ ] **RECO-B03 추천 조회 API** · `필수` · 추천 조회
+- [x] **RECO-B03 추천 조회 API** · `필수` · 추천 조회
   - GET /recommendations/latest, /{id}(추천 이유 생성 상태 reason_status, 추천 기준 문구 basisText 포함).
   - API·배치: /recommendations/latest · /recommendations/{id}
   - 근거: FR-RECO-02
@@ -287,7 +287,7 @@
   - API·배치: hobby_similarity
   - 근거: FR-RECO-01 · 9.4
   - 비고: 11장 #8
-- [ ] **RECO-B07 추천 가중치 튜닝** · `권장` · 분석
+- [x] **RECO-B07 추천 가중치 튜닝** · `권장` · 분석
   - 사용자 테스트 후 event_logs·반응 데이터로 가중치를 분석·조정한다(pandas·scikit-learn).
   - API·배치: event_logs
   - 근거: 9.2 · NFR-LOG-02
@@ -349,7 +349,7 @@
   - API·배치: /regions · regions
   - 근거: FR-PLACE-01
   - 비고: FR-PLACE-01 P1
-- [ ] **PLACE-B02 장소 목록 API** · `권장` · 장소 목록
+- [x] **PLACE-B02 장소 목록 API** · `권장` · 장소 목록
   - GET /places?regionId=&hobbyId=: PUBLISHED, 좌표, '정보 확인 필요'(운영 시간·비용 비었거나 90일 넘게 갱신 안 됨) 플래그.
   - API·배치: /places · places · hobby_places
   - 근거: FR-PLACE-02
@@ -426,7 +426,7 @@
   - POST·PATCH·DELETE /posts: 입력 검증(제목 2~50, 본문 10~5,000, 이미지 5장), HTML 이스케이프 저장, 본인만(403 BOARD_FORBIDDEN), soft delete 후 상세 404.
   - API·배치: /posts · /posts/{id} · post_images
   - 근거: FR-BOARD-02 · NFR-SEC-05
-- [ ] **BOARD-B03 게시글 상세·조회수** · `권장` · 상세
+- [x] **BOARD-B03 게시글 상세·조회수** · `권장` · 상세
   - GET /posts/{id}: 조회수는 회원 기준(비회원 체험 도입 시 guestKey 포함) 24시간에 1회.
   - API·배치: /posts/{id}
   - 근거: FR-BOARD-03

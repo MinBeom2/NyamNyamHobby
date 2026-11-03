@@ -17,7 +17,7 @@ function HobbyCard({ hobby }: { hobby: HobbyCardModel }) {
   const saved = hobbiesQuery.data?.some((item) => item.hobbyId === hobby.id && item.status === 'SAVED') ?? false;
   const saveMutation = useMutation({ mutationFn: () => saved ? deleteUserHobby(hobby.id) : saveUserHobby(hobby.id), onSuccess: () => queryClient.invalidateQueries({ queryKey: userQueryKeys.hobbies() }) });
   return <article className="catalog-card">
-    <div className="catalog-card__visual">{hobby.thumbnailUrl ? <img src={hobby.thumbnailUrl} alt="" /> : <><Image aria-hidden="true" /><span>이미지</span></>}<b>{hobby.relation}</b></div>
+    <div className="catalog-card__visual">{hobby.thumbnailUrl ? <img src={hobby.thumbnailUrl} alt="" /> : <><Image aria-hidden="true" /><span>이미지</span></>}{hobby.relation && <b>{hobby.relation}</b>}</div>
     <div className="catalog-card__body"><span className="badge">{hobby.category}</span><h2>{hobby.name}</h2><p>{hobby.description}</p><div className="catalog-card__meta"><span><Clock3 />{hobby.duration}</span><span><Coins />{hobby.cost}</span><span><Gauge />{hobby.difficulty}</span></div><div className="catalog-card__actions"><button className={saved ? 'active' : ''} disabled={saveMutation.isPending} onClick={() => user ? saveMutation.mutate() : navigate('/login')} type="button"><Heart fill={saved ? 'currentColor' : 'none'} /> {saved ? '관심 저장됨' : '관심 저장'}</button><Link to={`/hobbies/${hobby.id}`}>상세 보기</Link></div></div>
   </article>;
 }
@@ -64,7 +64,7 @@ export function HobbySearchPage({ recommended = false }: { recommended?: boolean
   const reset = () => { setKeyword(''); setSubmittedKeyword(''); setCategory('전체'); setDifficulty('전체'); setPlace('전체'); };
   const search = () => { const value = keyword.trim(); if (!value || value.length >= 2) setSubmittedKeyword(value); };
   return <div className="site-shell"><AppHeader /><main className="page-container discovery-page">
-    <div className="discovery-title"><div><h1>{recommended ? '맞춤 취미 추천' : '취미 찾기'}</h1><p>{recommended ? '관심사와 이용 상황을 바탕으로 잘 맞는 취미를 모았어요.' : '취미명이나 태그로 찾고, 시간·비용·난이도로 좁혀 보세요.'}</p></div>{!recommended && <Button to="/hobbies/interests">맞춤 추천 보기</Button>}</div>
+    <div className="discovery-title"><div><h1>{recommended ? '맞춤 취미 추천' : '취미 찾기'}</h1><p>{recommended ? '관심사와 이용 상황을 바탕으로 잘 맞는 취미를 모았어요.' : '취미명이나 태그로 찾고, 시간·비용·난이도로 좁혀 보세요.'}</p></div>{!recommended && <Button to="/hobbies/recommendations">맞춤 추천 보기</Button>}</div>
     <form className="search-bar" onSubmit={(event) => { event.preventDefault(); search(); }}><Search aria-hidden="true" /><input value={keyword} onChange={(event) => setKeyword(event.target.value)} placeholder="취미명이나 태그로 검색 (2자 이상)" /><button type="submit">검색</button></form>
     <div className="filter-row" aria-label="취미 필터"><select value={category} onChange={(event) => setCategory(event.target.value)}>{categories.map((item) => <option key={item}>{item}</option>)}</select><select value={difficulty} onChange={(event) => setDifficulty(event.target.value)}>{Object.keys(difficultyValues).map((item) => <option key={item}>{item}</option>)}</select><select value={place} onChange={(event) => setPlace(event.target.value)}>{Object.keys(placeValues).map((item) => <option key={item}>{item}</option>)}</select><button className="filter-reset" type="button" onClick={reset}>초기화</button></div>
     {keyword.trim().length === 1 && <p className="form-message form-message--error">검색어는 2자 이상 입력해 주세요.</p>}

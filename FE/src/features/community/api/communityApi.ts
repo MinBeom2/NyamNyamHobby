@@ -48,6 +48,7 @@ export const communityQueryKeys = {
   posts: (hobbyId: number, type?: PostType, keyword?: string, page = 0) => ['community', 'posts', hobbyId, type ?? 'ALL', keyword ?? '', page] as const,
   post: (postId: number) => ['community', 'post', postId] as const,
   comments: (postId: number, page = 0) => ['community', 'post', postId, 'comments', page] as const,
+  myPosts: (page = 0) => ['community', 'my-posts', page] as const,
 };
 
 export function getPosts(hobbyId: number, options: { type?: PostType; keyword?: string; page?: number; size?: number } = {}) {
@@ -55,6 +56,10 @@ export function getPosts(hobbyId: number, options: { type?: PostType; keyword?: 
   if (options.type) params.set('type', options.type);
   if (options.keyword?.trim()) params.set('keyword', options.keyword.trim());
   return apiRequest<PageDto<PostSummaryDto>>(`/hobbies/${hobbyId}/posts?${params}`);
+}
+export function getMyPosts(options: { page?: number; size?: number } = {}) {
+  const params = new URLSearchParams({ page: String(options.page ?? 0), size: String(options.size ?? 20) });
+  return apiRequest<PageDto<PostSummaryDto>>(`/users/me/posts?${params}`);
 }
 export function getPost(postId: number) { return apiRequest<PostDetailDto>(`/posts/${postId}`); }
 export function createPost(request: PostWriteRequest) { return apiRequest<PostDetailDto>('/posts', { method: 'POST', body: JSON.stringify(request) }); }

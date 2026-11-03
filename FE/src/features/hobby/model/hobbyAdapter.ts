@@ -12,7 +12,7 @@ export type HobbyCardModel = {
   duration: string;
   cost: string;
   tags: string[];
-  relation: string;
+  relation: string | null;
 };
 
 const difficultyLabels = { EASY: '쉬움', NORMAL: '보통', HARD: '어려움' } as const;
@@ -54,7 +54,7 @@ export function toHobbyCardModel(dto: HobbyListItemDto): HobbyCardModel {
     duration: formatDuration(dto.sessionMinutes),
     cost: formatCost(dto.monthlyCost),
     tags: dto.tags,
-    relation: dto.saveCount > 0 ? `관심 ${dto.saveCount}` : '새 취미',
+    relation: dto.saveCount > 0 ? `${dto.saveCount}명이 저장` : null,
   };
 }
 

@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { scrollToElement, scrollToTop, startSmoothScroll } from '../shared/scroll/smoothScroll';
 import { useQuery } from '@tanstack/react-query';
 import { Navigate, Outlet, Route, Routes, useLocation } from 'react-router-dom';
 import { GuestHomePage, MemberHomePage } from '../pages/home/HomePage';
@@ -77,16 +78,18 @@ function MemberRoute() {
 function ScrollToTop() {
   const { pathname, hash } = useLocation();
 
+  useEffect(() => startSmoothScroll(), []);
+
   useEffect(() => {
     if (hash) {
       const frameId = window.requestAnimationFrame(() => {
-        document.getElementById(hash.slice(1))?.scrollIntoView({ block: 'start' });
+        scrollToElement(document.getElementById(hash.slice(1)), { immediate: true });
       });
 
       return () => window.cancelAnimationFrame(frameId);
     }
 
-    window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+    scrollToTop({ immediate: true });
   }, [pathname, hash]);
 
   return null;

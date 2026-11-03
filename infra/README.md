@@ -24,7 +24,8 @@ EC2 한 대에 Nginx(호스트)와 Docker 컨테이너들을 올린다. 외부�
 | `/etc/nginx/snippets/` | `server/nginx/*.conf` | `/jenkins/`, `/api/`, `/oauth2/` 프록시 설정 |
 | `/var/www/nyamnyam/` | — | 프론트엔드 릴리스 (`releases/<빌드번호>`, `current` 링크). Jenkins가 배포 |
 | `/etc/docker/daemon.json` | `server/docker/daemon.json` | 컨테이너 로그 크기 제한 (파일당 10MB × 3개) |
-| `/home/ubuntu/ops/` | `server/ops/` | 운영 알림 스크립트(YouTube 할당량 경고). cron으로 실행 |
+| `/home/ubuntu/ops/` | `server/ops/` | 운영 스크립트(YouTube 할당량 경고, DB·업로드 백업). cron으로 실행 |
+| `/home/ubuntu/backups/` | — | DB 덤프(`db/`)·업로드 이미지(`uploads/`) 백업 파일. 14일 보관 |
 
 `.env` 파일은 서버에만 있고 커밋하지 않는다(권한 600). 형식은 각 폴더의 `.env.example`을 본다.
 저장소의 `server/` 파일을 고치면 서버의 같은 경로에도 직접 복사해야 반영된다(Jenkins는 서버의 `/home/ubuntu/app/docker-compose.yml`을 읽는다).
@@ -67,6 +68,55 @@ crontab -e   # 아래 줄 추가: 30분마다 확인
 - `THRESHOLD_PERCENT=0 ~/ops/youtube-quota-check.sh` → 경고를 강제로 보내 웹훅 확인. 테스트 뒤 `rm -f ~/ops/state/quota-alert-*`로 오늘 보낸 표시를 지운다
 - `tail ~/ops/logs/quota.log` → cron 실행 기록
 - DB 접속 정보는 `~/infra/.env`의 `POSTGRES_USER`·`POSTGRES_DB`를 읽는다. 웹훅 URL은 `~/ops/.env`에만 둔다
+
+## DB·업로드 백업과 복구
+매일 03:30(서버 시간대 Asia/Seoul) `db-backup.sh`가 PostgreSQL을 `pg_dump -Fc`로 덤프하고, 업로드 이미지 볼륨(`nyam-app_uploads`)을 `tar.gz`로 묶어 `~/backups/`에 남긴다. 덤프는 `pg_restore --list`로 읽히는지 확인한 뒤에만 저장하고, 14일 지난 파일은 지운다. 어느 단계든 실패하면 Mattermost 운영 채널(할당량 경고와 같은 웹훅)로 알린다. 서비스를 멈추지 않고 백업한다.
+
+숏폼(YouTube 할당량을 며칠 써야 다시 모임)·회원 반응·게시글·업로드 이미지처럼 마이그레이션으로 되살릴 수 없는 데이터가 대상이다. 취미·계획 원본 같은 기본 데이터는 Flyway(V1~)로도 다시 만들어진다.
+
+설치 (최초 1회, `~/ops/.env`는 할당량 경고 설치 때 만든 것을 같이 쓴다)
+```bash
+cp server/ops/db-backup.sh ~/ops/ && chmod 700 ~/ops/db-backup.sh
+~/ops/db-backup.sh          # 마지막 줄에 "ok db=… uploads=…"가 나오면 성공
+crontab -e                  # 아래 줄 추가
+# 30 3 * * * /home/ubuntu/ops/db-backup.sh >> /home/ubuntu/ops/logs/backup.log 2>&1
+```
+확인: `tail -3 ~/ops/logs/backup.log`, `ls -lh ~/backups/db ~/backups/uploads`
+
+### 복구 리허설 (운영 DB를 건드리지 않음)
+포트를 열지 않은 임시 컨테이너에 복구해 행 수를 운영과 비교하고 지운다. 백업 방식을 바꾸면 다시 해 본다.
+```bash
+docker run -d --name restore-test -e POSTGRES_PASSWORD=restore-test pgvector/pgvector:pg17
+until docker exec restore-test pg_isready -U postgres; do sleep 1; done
+docker cp ~/backups/db/<백업 파일>.dump restore-test:/tmp/backup.dump
+docker exec restore-test createdb -U postgres nyamnyam
+time docker exec restore-test pg_restore -U postgres -d nyamnyam --no-owner --no-privileges /tmp/backup.dump
+# 운영(postgres 컨테이너, -U nyam)과 복구본(restore-test, -U postgres)에 같은 count 쿼리를 실행해 비교
+docker rm -f restore-test
+```
+
+| 날짜 | 백업 파일 | 복구 시간 | 결과 |
+|---|---|---|---|
+| 2026-11-03 | `nyamnyam_20261103_1049.dump` (729KB) + 업로드 71KB | 0.96초 | shorts 2,102 · users 6 · hobbies 30 · plan_templates 30 · posts 2 · comments 4 · flyway 13 모두 운영과 일치, 업로드 파일 목록 정상 |
+
+같은 날 리허설 뒤 미뤄 둔 collation 경고(DB 이미지를 pgvector로 바꾸며 2.41 → 2.36)를 정리했다. 직전 백업을 다시 뜬 뒤 `nyamnyam`·`postgres`·`template1`에 `REINDEX DATABASE` → `ALTER DATABASE … REFRESH COLLATION VERSION`을 실행했고, 세 DB 모두 2.36으로 맞춰져 경고가 사라졌다.
+
+### 운영 복구 (사고 시)
+리허설과 같은 `pg_restore`에 `--clean --if-exists`를 붙여 기존 객체를 지우고 다시 만든다. 운영에 직접 실행해 본 적은 없으므로, 먼저 리허설 방식으로 그 백업 파일이 정상인지 확인한다.
+```bash
+~/ops/db-backup.sh                                   # 1) 지금 상태도 남겨 둔다(잘못 복구해도 되돌릴 수 있게)
+docker stop backend                                  # 2) 복구 중 쓰기 차단
+docker exec -i postgres pg_restore -U nyam -d nyamnyam --clean --if-exists --no-owner < ~/backups/db/<백업 파일>.dump
+docker run --rm -v nyam-app_uploads:/data -v ~/backups/uploads:/backup alpine sh -c "cd /data && tar xzf /backup/<업로드 백업>.tar.gz"   # 3) 업로드 이미지(필요할 때)
+docker start backend && curl -s http://127.0.0.1:18080/actuator/health   # 4) 재기동·확인
+```
+백업 시점 이후 데이터는 사라진다(최대 하루치). Flyway 이력도 백업 시점으로 돌아가므로, 그 뒤에 배포한 마이그레이션은 다음 백엔드 기동 때 다시 적용된다.
+
+### 서버 밖에 보관
+백업 파일은 같은 EC2 디스크에 있어 서버 자체를 잃으면 함께 사라진다. 발표 전처럼 중요한 시점에는 로컬 PC로 내려받는다.
+```bash
+scp -i <키 파일> ubuntu@k15d104.p.ssafy.io:~/backups/db/<백업 파일>.dump .
+```
 
 ## 로그 크기 제한 적용 (최초 1회)
 ```bash

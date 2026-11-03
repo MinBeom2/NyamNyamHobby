@@ -81,6 +81,22 @@ public class PostService {
         return PageResponse.of(posts, post -> PostSummaryResponse.of(post, thumbnails.get(post.getId())));
     }
 
+    /** 내가 쓴 글 목록 조회. ACTIVE 상태의 글만 최신순으로 반환 */
+    public PageResponse<PostSummaryResponse> getMyPosts(Long userId, int page, int size) {
+        PageRequest pageable = PageRequest.of(Math.max(page, 0), clampSize(size),
+                Sort.by(Sort.Direction.DESC, "createdAt", "id"));
+        Page<Post> posts = postRepository.findByUserIdAndStatus(userId, PostStatus.ACTIVE, pageable);
+
+        Map<Long, String> thumbnails = new HashMap<>();
+        List<Long> postIds = posts.getContent().stream().map(Post::getId).toList();
+        if (!postIds.isEmpty()) {
+            for (Object[] row : postImageRepository.findThumbnails(postIds)) {
+                thumbnails.putIfAbsent((Long) row[0], (String) row[1]);
+            }
+        }
+        return PageResponse.of(posts, post -> PostSummaryResponse.of(post, thumbnails.get(post.getId())));
+    }
+
     /** 글 상세. 볼 때마다 조회수 +1. viewerId는 비로그인이면 null */
     @Transactional
     public PostDetailResponse getPost(Long postId, Long viewerId) {

@@ -63,6 +63,8 @@ class UserServiceTest {
     private PasswordEncoder passwordEncoder;
 
     @Mock private PlanQueryService planQueryService;
+    @Mock private com.ssafy.nyamnyam.domain.shortform.repository.ShortSaveRepository shortSaveRepository;
+    @Mock private com.ssafy.nyamnyam.domain.post.repository.PostRepository postRepository;
 
     @InjectMocks
     private UserService userService;
@@ -291,5 +293,21 @@ class UserServiceTest {
         assertThat(result).hasSize(1);
         assertThat(result.get(0).getName()).isEqualTo("클라이밍");
         assertThat(result.get(0).getStatus()).isEqualTo("SAVED");
+    }
+
+    @Test
+    @DisplayName("마이페이지 요약 통계 조회 성공")
+    void getMySummary_success() {
+        given(userHobbyRepository.countByUserIdAndStatus(1L, UserHobbyStatus.SAVED)).willReturn(3L);
+        given(userHobbyRepository.countByUserIdAndStatusIn(eq(1L), any())).willReturn(2L);
+        given(shortSaveRepository.countByUserId(1L)).willReturn(5L);
+        given(postRepository.countByUserIdAndStatus(1L, com.ssafy.nyamnyam.domain.post.entity.PostStatus.ACTIVE)).willReturn(4L);
+
+        com.ssafy.nyamnyam.domain.user.dto.response.MySummaryResponse summary = userService.getMySummary(1L);
+
+        assertThat(summary.savedHobbyCount()).isEqualTo(3L);
+        assertThat(summary.inProgressHobbyCount()).isEqualTo(2L);
+        assertThat(summary.savedShortCount()).isEqualTo(5L);
+        assertThat(summary.myPostCount()).isEqualTo(4L);
     }
 }

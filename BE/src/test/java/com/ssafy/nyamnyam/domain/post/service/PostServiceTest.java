@@ -324,4 +324,27 @@ class PostServiceTest {
         ReflectionTestUtils.setField(longPost, "content", "가".repeat(97) + "&amp;뒤");
         assertThat(PostSummaryResponse.of(longPost, null).contentSummary()).isEqualTo("가".repeat(97) + "…");
     }
+
+    @Test
+    @DisplayName("내가 쓴 글 목록: ACTIVE 상태 글만 최신순으로 페이징 조회")
+    void getMyPosts() {
+        Post p1 = post(1L, writer);
+        Post p2 = post(2L, writer);
+        org.springframework.data.domain.Page<Post> postPage = new org.springframework.data.domain.PageImpl<>(
+                List.of(p2, p1), PageRequest.of(0, 20), 2);
+        given(postRepository.findByUserIdAndStatus(eq(15L), eq(PostStatus.ACTIVE), any(Pageable.class)))
+                .willReturn(postPage);
+
+        PageResponse<PostSummaryResponse> result = service.getMyPosts(15L, 0, 20);
+
+        ArgumentCaptor<Pageable> captor = ArgumentCaptor.forClass(Pageable.class);
+        verify(postRepository).findByUserIdAndStatus(eq(15L), eq(PostStatus.ACTIVE), captor.capture());
+        Pageable pageable = captor.getValue();
+        assertThat(pageable.getPageNumber()).isEqualTo(0);
+        assertThat(pageable.getPageSize()).isEqualTo(20);
+        assertThat(pageable.getSort().toString()).isEqualTo("createdAt: DESC,id: DESC");
+
+        assertThat(result.content()).hasSize(2);
+        assertThat(result.page().totalElements()).isEqualTo(2);
+    }
 }

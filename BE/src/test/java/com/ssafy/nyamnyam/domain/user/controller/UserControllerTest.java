@@ -7,6 +7,12 @@ import com.ssafy.nyamnyam.domain.user.dto.response.OnboardingOptionsResponse;
 import com.ssafy.nyamnyam.domain.user.dto.response.UserHobbyResponse;
 import com.ssafy.nyamnyam.domain.user.dto.response.UserProfileResponse;
 import com.ssafy.nyamnyam.domain.user.service.UserService;
+import com.ssafy.nyamnyam.domain.user.dto.response.MySummaryResponse;
+import com.ssafy.nyamnyam.domain.post.dto.response.PostSummaryResponse;
+import com.ssafy.nyamnyam.domain.post.dto.response.AuthorResponse;
+import com.ssafy.nyamnyam.domain.post.entity.PostType;
+import com.ssafy.nyamnyam.global.common.PageResponse;
+import java.time.LocalDateTime;
 import com.ssafy.nyamnyam.global.security.SecurityConfig;
 import com.ssafy.nyamnyam.global.security.UserPrincipal;
 import com.ssafy.nyamnyam.global.security.jwt.JwtAccessDeniedHandler;
@@ -45,6 +51,8 @@ class UserControllerTest {
 
     @MockitoBean
     private UserService userService;
+    @MockitoBean
+    private com.ssafy.nyamnyam.domain.post.service.PostService postService;
 
     @MockitoBean
     private JwtProvider jwtProvider;
@@ -203,5 +211,60 @@ class UserControllerTest {
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data[0].name").value("클라이밍"))
                 .andExpect(jsonPath("$.data[0].status").value("IN_PROGRESS"));
+    }
+
+    @Test
+    @DisplayName("GET /api/v1/users/me/summary 마이페이지 요약 조회 성공")
+    void getMySummary_success() throws Exception {
+        MySummaryResponse summary = new MySummaryResponse(3L, 2L, 5L, 4L);
+        given(userService.getMySummary(1L)).willReturn(summary);
+
+        mockMvc.perform(get("/api/v1/users/me/summary")
+                        .with(user(createPrincipal())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.savedHobbyCount").value(3))
+                .andExpect(jsonPath("$.data.inProgressHobbyCount").value(2))
+                .andExpect(jsonPath("$.data.savedShortCount").value(5))
+                .andExpect(jsonPath("$.data.myPostCount").value(4));
+    }
+
+    @Test
+    @DisplayName("GET /api/v1/users/me/summary 미인증 시 401")
+    void getMySummary_unauthorized() throws Exception {
+        mockMvc.perform(get("/api/v1/users/me/summary"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @DisplayName("GET /api/v1/users/me/posts 내 글 목록 조회 성공")
+    void getMyPosts_success() throws Exception {
+        PostSummaryResponse postSummary = new PostSummaryResponse(
+                100L, PostType.QUESTION, "테스트 제목", "테스트 내용 요약",
+                new AuthorResponse(1L, "테스트유저", null), null,
+                10, 5, 2, LocalDateTime.now()
+        );
+        PageResponse<PostSummaryResponse> pageResponse = new PageResponse<>(
+                List.of(postSummary),
+                new PageResponse.PageInfo(0, 20, 1, 1, false)
+        );
+        given(postService.getMyPosts(1L, 0, 20)).willReturn(pageResponse);
+
+        mockMvc.perform(get("/api/v1/users/me/posts")
+                        .with(user(createPrincipal()))
+                        .param("page", "0")
+                        .param("size", "20"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.content[0].id").value(100))
+                .andExpect(jsonPath("$.data.content[0].title").value("테스트 제목"))
+                .andExpect(jsonPath("$.data.page.totalElements").value(1));
+    }
+
+    @Test
+    @DisplayName("GET /api/v1/users/me/posts 미인증 시 401")
+    void getMyPosts_unauthorized() throws Exception {
+        mockMvc.perform(get("/api/v1/users/me/posts"))
+                .andExpect(status().isUnauthorized());
     }
 }

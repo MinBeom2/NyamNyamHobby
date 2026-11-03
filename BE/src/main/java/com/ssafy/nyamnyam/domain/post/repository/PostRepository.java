@@ -1,6 +1,7 @@
 package com.ssafy.nyamnyam.domain.post.repository;
 
 import com.ssafy.nyamnyam.domain.post.entity.Post;
+import com.ssafy.nyamnyam.domain.post.entity.PostStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
@@ -43,4 +44,11 @@ public interface PostRepository extends JpaRepository<Post, Long>, JpaSpecificat
     @Query("UPDATE Post p SET p.commentCount = CASE WHEN p.commentCount + :delta < 0 THEN 0 ELSE p.commentCount + :delta END " +
            "WHERE p.id = :id")
     int addCommentCount(@Param("id") Long id, @Param("delta") int delta);
+
+    /** 내가 쓴 활성 게시글 수 */
+    long countByUserIdAndStatus(Long userId, PostStatus status);
+
+    /** 내가 쓴 활성 게시글 목록 페이징 */
+    @EntityGraph(attributePaths = "user")
+    Page<Post> findByUserIdAndStatus(Long userId, PostStatus status, Pageable pageable);
 }

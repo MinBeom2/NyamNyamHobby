@@ -1,18 +1,22 @@
 package com.ssafy.nyamnyam.domain.user.service;
 
 import com.ssafy.nyamnyam.domain.auth.repository.AuthTokenRepository;
-import com.ssafy.nyamnyam.domain.plan.service.PlanQueryService;
 import com.ssafy.nyamnyam.domain.hobby.entity.Hobby;
 import com.ssafy.nyamnyam.domain.hobby.entity.HobbyStatus;
-import com.ssafy.nyamnyam.domain.user.dto.request.OnboardingRequest;
-import com.ssafy.nyamnyam.domain.user.dto.response.OnboardingResponse;
-import com.ssafy.nyamnyam.domain.user.dto.response.OnboardingOptionsResponse;
-import com.ssafy.nyamnyam.domain.user.dto.response.RegionResponse;
 import com.ssafy.nyamnyam.domain.hobby.repository.HobbyRepository;
+import com.ssafy.nyamnyam.domain.plan.service.PlanQueryService;
+import com.ssafy.nyamnyam.domain.post.entity.PostStatus;
+import com.ssafy.nyamnyam.domain.post.repository.PostRepository;
+import com.ssafy.nyamnyam.domain.shortform.repository.ShortSaveRepository;
 import com.ssafy.nyamnyam.domain.user.dto.request.ChangePasswordRequest;
+import com.ssafy.nyamnyam.domain.user.dto.request.OnboardingRequest;
 import com.ssafy.nyamnyam.domain.user.dto.request.UpdateConditionsRequest;
 import com.ssafy.nyamnyam.domain.user.dto.request.UpdateProfileRequest;
 import com.ssafy.nyamnyam.domain.user.dto.request.WithdrawRequest;
+import com.ssafy.nyamnyam.domain.user.dto.response.MySummaryResponse;
+import com.ssafy.nyamnyam.domain.user.dto.response.OnboardingOptionsResponse;
+import com.ssafy.nyamnyam.domain.user.dto.response.OnboardingResponse;
+import com.ssafy.nyamnyam.domain.user.dto.response.RegionResponse;
 import com.ssafy.nyamnyam.domain.user.dto.response.UserConditionsResponse;
 import com.ssafy.nyamnyam.domain.user.dto.response.UserHobbyResponse;
 import com.ssafy.nyamnyam.domain.user.dto.response.UserProfileResponse;
@@ -31,13 +35,13 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.annotation.Isolation;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.util.List;
 import java.util.Comparator;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -54,6 +58,8 @@ public class UserService {
     private final AuthTokenRepository authTokenRepository;
     private final PasswordEncoder passwordEncoder;
     private final PlanQueryService planQueryService;
+    private final ShortSaveRepository shortSaveRepository;
+    private final PostRepository postRepository;
 
     @Transactional(readOnly = true)
     public OnboardingOptionsResponse getOnboardingOptions() {
@@ -278,6 +284,20 @@ public class UserService {
                 });
     }
 
+    /**
+     * 9) 마이페이지 요약 수치 조회 (관심 취미, 진행 중, 보관한 숏폼, 내 글)
+     */
+    @Transactional(readOnly = true)
+    public MySummaryResponse getMySummary(Long userId) {
+        long savedHobbyCount = userHobbyRepository.countByUserIdAndStatus(userId, UserHobbyStatus.SAVED);
+        long inProgressHobbyCount = userHobbyRepository.countByUserIdAndStatusIn(userId,
+                List.of(UserHobbyStatus.IN_PROGRESS, UserHobbyStatus.PAUSED));
+        long savedShortCount = shortSaveRepository.countByUserId(userId);
+        long myPostCount = postRepository.countByUserIdAndStatus(userId, PostStatus.ACTIVE);
+
+        return new MySummaryResponse(savedHobbyCount, inProgressHobbyCount, savedShortCount, myPostCount);
+    }
+
     private void requireSaved(UserHobby entry) {
         if (entry.getStatus() != UserHobbyStatus.SAVED)
             throw new CustomException(entry.getStatus() == UserHobbyStatus.IN_PROGRESS
@@ -290,4 +310,3 @@ public class UserService {
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
     }
 }
-

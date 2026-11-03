@@ -27,4 +27,11 @@ public class ShortSaveRepository {
                 "SELECT EXISTS (SELECT 1 FROM short_saves WHERE user_id = ? AND short_id = ?)",
                 Boolean.class, userId, shortId));
     }
+
+    public long countByUserId(Long userId) {
+        Integer count = jdbc.queryForObject(
+                "SELECT count(*) FROM short_saves WHERE user_id = ?",
+                Integer.class, userId);
+        return count != null ? count : 0;
+    }
 }

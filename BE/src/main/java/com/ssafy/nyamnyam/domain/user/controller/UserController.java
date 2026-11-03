@@ -1,17 +1,21 @@
 package com.ssafy.nyamnyam.domain.user.controller;
 
+import com.ssafy.nyamnyam.domain.post.dto.response.PostSummaryResponse;
+import com.ssafy.nyamnyam.domain.post.service.PostService;
 import com.ssafy.nyamnyam.domain.user.dto.request.ChangePasswordRequest;
 import com.ssafy.nyamnyam.domain.user.dto.request.OnboardingRequest;
-import com.ssafy.nyamnyam.domain.user.dto.response.OnboardingResponse;
-import com.ssafy.nyamnyam.domain.user.dto.response.OnboardingOptionsResponse;
 import com.ssafy.nyamnyam.domain.user.dto.request.UpdateConditionsRequest;
 import com.ssafy.nyamnyam.domain.user.dto.request.UpdateProfileRequest;
 import com.ssafy.nyamnyam.domain.user.dto.request.WithdrawRequest;
+import com.ssafy.nyamnyam.domain.user.dto.response.MySummaryResponse;
+import com.ssafy.nyamnyam.domain.user.dto.response.OnboardingOptionsResponse;
+import com.ssafy.nyamnyam.domain.user.dto.response.OnboardingResponse;
 import com.ssafy.nyamnyam.domain.user.dto.response.UserConditionsResponse;
 import com.ssafy.nyamnyam.domain.user.dto.response.UserHobbyResponse;
 import com.ssafy.nyamnyam.domain.user.dto.response.UserProfileResponse;
 import com.ssafy.nyamnyam.domain.user.service.UserService;
 import com.ssafy.nyamnyam.global.common.ApiResponse;
+import com.ssafy.nyamnyam.global.common.PageResponse;
 import com.ssafy.nyamnyam.global.security.UserPrincipal;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -28,6 +32,7 @@ import java.util.Map;
 public class UserController {
 
     private final UserService userService;
+    private final PostService postService;
 
     @GetMapping("/onboarding/options")
     public ApiResponse<OnboardingOptionsResponse> onboardingOptions() {
@@ -136,5 +141,28 @@ public class UserController {
         userService.unsaveHobby(principal.getUserId(), hobbyId);
         return ResponseEntity.ok(ApiResponse.success(Map.of("saved", false)));
     }
-}
 
+    /**
+     * 9) 마이페이지 요약 수치 조회 (200 OK)
+     */
+    @GetMapping("/summary")
+    public ResponseEntity<ApiResponse<MySummaryResponse>> getMySummary(
+            @AuthenticationPrincipal UserPrincipal principal
+    ) {
+        MySummaryResponse response = userService.getMySummary(principal.getUserId());
+        return ResponseEntity.ok(ApiResponse.success(response));
+    }
+
+    /**
+     * 10) 내가 쓴 글 목록 조회 (200 OK)
+     */
+    @GetMapping("/posts")
+    public ResponseEntity<ApiResponse<PageResponse<PostSummaryResponse>>> getMyPosts(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @RequestParam(value = "page", defaultValue = "0") int page,
+            @RequestParam(value = "size", defaultValue = "20") int size
+    ) {
+        PageResponse<PostSummaryResponse> response = postService.getMyPosts(principal.getUserId(), page, size);
+        return ResponseEntity.ok(ApiResponse.success(response));
+    }
+}

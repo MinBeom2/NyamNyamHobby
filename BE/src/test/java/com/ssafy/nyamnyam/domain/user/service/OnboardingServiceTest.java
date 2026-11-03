@@ -30,6 +30,7 @@ class OnboardingServiceTest {
     @Mock UserConditionRepository conditions;
     @Mock RegionRepository regions;
     @Mock UserHobbyRepository userHobbies;
+    @Mock InterestSelectionRepository interests;
     @Mock HobbyRepository hobbies;
     @Mock AuthTokenRepository tokens;
     @Mock PasswordEncoder encoder;
@@ -62,41 +63,39 @@ class OnboardingServiceTest {
         assertThat(capturedCondition.getValue().getPlacePref()).isEqualTo("INDOOR");
         assertThat(capturedCondition.getValue().getSocialPref()).isEqualTo("ANY");
         assertThat(capturedCondition.getValue().getRegion()).isSameAs(region);
-        var capturedHobby = ArgumentCaptor.forClass(UserHobby.class);
-        verify(userHobbies).save(capturedHobby.capture());
-        assertThat(capturedHobby.getValue().getStatus()).isEqualTo(UserHobbyStatus.SAVED);
-        assertThat(capturedHobby.getValue().getSkillLevel()).isEqualTo("BEGINNER");
-        verify(hobbies).adjustSaveCount(3L, 1);
+        var captured = ArgumentCaptor.forClass(InterestSelection.class);
+        verify(interests).save(captured.capture());
+        assertThat(captured.getValue().getHobby()).isSameAs(hobby);
+        // 내 취미 선택은 관심 저장(user_hobbies)과 별개라 저장 수를 건드리지 않는다
+        verifyNoInteractions(userHobbies);
+        verify(hobbies, never()).adjustSaveCount(any(), anyInt());
     }
 
     @Test void repeatedSubmissionDoesNotDuplicateOrResetProgress() {
         given(users.findById(1L)).willReturn(Optional.of(user));
         given(hobbies.findAllById(Set.of(3L))).willReturn(List.of(hobby));
-        UserHobby progress = UserHobby.builder().user(user).hobby(hobby)
-                .status(UserHobbyStatus.IN_PROGRESS).skillLevel("INTERMEDIATE").build();
-        given(userHobbies.findAllByUserIdWithHobby(1L)).willReturn(List.of(progress));
+        var selected = InterestSelection.builder().user(user).hobby(hobby).build();
+        given(interests.findAllByUserIdWithHobby(1L)).willReturn(List.of(selected));
         var request = request(3L);
 
         service.saveOnboarding(1L, request);
         service.saveOnboarding(1L, request);
 
-        assertThat(progress.getStatus()).isEqualTo(UserHobbyStatus.IN_PROGRESS);
-        assertThat(progress.getSkillLevel()).isEqualTo("INTERMEDIATE");
-        verify(userHobbies, never()).save(any());
-        verify(userHobbies, never()).delete(any());
+        verify(interests, never()).save(any());
+        verify(interests, never()).delete(any());
+        verifyNoInteractions(userHobbies);
         verify(hobbies, never()).adjustSaveCount(any(), anyInt());
     }
 
     @Test void retryOfAlreadySavedSelectionDoesNotIncrementCountOrInsert() {
         given(users.findById(1L)).willReturn(Optional.of(user));
         given(hobbies.findAllById(Set.of(3L))).willReturn(List.of(hobby));
-        var saved = UserHobby.builder().user(user).hobby(hobby).build();
-        given(userHobbies.findAllByUserIdWithHobby(1L)).willReturn(List.of(saved));
+        var selected = InterestSelection.builder().user(user).hobby(hobby).build();
+        given(interests.findAllByUserIdWithHobby(1L)).willReturn(List.of(selected));
         assertThat(service.saveOnboarding(1L, request(3L)).savedHobbyCount()).isEqualTo(1);
         assertThat(service.saveOnboarding(1L, request(3L)).savedHobbyCount()).isEqualTo(1);
-        verify(userHobbies, never()).save(any());
-        verify(userHobbies, never()).delete(any());
-        verify(hobbies, never()).adjustSaveCount(any(), anyInt());
+        verify(interests, never()).save(any());
+        verify(interests, never()).delete(any());
     }
 
     @Test void optionResponseIncludesCategoryAndDatabaseIds() {
@@ -125,13 +124,13 @@ class OnboardingServiceTest {
         UserCondition old = UserCondition.builder().user(user).weeklyHours((short) 5)
                 .monthlyBudget(200000).placePref("INDOOR").socialPref("ALONE").build();
         given(conditions.findByUserIdWithRegion(1L)).willReturn(Optional.of(old));
-        UserHobby saved = UserHobby.builder().user(user).hobby(hobby).build();
-        given(userHobbies.findAllByUserIdWithHobby(1L)).willReturn(List.of(saved));
+        var selected = InterestSelection.builder().user(user).hobby(hobby).build();
+        given(interests.findAllByUserIdWithHobby(1L)).willReturn(List.of(selected));
 
         assertThat(service.saveOnboarding(1L, new OnboardingRequest()).savedHobbyCount()).isZero();
 
-        verify(userHobbies).delete(saved);
-        verify(hobbies).adjustSaveCount(3L, -1);
+        verify(interests).delete(selected);
+        verifyNoInteractions(userHobbies);
         assertThat(old.getWeeklyHours()).isNull();
         assertThat(old.getMonthlyBudget()).isNull();
         assertThat(old.getPlacePref()).isNull();
@@ -145,15 +144,15 @@ class OnboardingServiceTest {
         assertThat(result.onboarded()).isTrue();
         assertThat(result.savedHobbyCount()).isZero();
         verify(conditions).save(any(UserCondition.class));
-        verify(userHobbies, never()).save(any());
-        verify(userHobbies, never()).delete(any());
+        verify(interests, never()).save(any());
+        verify(interests, never()).delete(any());
     }
 
     @Test void rejectsDuplicateHobbiesBeforeChangingAnything() {
         assertThatThrownBy(() -> service.saveOnboarding(1L, request(3L, 3L)))
                 .isInstanceOfSatisfying(CustomException.class,
                         e -> assertThat(e.getErrorCode()).isEqualTo(ErrorCode.COMMON_INVALID_INPUT));
-        verifyNoInteractions(conditions, userHobbies, hobbies);
+        verifyNoInteractions(conditions, interests, hobbies);
     }
 
     @Test void rejectsMissingOrUnpublishedHobbyBeforeChangingAnything() {
@@ -163,7 +162,7 @@ class OnboardingServiceTest {
         given(hobbies.findAllById(Set.of(3L))).willReturn(List.of(hobby));
         assertThatThrownBy(() -> service.saveOnboarding(1L, request(3L)))
                 .isInstanceOf(CustomException.class);
-        verifyNoInteractions(conditions, userHobbies);
+        verifyNoInteractions(conditions, interests);
     }
 
     @Test void invalidRegionDoesNotWriteEitherScreen() {
@@ -173,7 +172,30 @@ class OnboardingServiceTest {
                 new OnboardingRequest(null, null, null, null, 404L, request(3L).getInitialHobbies())))
                 .isInstanceOfSatisfying(CustomException.class,
                         e -> assertThat(e.getErrorCode()).isEqualTo(ErrorCode.REGION_NOT_FOUND));
-        verifyNoInteractions(conditions, userHobbies);
+        verifyNoInteractions(conditions, interests);
+    }
+
+    @Test void rejectsMoreThanFiveInterestsBeforeChangingAnything() {
+        assertThatThrownBy(() -> service.replaceInterests(1L, List.of(1L, 2L, 3L, 4L, 5L, 6L)))
+                .isInstanceOfSatisfying(CustomException.class,
+                        e -> assertThat(e.getErrorCode()).isEqualTo(ErrorCode.COMMON_INVALID_INPUT));
+        verifyNoInteractions(interests, hobbies);
+    }
+
+    @Test void replaceInterestsKeepsExistingAndAddsNewInRequestedOrder() {
+        Hobby other = Hobby.builder().name("러닝").status(HobbyStatus.PUBLISHED).build();
+        ReflectionTestUtils.setField(other, "id", 4L);
+        given(hobbies.findAllById(Set.of(3L, 4L))).willReturn(List.of(hobby, other));
+        var kept = InterestSelection.builder().user(user).hobby(hobby).build();
+        given(interests.findAllByUserIdWithHobby(1L)).willReturn(List.of(kept));
+
+        var result = service.replaceInterests(1L, List.of(3L, 4L));
+
+        assertThat(result).extracting("hobbyId").containsExactly(3L, 4L);
+        verify(interests, never()).delete(any());
+        var captured = ArgumentCaptor.forClass(InterestSelection.class);
+        verify(interests).save(captured.capture());
+        assertThat(captured.getValue().getHobby()).isSameAs(other);
     }
 
     private OnboardingRequest request(Long... ids) {

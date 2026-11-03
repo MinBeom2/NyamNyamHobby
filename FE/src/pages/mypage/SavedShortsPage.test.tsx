@@ -69,7 +69,7 @@ describe('saved short pages', () => {
     client.setQueryData(userQueryKeys.summary(), { savedHobbyCount: 2, inProgressHobbyCount: 1, savedShortCount: 17, myPostCount: 4 });
     expect(render(<MyPage />)).toContain('17</strong><span>보관한 숏폼</span>');
   });
-  it('uses the unified MyPage summary for all stats and keeps the hobby and post tabs', () => {
+  it('uses the unified MyPage summary for all stats and keeps only the progress tabs', () => {
     client.setQueryData(summaryKey, { totalCount: 99, hobbies: [] });
     client.setQueryData(userQueryKeys.summary(), { savedHobbyCount: 2, inProgressHobbyCount: 1, savedShortCount: 17, myPostCount: 4 });
     const html = render(<MyPage />);
@@ -77,7 +77,9 @@ describe('saved short pages', () => {
     expect(html).toContain('1</strong><span>진행 중</span>');
     expect(html).toContain('17</strong><span>보관한 숏폼</span>');
     expect(html).toContain('4</strong><span>내 글</span>');
-    expect(html).toContain('내가 쓴 글');
+    expect(html).toContain('일시중지</button>');
+    expect(html).not.toContain('내가 쓴 글');
+    expect(html).toContain('href="/my-hobbies"');
     expect(html).toContain('href="/mypage/saved-shorts"');
     expect(html).not.toContain('99</strong>');
   });

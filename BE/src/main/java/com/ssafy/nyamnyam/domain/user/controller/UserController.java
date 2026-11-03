@@ -5,8 +5,10 @@ import com.ssafy.nyamnyam.domain.post.service.PostService;
 import com.ssafy.nyamnyam.domain.user.dto.request.ChangePasswordRequest;
 import com.ssafy.nyamnyam.domain.user.dto.request.OnboardingRequest;
 import com.ssafy.nyamnyam.domain.user.dto.request.UpdateConditionsRequest;
+import com.ssafy.nyamnyam.domain.user.dto.request.UpdateInterestsRequest;
 import com.ssafy.nyamnyam.domain.user.dto.request.UpdateProfileRequest;
 import com.ssafy.nyamnyam.domain.user.dto.request.WithdrawRequest;
+import com.ssafy.nyamnyam.domain.user.dto.response.InterestResponse;
 import com.ssafy.nyamnyam.domain.user.dto.response.MySummaryResponse;
 import com.ssafy.nyamnyam.domain.user.dto.response.OnboardingOptionsResponse;
 import com.ssafy.nyamnyam.domain.user.dto.response.OnboardingResponse;
@@ -140,6 +142,28 @@ public class UserController {
     ) {
         userService.unsaveHobby(principal.getUserId(), hobbyId);
         return ResponseEntity.ok(ApiResponse.success(Map.of("saved", false)));
+    }
+
+    /**
+     * 8-1) 내 취미 목록 조회 (200 OK) — 마이페이지 '내 취미 선택'에서 고른 최대 5개
+     */
+    @GetMapping("/interests")
+    public ResponseEntity<ApiResponse<List<InterestResponse>>> getInterests(
+            @AuthenticationPrincipal UserPrincipal principal
+    ) {
+        return ResponseEntity.ok(ApiResponse.success(userService.getInterests(principal.getUserId())));
+    }
+
+    /**
+     * 8-2) 내 취미 목록 교체 (200 OK) — 보낸 목록으로 전체를 바꾼다
+     */
+    @PutMapping("/interests")
+    public ResponseEntity<ApiResponse<List<InterestResponse>>> updateInterests(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @Valid @RequestBody UpdateInterestsRequest request
+    ) {
+        return ResponseEntity.ok(ApiResponse.success(
+                userService.replaceInterests(principal.getUserId(), request.hobbyIds())));
     }
 
     /**

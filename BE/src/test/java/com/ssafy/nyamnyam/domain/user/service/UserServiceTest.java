@@ -14,6 +14,7 @@ import com.ssafy.nyamnyam.domain.user.dto.response.UserProfileResponse;
 import com.ssafy.nyamnyam.domain.user.entity.*;
 import com.ssafy.nyamnyam.domain.user.repository.RegionRepository;
 import com.ssafy.nyamnyam.domain.user.repository.UserConditionRepository;
+import com.ssafy.nyamnyam.domain.user.repository.InterestSelectionRepository;
 import com.ssafy.nyamnyam.domain.user.repository.UserHobbyRepository;
 import com.ssafy.nyamnyam.domain.user.repository.UserRepository;
 import com.ssafy.nyamnyam.global.error.CustomException;
@@ -65,6 +66,7 @@ class UserServiceTest {
     @Mock private PlanQueryService planQueryService;
     @Mock private com.ssafy.nyamnyam.domain.shortform.repository.ShortSaveRepository shortSaveRepository;
     @Mock private com.ssafy.nyamnyam.domain.post.repository.PostRepository postRepository;
+    @Mock private InterestSelectionRepository interestSelectionRepository;
 
     @InjectMocks
     private UserService userService;

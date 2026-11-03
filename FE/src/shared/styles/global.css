@@ -889,7 +889,8 @@ strong, b { font-weight: 700; }
 .mypage-stats strong { font-size: 26px; }
 .mypage-stats span { color: var(--color-muted); font-size: 12px; }
 .mypage-tabs { margin: 24px 0 16px; display: flex; align-items: center; gap: 30px; color: #899699; font-size: 12px; }
-.mypage-tabs b { padding-bottom: 9px; border-bottom: 2px solid var(--color-primary); color: var(--color-primary); }
+.mypage-tabs button { padding: 0 0 9px; border: 0; border-bottom: 2px solid transparent; color: inherit; background: none; font: inherit; cursor: pointer; }
+.mypage-tabs b, .mypage-tabs button.active { padding-bottom: 9px; border-bottom: 2px solid var(--color-primary); color: var(--color-primary); font-weight: 700; }
 .mypage-tabs a { color: inherit; }
 .mypage-hobby-row { min-height: 92px; margin-bottom: 12px; padding: 17px 18px; border: 1px solid var(--color-line); border-radius: var(--radius-md); display: grid; grid-template-columns: 1fr auto 2fr auto; align-items: center; gap: 16px; background: #fff; }
 .mypage-hobby-row > span { padding: 5px 9px; border-radius: 999px; color: var(--color-primary); background: var(--color-primary-soft); font-size: 10px; }

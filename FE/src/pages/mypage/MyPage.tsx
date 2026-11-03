@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Pencil } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -10,6 +11,7 @@ import { activityQueryKeys, updateUserHobbyStatus } from '../../features/activit
 
 export function MyPage({ profileEditorOpen = false }: { profileEditorOpen?: boolean }) {
   const queryClient = useQueryClient();
+  const [tab, setTab] = useState<HobbyTab>('IN_PROGRESS');
   const user = useAuthStore((state) => state.user);
   const inquiries = useSupportMockStore((state) => state.inquiries);
   const unreadCount = useSupportMockStore((state) => state.notifications.filter((item) => !item.read).length);
@@ -31,6 +33,7 @@ export function MyPage({ profileEditorOpen = false }: { profileEditorOpen?: bool
   const summary = summaryQuery.data;
   const hobbies = hobbiesQuery.data ?? [];
   const inProgress = hobbies.filter((item) => item.status === 'IN_PROGRESS' || item.status === 'PAUSED');
+  const visibleHobbies = hobbies.filter((item) => item.status === tab);
   const conditions = profile?.conditions;
   const savedHobbyCount = summary?.savedHobbyCount ?? hobbies.filter((item) => item.status === 'SAVED').length;
   const inProgressCount = summary?.inProgressHobbyCount ?? inProgress.length;
@@ -89,7 +92,7 @@ export function MyPage({ profileEditorOpen = false }: { profileEditorOpen?: bool
         </aside>
         <section className="mypage-content">
           <div className="mypage-stats">
-            <Link to="/mypage/interests">
+            <Link to="/my-hobbies" aria-label="관심 취미 보기">
               <strong>{savedHobbyCount}</strong>
               <span>관심 취미</span>
             </Link>
@@ -106,13 +109,20 @@ export function MyPage({ profileEditorOpen = false }: { profileEditorOpen?: bool
               <span>내 글</span>
             </Link>
           </div>
-          <nav className="mypage-tabs">
-            <b>진행 중</b>
-            <Link to="/mypage/interests">관심 취미</Link>
-            <Link to="/mypage/saved-shorts">보관한 숏폼</Link>
-            <Link to="/mypage/posts">내가 쓴 글</Link>
+          <nav className="mypage-tabs" aria-label="내 취미 상태">
+            {hobbyTabs.map((item) => (
+              <button
+                aria-pressed={tab === item.status}
+                className={tab === item.status ? 'active' : ''}
+                key={item.status}
+                onClick={() => setTab(item.status)}
+                type="button"
+              >
+                {item.label}
+              </button>
+            ))}
           </nav>
-          {inProgress.map((hobby) => (
+          {visibleHobbies.map((hobby) => (
             <div className="mypage-hobby-row" key={hobby.userHobbyId}>
               <strong>{hobby.name}</strong>
               <span>{statusLabel[hobby.status]}</span>
@@ -142,8 +152,8 @@ export function MyPage({ profileEditorOpen = false }: { profileEditorOpen?: bool
               )}
             </div>
           ))}
-          {!hobbiesQuery.isLoading && inProgress.length === 0 && (
-            <p className="mypage-empty">진행 중인 취미가 없어요.</p>
+          {!hobbiesQuery.isLoading && visibleHobbies.length === 0 && (
+            <p className="mypage-empty">{tab === 'PAUSED' ? '일시중지한 취미가 없어요.' : '진행 중인 취미가 없어요.'}</p>
           )}
         </section>
       </main>
@@ -152,6 +162,11 @@ export function MyPage({ profileEditorOpen = false }: { profileEditorOpen?: bool
   );
 }
 
+type HobbyTab = 'IN_PROGRESS' | 'PAUSED';
+const hobbyTabs: Array<{ status: HobbyTab; label: string }> = [
+  { status: 'IN_PROGRESS', label: '진행 중' },
+  { status: 'PAUSED', label: '일시중지' },
+];
 const placeLabel = { INDOOR: '실내', OUTDOOR: '실외', ANY: '상관없음' } as const;
 const socialLabel = { ALONE: '혼자', TOGETHER: '함께', ANY: '상관없음' } as const;
 const statusLabel = {

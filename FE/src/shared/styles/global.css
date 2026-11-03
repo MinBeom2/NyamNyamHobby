@@ -97,6 +97,8 @@ strong, b { font-weight: 700; }
 .guest-hero small { color: #9aa5a7; font-size: 12px; }
 .guest-hero__visual { position: relative; min-height: 378px; display: flex; justify-content: flex-end; align-items: center; }
 .guest-hero__visual img { position: absolute; z-index: 2; left: 20px; bottom: 9px; width: 194px; height: 194px; object-fit: contain; image-rendering: auto; }
+.guest-hero__animation { display: block; width: 100%; max-width: 400px; }
+.guest-hero__visual .guest-hero__animation img { position: static; display: block; width: 100%; height: auto; }
 .short-preview { width: 212px; height: 377px; border-radius: 10px; }
 
 .media-placeholder { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 7px; color: var(--color-primary); background: var(--color-primary-soft); font-size: 12px; font-weight: 600; }

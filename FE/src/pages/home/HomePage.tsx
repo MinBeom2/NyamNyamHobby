@@ -9,7 +9,7 @@ import { deleteUserHobby, getUserHobbies, saveUserHobby, userQueryKeys, type Use
 import { AppHeader } from '../../shared/ui/AppHeader';
 import { Button } from '../../shared/ui/Button';
 import { MediaPlaceholder } from '../../shared/ui/MediaPlaceholder';
-import { characterAssets } from '../../shared/assets/assets';
+import { characterAssets, heroAssets } from '../../shared/assets/assets';
 
 function PageShell({
   variant,
@@ -95,9 +95,13 @@ export function GuestHomePage() {
               <small>로그인하지 않으면 탐색 기록은 7일 뒤 사라져요</small>
             </div>
 
-            <div className="guest-hero__visual" aria-label="숏폼 미리보기">
-              <img src={characterAssets.greeting} alt="카메라를 든 냠냠취미 캐릭터" />
-              <MediaPlaceholder className="short-preview" dark label="▶" />
+            <div className="guest-hero__visual">
+              {/* 움직임 줄이기 설정을 켠 사용자에게는 멈춘 장면을 보여 준다 */}
+              <picture className="guest-hero__animation">
+                <source media="(prefers-reduced-motion: reduce)" srcSet={heroAssets.shortsStill} />
+                <img src={heroAssets.shortsAnimation} width={400} height={378}
+                  alt="냠냠취미 캐릭터가 클라이밍·드로잉 숏폼을 넘겨 보며 좋아요와 보관을 누르는 모습" />
+              </picture>
             </div>
           </section>
 

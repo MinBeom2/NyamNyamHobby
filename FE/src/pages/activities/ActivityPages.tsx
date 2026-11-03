@@ -90,7 +90,7 @@ export function MyHobbiesPage() {
         <section className="section-block">
           <div className="section-heading">
             <h2>관심 취미</h2>
-            <Link to="/hobbies">전체 보기</Link>
+            <Button to="/mypage/interests" variant="secondary">내 취미 선택</Button>
           </div>
           <div className="interest-mini-grid">
             {saved.map((hobby) => (

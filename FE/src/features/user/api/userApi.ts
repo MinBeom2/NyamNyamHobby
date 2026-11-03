@@ -75,6 +75,13 @@ export type UserHobbyDto = {
   planReady: boolean;
 };
 
+/** 마이페이지 '내 취미 선택'에서 고른 취미(최대 5개). 취미 찾기의 관심 저장(즐겨찾기)과는 별개. */
+export type InterestDto = {
+  hobbyId: number;
+  name: string;
+  thumbnailUrl: string | null;
+};
+
 export type MySummaryDto = {
   savedHobbyCount: number;
   inProgressHobbyCount: number;
@@ -87,6 +94,7 @@ export const userQueryKeys = {
   profile: () => [...userQueryKeys.all, 'profile'] as const,
   onboardingOptions: () => [...userQueryKeys.all, 'onboarding-options'] as const,
   hobbies: (status?: UserHobbyStatus) => [...userQueryKeys.all, 'hobbies', status ?? 'ALL'] as const,
+  interests: () => [...userQueryKeys.all, 'interests'] as const,
   summary: () => [...userQueryKeys.all, 'summary'] as const,
   posts: (page = 0, size = 20) => [...userQueryKeys.all, 'posts', page, size] as const,
 };
@@ -145,6 +153,17 @@ export function saveUserHobby(hobbyId: number) {
 
 export function deleteUserHobby(hobbyId: number) {
   return apiRequest<{ saved: boolean }>(`/users/me/hobbies/${hobbyId}/save`, { method: 'DELETE' });
+}
+
+export function getMyInterests() {
+  return apiRequest<InterestDto[]>('/users/me/interests');
+}
+
+export function updateMyInterests(hobbyIds: number[]) {
+  return apiRequest<InterestDto[]>('/users/me/interests', {
+    method: 'PUT',
+    body: JSON.stringify({ hobbyIds }),
+  });
 }
 
 export function getMySummary() {

@@ -24,6 +24,7 @@ EC2 한 대에 Nginx(호스트)와 Docker 컨테이너들을 올린다. 외부�
 | `/etc/nginx/snippets/` | `server/nginx/*.conf` | `/jenkins/`, `/api/`, `/oauth2/` 프록시 설정 |
 | `/var/www/nyamnyam/` | — | 프론트엔드 릴리스 (`releases/<빌드번호>`, `current` 링크). Jenkins가 배포 |
 | `/etc/docker/daemon.json` | `server/docker/daemon.json` | 컨테이너 로그 크기 제한 (파일당 10MB × 3개) |
+| `/home/ubuntu/ops/` | `server/ops/` | 운영 알림 스크립트(YouTube 할당량 경고). cron으로 실행 |
 
 `.env` 파일은 서버에만 있고 커밋하지 않는다(권한 600). 형식은 각 폴더의 `.env.example`을 본다.
 저장소의 `server/` 파일을 고치면 서버의 같은 경로에도 직접 복사해야 반영된다(Jenkins는 서버의 `/home/ubuntu/app/docker-compose.yml`을 읽는다).
@@ -48,6 +49,24 @@ EC2 한 대에 Nginx(호스트)와 Docker 컨테이너들을 올린다. 외부�
 5. 배포 후 `docker inspect backend --format '{{range .Mounts}}{{println .Type .Destination}}{{end}}'`에 `volume /app/uploads`가 있는지 확인한다. 이미지 업로드 응답 URL이 운영 도메인이고, 로그인하지 않은 브라우저에서도 해당 이미지를 조회할 수 있어야 한다.
 
 이미지 경로는 기존 Nginx의 `/api/` 프록시를 사용한다. 저장소 설정 수정만으로 서버의 기존 Compose·`.env`가 갱신되지는 않는다.
+
+## 운영 알림: YouTube 할당량 경고
+YouTube Data API 하루 사용량(기본 한도 10,000)이 80%를 넘으면 Mattermost 운영 채널로 하루 한 번 알린다. 사용량은 숏폼 배치가 실행마다 남기는 `batch_runs.quota_used`(수집·점검·채널 발굴)를 더해 계산한다. 할당량의 하루는 미국 태평양 시간 자정 기준이라 한국 시간 오후 4시(서머타임) 또는 5시에 초기화된다.
+
+설치 (최초 1회)
+```bash
+mkdir -p ~/ops/state ~/ops/logs
+cp server/ops/youtube-quota-check.sh ~/ops/ && chmod 700 ~/ops/youtube-quota-check.sh
+cp server/ops/.env.example ~/ops/.env && chmod 600 ~/ops/.env   # MATTERMOST_WEBHOOK_URL 입력
+crontab -e   # 아래 줄 추가: 30분마다 확인
+# */30 * * * * /home/ubuntu/ops/youtube-quota-check.sh >> /home/ubuntu/ops/logs/quota.log 2>&1
+```
+
+확인·테스트
+- `~/ops/youtube-quota-check.sh` → `used=… (…%)` 한 줄이 나오면 조회 정상
+- `THRESHOLD_PERCENT=0 ~/ops/youtube-quota-check.sh` → 경고를 강제로 보내 웹훅 확인. 테스트 뒤 `rm -f ~/ops/state/quota-alert-*`로 오늘 보낸 표시를 지운다
+- `tail ~/ops/logs/quota.log` → cron 실행 기록
+- DB 접속 정보는 `~/infra/.env`의 `POSTGRES_USER`·`POSTGRES_DB`를 읽는다. 웹훅 URL은 `~/ops/.env`에만 둔다
 
 ## 로그 크기 제한 적용 (최초 1회)
 ```bash

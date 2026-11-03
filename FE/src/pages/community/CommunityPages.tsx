@@ -281,12 +281,24 @@ export function CommunityWritePage() {
     setContent(postQuery.data.content);
     setImageUrls(postQuery.data.imageUrls);
   }, [postQuery.data]);
-  const createMutation = useMutation({ mutationFn: () => createPost({ hobbyId: hobbyId as number, type, title: title.trim(), content: content.trim(), imageUrls }), onSuccess: (post) => navigate(`/community/${post.id}`), onError: (error: Error) => setMessage(error.message) });
+  const createMutation = useMutation({
+    mutationFn: () => createPost({ hobbyId: hobbyId as number, type, title: title.trim(), content: content.trim(), imageUrls }),
+    onSuccess: (post) => {
+      queryClient.setQueryData(communityQueryKeys.post(post.id), post);
+      void queryClient.invalidateQueries({ queryKey: communityQueryKeys.all });
+      void queryClient.invalidateQueries({ queryKey: userQueryKeys.summary() });
+      void queryClient.invalidateQueries({ queryKey: userQueryKeys.posts() });
+      navigate(`/community/${post.id}`);
+    },
+    onError: (error: Error) => setMessage(error.message),
+  });
   const updateMutation = useMutation({
     mutationFn: () => updatePost(editPostId as number, { type, title: title.trim(), content: content.trim(), imageUrls }),
     onSuccess: (post) => {
       queryClient.setQueryData(communityQueryKeys.post(post.id), post);
       void queryClient.invalidateQueries({ queryKey: communityQueryKeys.all });
+      void queryClient.invalidateQueries({ queryKey: userQueryKeys.summary() });
+      void queryClient.invalidateQueries({ queryKey: userQueryKeys.posts() });
       navigate(`/community/${post.id}`);
     },
     onError: (error: Error) => setMessage(error.message),
@@ -314,7 +326,7 @@ export function CommunityWritePage() {
         <form onSubmit={submit}>
           <div className="write-grid"><label>게시판<select disabled={isEdit} value={hobbyId ?? ''} onChange={(event) => setHobbyId(Number(event.target.value))}>{isEdit && postQuery.data && <option value={postQuery.data.hobby.id}>{postQuery.data.hobby.name}</option>}{!isEdit && (optionsQuery.data?.hobbies ?? []).map((item) => <option value={item.hobbyId} key={item.hobbyId}>{item.name}</option>)}</select></label><label>글 유형<select value={type} onChange={(event) => setType(event.target.value as PostType)}><option value="REVIEW">후기</option><option value="QUESTION">질문</option><option value="INFO">정보 공유</option><option value="SHARE">모임</option></select></label></div>
           <label>제목<input value={title} onChange={(event) => setTitle(event.target.value)} placeholder="제목을 입력하세요 (50자)" maxLength={50} /></label>
-          <label>내용<textarea value={content} onChange={(event) => setContent(event.target.value)} placeholder="내용을 입력하세요 (5,000자)" maxLength={5000} /></label>
+          <label>내용<textarea value={content} onChange={(event) => setContent(event.target.value)} placeholder="내용을 입력하세요 (10자 이상, 5,000자 이하)" maxLength={5000} /></label>
           <div className="image-upload">{imageUrls.map((url, index) => <span key={url}><Image /> 이미지 {index + 1}</span>)}{imageUrls.length < 5 && <label className="button button--secondary">{uploadMutation.isPending ? '업로드 중…' : '＋ 추가'}<input disabled={uploadMutation.isPending} hidden type="file" accept="image/jpeg,image/png,image/webp" onChange={(event) => { const file = event.target.files?.[0]; if (file) uploadMutation.mutate(file); event.target.value = ''; }} /></label>}<small>JPG · PNG · WEBP, 이미지당 5MB 이하</small></div>
           {message && <p role="alert" className="profile-edit-error">{message}</p>}
           <div className="write-actions"><Button variant="secondary" onClick={() => navigate(isEdit ? `/community/${editPostId}` : '/community')}>취소</Button><Button type="submit" disabled={!hobbyId || title.trim().length < 2 || content.trim().length < 10 || createMutation.isPending || updateMutation.isPending}>{createMutation.isPending || updateMutation.isPending ? '저장 중…' : isEdit ? '저장' : '등록'}</Button></div>

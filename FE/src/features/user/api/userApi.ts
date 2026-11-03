@@ -1,4 +1,5 @@
 import { apiRequest } from '../../../shared/api/client';
+import type { PageDto, PostSummaryDto } from '../../community/api/communityApi';
 
 export type PlacePreference = 'INDOOR' | 'OUTDOOR' | 'ANY';
 export type SocialPreference = 'ALONE' | 'TOGETHER' | 'ANY';
@@ -74,11 +75,20 @@ export type UserHobbyDto = {
   planReady: boolean;
 };
 
+export type MySummaryDto = {
+  savedHobbyCount: number;
+  inProgressHobbyCount: number;
+  savedShortCount: number;
+  myPostCount: number;
+};
+
 export const userQueryKeys = {
   all: ['user'] as const,
   profile: () => [...userQueryKeys.all, 'profile'] as const,
   onboardingOptions: () => [...userQueryKeys.all, 'onboarding-options'] as const,
   hobbies: (status?: UserHobbyStatus) => [...userQueryKeys.all, 'hobbies', status ?? 'ALL'] as const,
+  summary: () => [...userQueryKeys.all, 'summary'] as const,
+  posts: (page = 0, size = 20) => [...userQueryKeys.all, 'posts', page, size] as const,
 };
 
 export function getUserProfile() {
@@ -135,4 +145,12 @@ export function saveUserHobby(hobbyId: number) {
 
 export function deleteUserHobby(hobbyId: number) {
   return apiRequest<{ saved: boolean }>(`/users/me/hobbies/${hobbyId}/save`, { method: 'DELETE' });
+}
+
+export function getMySummary() {
+  return apiRequest<MySummaryDto>('/users/me/summary');
+}
+
+export function getMyPosts(page = 0, size = 20) {
+  return apiRequest<PageDto<PostSummaryDto>>(`/users/me/posts?page=${page}&size=${size}`);
 }

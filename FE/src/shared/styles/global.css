@@ -254,6 +254,12 @@ strong, b { font-weight: 700; }
 .catalog-card__visual { position: relative; height: 190px; display: grid; place-items: center; align-content: center; gap: 7px; color: var(--color-primary); background: var(--color-primary-soft); font-size: 11px; }
 .catalog-card__visual > svg { width: 22px; opacity: .55; }
 .catalog-card__visual > b { position: absolute; top: 12px; left: 12px; padding: 5px 8px; border-radius: 999px; color: var(--color-primary); background: #fff; font-size: 10px; }
+/* 취미 대표 이미지(3:2 원본 한 장): 자리마다 크기에 맞춰 잘라 채우고, 이미지가 있으면 자리 안내 문구는 숨긴다 */
+.hobby-card__visual > img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.catalog-card__visual > img, .hobby-detail__media > img, .interest-mini-grid article > div > img, .activity-card__icon > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.hobby-card__visual, .catalog-card__visual, .hobby-detail__media, .interest-mini-grid article > div, .activity-card__icon { overflow: hidden; }
+.interest-mini-grid article > div, .activity-card__icon { position: relative; }
+.hobby-detail__media > img ~ small, .activity-card__icon > img ~ span { display: none; }
 .catalog-card__body { padding: 15px; }
 .catalog-card__body h2 { margin: 9px 0 4px; font-size: 17px; }
 .catalog-card__body > p { height: 20px; margin: 0 0 11px; overflow: hidden; color: var(--color-muted); font-size: 12px; white-space: nowrap; text-overflow: ellipsis; }

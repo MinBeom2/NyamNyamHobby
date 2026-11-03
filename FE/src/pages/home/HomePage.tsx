@@ -82,34 +82,36 @@ export function GuestHomePage() {
   return (
     <PageShell variant="guest">
       <div className="page-container guest-home">
-        <div className="guest-above-fold">
-          <section className="guest-hero">
-            <div className="guest-hero__copy">
-              <span className="eyebrow">취미를 더 빨리 찾고 즐기자</span>
-              <h1>나에게 맞는 취미,<br />숏폼으로 찾아보세요</h1>
-              <p>영상 몇 개만 보고 좋아요·별로예요를 누르면 시간·비용까지 맞춘 취미를 추천해 드려요.</p>
-              <div className="guest-hero__actions">
-                <Button to="/signup">무료로 시작하기</Button>
-                <Button to="/onboarding/interests?mode=guest" variant="secondary">비회원 체험하기</Button>
+        <div className="guest-stage">
+          <div className="guest-above-fold">
+            <section className="guest-hero">
+              <div className="guest-hero__copy">
+                <span className="eyebrow">취미를 더 빨리 찾고 즐기자</span>
+                <h1>나에게 맞는 취미,<br />숏폼으로 찾아보세요</h1>
+                <p>영상 몇 개만 보고 좋아요·별로예요를 누르면 시간·비용까지 맞춘 취미를 추천해 드려요.</p>
+                <div className="guest-hero__actions">
+                  <Button to="/signup">무료로 시작하기</Button>
+                  <Button to="/onboarding/interests?mode=guest" variant="secondary">비회원 체험하기</Button>
+                </div>
+                <small>로그인하지 않으면 탐색 기록은 7일 뒤 사라져요</small>
               </div>
-              <small>로그인하지 않으면 탐색 기록은 7일 뒤 사라져요</small>
-            </div>
 
-            <div className="guest-hero__visual">
-              {/* 움직임 줄이기 설정을 켠 사용자에게는 멈춘 장면을 보여 준다 */}
-              <picture className="guest-hero__animation">
-                <source media="(prefers-reduced-motion: reduce)" srcSet={heroAssets.shortsStill} />
-                <img src={heroAssets.shortsAnimation} width={400} height={378}
-                  alt="냠냠취미 캐릭터가 클라이밍·드로잉 숏폼을 넘겨 보며 좋아요와 보관을 누르는 모습" />
-              </picture>
-            </div>
-          </section>
+              <div className="guest-hero__visual">
+                {/* 움직임 줄이기 설정을 켠 사용자에게는 멈춘 장면을 보여 준다 */}
+                <picture className="guest-hero__animation">
+                  <source media="(prefers-reduced-motion: reduce)" srcSet={heroAssets.shortsStill} />
+                  <img src={heroAssets.shortsAnimation} width={400} height={378}
+                    alt="냠냠취미 캐릭터가 클라이밍·드로잉 숏폼을 넘겨 보며 좋아요와 보관을 누르는 모습" />
+                </picture>
+              </div>
+            </section>
 
-          <section className="value-grid" aria-label="서비스 특징">
-            <article><i><Play aria-hidden="true" size={14} fill="currentColor" /></i><h2>숏폼 탐색</h2><p>영상에 반응만 하면 관심사가 쌓여요</p></article>
-            <article><i><Search aria-hidden="true" size={15} /></i><h2>맞춤 추천</h2><p>시간·비용·난이도까지 맞춘 취미를 골라 드려요</p></article>
-            <article><i><Check aria-hidden="true" size={16} /></i><h2>주차별 TODO</h2><p>첫 활동까지 작은 단계로 나눠 안내해요</p></article>
-          </section>
+            <section className="value-grid" aria-label="서비스 특징">
+              <article><i><Play aria-hidden="true" size={14} fill="currentColor" /></i><h2>숏폼 탐색</h2><p>영상에 반응만 하면 관심사가 쌓여요</p></article>
+              <article><i><Search aria-hidden="true" size={15} /></i><h2>맞춤 추천</h2><p>시간·비용·난이도까지 맞춘 취미를 골라 드려요</p></article>
+              <article><i><Check aria-hidden="true" size={16} /></i><h2>주차별 TODO</h2><p>첫 활동까지 작은 단계로 나눠 안내해요</p></article>
+            </section>
+          </div>
         </div>
 
         <section className="section-block">

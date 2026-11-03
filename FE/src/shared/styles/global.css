@@ -262,6 +262,9 @@ strong, b { font-weight: 700; }
 .filter-row { display: flex; flex-wrap: wrap; gap: 10px; margin: 18px 0 26px; }
 .filter-row select, .place-controls select { min-height: 38px; padding: 0 34px 0 14px; border: 1px solid var(--color-line); border-radius: 999px; color: var(--color-ink); background: #fff; }
 .filter-reset { border: 0; color: var(--color-primary); background: transparent; font-weight: 700; cursor: pointer; }
+.filter-row__mine { margin-left: auto; display: flex; gap: 8px; }
+.filter-row__mine button { min-height: 38px; padding: 0 16px; border: 1px solid var(--color-line); border-radius: 999px; color: var(--color-ink); background: #fff; font-weight: 600; cursor: pointer; }
+.filter-row__mine button.active { border-color: var(--color-primary); color: #fff; background: var(--color-primary); }
 .catalog-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 18px; }
 .catalog-card { overflow: hidden; border: 1px solid var(--color-line); border-radius: var(--radius-md); background: #fff; box-shadow: var(--shadow-soft); }
 .catalog-card__visual { position: relative; height: 190px; display: grid; place-items: center; align-content: center; gap: 7px; color: var(--color-primary); background: var(--color-primary-soft); font-size: 11px; }

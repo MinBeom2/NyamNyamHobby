@@ -5,7 +5,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { getHobbies, getHobbyDetail, getHobbyPlanPreview, getHobbyShorts, hobbyQueryKeys, startHobby, type HobbyDifficulty } from '../../features/hobby/api/hobbyApi';
 import { toHobbyCardModel, toHobbyDetailModel, type HobbyCardModel } from '../../features/hobby/model/hobbyAdapter';
 import { useAuthStore } from '../../features/auth/model/authStore';
-import { deleteUserHobby, getUserHobbies, saveUserHobby, userQueryKeys } from '../../features/user/api/userApi';
+import { deleteUserHobby, getMyInterests, getUserHobbies, saveUserHobby, userQueryKeys } from '../../features/user/api/userApi';
 import { AppHeader } from '../../shared/ui/AppHeader';
 import { Button } from '../../shared/ui/Button';
 import { scrollToElement, scrollToTop, setWheelInterceptor } from '../../shared/scroll/smoothScroll';
@@ -50,6 +50,12 @@ export function HobbyInterestSelectPage() {
 
 const difficultyValues: Record<string, HobbyDifficulty | undefined> = { 전체: undefined, 쉬움: 'EASY', 보통: 'NORMAL', 어려움: 'HARD' };
 const placeValues: Record<string, 'INDOOR' | 'OUTDOOR' | 'ANY' | undefined> = { 전체: undefined, 실내: 'INDOOR', 실외: 'OUTDOOR', 상관없음: 'ANY' };
+/** 내 것만 보기: 관심 저장한 취미(user_hobbies SAVED) 또는 내 취미로 선택한 취미(interest_selections) */
+type MineFilter = 'SAVED' | 'INTERESTS' | null;
+const mineFilters: Array<{ value: Exclude<MineFilter, null>; label: string }> = [
+  { value: 'SAVED', label: '관심 취미' },
+  { value: 'INTERESTS', label: '내 취미' },
+];
 
 export function HobbySearchPage({ recommended = false }: { recommended?: boolean }) {
   const [keyword, setKeyword] = useState('');
@@ -57,17 +63,26 @@ export function HobbySearchPage({ recommended = false }: { recommended?: boolean
   const [category, setCategory] = useState('전체');
   const [difficulty, setDifficulty] = useState('전체');
   const [place, setPlace] = useState('전체');
+  const [mine, setMine] = useState<MineFilter>(null);
+  const user = useAuthStore((state) => state.user);
+  const savedQuery = useQuery({ queryKey: userQueryKeys.hobbies(), queryFn: () => getUserHobbies(), enabled: Boolean(user) });
+  const interestsQuery = useQuery({ queryKey: userQueryKeys.interests(), queryFn: getMyInterests, enabled: Boolean(user) });
+  const mineIds = useMemo(() => {
+    if (mine === 'SAVED') return new Set(savedQuery.data?.filter((item) => item.status === 'SAVED').map((item) => item.hobbyId));
+    if (mine === 'INTERESTS') return new Set(interestsQuery.data?.map((item) => item.hobbyId));
+    return null;
+  }, [mine, savedQuery.data, interestsQuery.data]);
   const params = { keyword: submittedKeyword.length >= 2 ? submittedKeyword : undefined, difficulty: difficultyValues[difficulty], place: placeValues[place], sort: recommended ? 'RECOMMEND' as const : undefined, size: 100 };
   const hobbiesQuery = useQuery({ queryKey: hobbyQueryKeys.list(params), queryFn: () => getHobbies(params) });
   const allHobbies = useMemo(() => (hobbiesQuery.data?.content ?? []).map(toHobbyCardModel), [hobbiesQuery.data]);
   const categories = useMemo(() => ['전체', ...new Set(allHobbies.map((hobby) => hobby.category))], [allHobbies]);
-  const hobbies = category === '전체' ? allHobbies : allHobbies.filter((hobby) => hobby.category === category);
-  const reset = () => { setKeyword(''); setSubmittedKeyword(''); setCategory('전체'); setDifficulty('전체'); setPlace('전체'); };
+  const hobbies = allHobbies.filter((hobby) => (category === '전체' || hobby.category === category) && (!mineIds || mineIds.has(hobby.id)));
+  const reset = () => { setKeyword(''); setSubmittedKeyword(''); setCategory('전체'); setDifficulty('전체'); setPlace('전체'); setMine(null); };
   const search = () => { const value = keyword.trim(); if (!value || value.length >= 2) setSubmittedKeyword(value); };
   return <div className="site-shell"><AppHeader /><main className="page-container discovery-page">
     <div className="discovery-title"><div><h1>{recommended ? '맞춤 취미 추천' : '취미 찾기'}</h1><p>{recommended ? '관심사와 이용 상황을 바탕으로 잘 맞는 취미를 모았어요.' : '취미명이나 태그로 찾고, 시간·비용·난이도로 좁혀 보세요.'}</p></div>{!recommended && <Button to="/hobbies/recommendations">맞춤 추천 보기</Button>}</div>
     <form className="search-bar" onSubmit={(event) => { event.preventDefault(); search(); }}><Search aria-hidden="true" /><input value={keyword} onChange={(event) => setKeyword(event.target.value)} placeholder="취미명이나 태그로 검색 (2자 이상)" /><button type="submit">검색</button></form>
-    <div className="filter-row" aria-label="취미 필터"><select value={category} onChange={(event) => setCategory(event.target.value)}>{categories.map((item) => <option key={item}>{item}</option>)}</select><select value={difficulty} onChange={(event) => setDifficulty(event.target.value)}>{Object.keys(difficultyValues).map((item) => <option key={item}>{item}</option>)}</select><select value={place} onChange={(event) => setPlace(event.target.value)}>{Object.keys(placeValues).map((item) => <option key={item}>{item}</option>)}</select><button className="filter-reset" type="button" onClick={reset}>초기화</button></div>
+    <div className="filter-row" aria-label="취미 필터"><select value={category} onChange={(event) => setCategory(event.target.value)}>{categories.map((item) => <option key={item}>{item}</option>)}</select><select value={difficulty} onChange={(event) => setDifficulty(event.target.value)}>{Object.keys(difficultyValues).map((item) => <option key={item}>{item}</option>)}</select><select value={place} onChange={(event) => setPlace(event.target.value)}>{Object.keys(placeValues).map((item) => <option key={item}>{item}</option>)}</select><button className="filter-reset" type="button" onClick={reset}>초기화</button>{user && <div className="filter-row__mine">{mineFilters.map((item) => <button className={mine === item.value ? 'active' : ''} type="button" key={item.value} aria-pressed={mine === item.value} onClick={() => setMine(mine === item.value ? null : item.value)}>{item.label}</button>)}</div>}</div>
     {keyword.trim().length === 1 && <p className="form-message form-message--error">검색어는 2자 이상 입력해 주세요.</p>}
     {hobbiesQuery.isLoading && <section className="empty-state"><p>취미를 불러오고 있어요.</p></section>}
     {hobbiesQuery.isError && <section className="empty-state"><h2>취미를 불러오지 못했어요</h2><Button onClick={() => hobbiesQuery.refetch()}>다시 시도</Button></section>}

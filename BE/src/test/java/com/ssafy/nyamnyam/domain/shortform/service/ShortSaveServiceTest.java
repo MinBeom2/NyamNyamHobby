@@ -15,6 +15,8 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.Optional;
+import java.util.List;
+import com.ssafy.nyamnyam.domain.shortform.dto.response.SavedShortSummaryResponse.HobbyCount;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.BDDMockito.given;
@@ -53,6 +55,37 @@ class ShortSaveServiceTest {
         assertThatThrownBy(() -> service.save(1L, 404L)).isInstanceOf(CustomException.class);
         assertThatThrownBy(() -> service.unsave(1L, 404L)).isInstanceOf(CustomException.class);
         verifyNoInteractions(saves);
+    }
+
+    @Test void emptyListAndSummaryReturnZeroCounts() {
+        given(saves.count(1L, null)).willReturn(0L);
+        given(saves.findSaved(1L, null, 0, 20, false)).willReturn(List.of());
+        given(saves.countByHobby(1L)).willReturn(List.of());
+        var result = service.list(1L, null, 0, 20, "recent");
+        assertThat(result.content()).isEmpty();
+        assertThat(result.page().totalElements()).isZero();
+        assertThat(result.page().totalPages()).isZero();
+        assertThat(result.page().hasNext()).isFalse();
+        assertThat(service.summary(1L).totalCount()).isZero();
+    }
+
+    @Test void pageMetadataUsesFilteredCountAndSupportsLargeOffsets() {
+        given(saves.count(1L, 3L)).willReturn(6L);
+        given(saves.findSaved(1L, 3L, 0, 5, false)).willReturn(List.of());
+        var first = service.list(1L, 3L, 0, 5, "recent");
+        assertThat(first.page().totalPages()).isEqualTo(2);
+        assertThat(first.page().hasNext()).isTrue();
+        given(saves.findSaved(1L, 3L, Integer.MAX_VALUE, 100, true)).willReturn(List.of());
+        assertThat(service.list(1L, 3L, Integer.MAX_VALUE, 100, "oldest").page().hasNext()).isFalse();
+    }
+
+    @Test void summaryIncludesUnclassifiedSavesAndCountsBeyondIntegerRange() {
+        given(saves.countByHobby(2L)).willReturn(List.of(
+                new HobbyCount(3L, "클라이밍", Integer.MAX_VALUE), new HobbyCount(null, null, 2)));
+        var summary = service.summary(2L);
+        assertThat(summary.totalCount()).isEqualTo((long) Integer.MAX_VALUE + 2);
+        assertThat(summary.hobbies()).hasSize(2);
+        verify(saves).countByHobby(2L);
     }
 
     private Short video(ShortStatus status) {

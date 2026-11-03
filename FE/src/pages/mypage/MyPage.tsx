@@ -41,7 +41,7 @@ export function MyPage({ profileEditorOpen = false }: { profileEditorOpen?: bool
 
   const savedHobbyCount = summary?.savedHobbyCount ?? savedHobbies.length;
   const inProgressCount = summary?.inProgressHobbyCount ?? inProgress.length;
-  const savedShortCount = summary?.savedShortCount ?? 0;
+  const savedShortCount = summary?.savedShortCount ?? (summaryQuery.isError ? '확인 불가' : '…');
   const myPostCount = summary?.myPostCount ?? 0;
 
   return (

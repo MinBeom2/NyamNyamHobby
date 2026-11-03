@@ -659,9 +659,18 @@
 }
 ```
 
-#### 7) 보관한 숏폼 목록 조회 `[P2·MVP 제외]`
-- **Endpoint**: `GET /api/v1/users/me/saved-shorts?hobbyId={hobbyId}&page=0&size=20`
+#### 7) 보관한 숏폼 목록 조회
+- **Endpoint**: `GET /api/v1/users/me/saved-shorts?hobbyId={hobbyId}&page=0&size=20&sort=recent`
 - **Permission**: `회원 (USER)`
+- 인증된 본인의 보관 항목만 조회한다. `userId`를 요청으로 받지 않는다.
+- `hobbyId`: 선택 양의 정수. 미지정 시 취미 미분류 영상을 포함한 전체 보관 목록.
+- `page`: 0 이상의 정수(기본 0), `size`: 1~100(기본 20).
+- `sort`: `recent`(기본, 보관 시각 내림차순), `oldest`(오름차순). 동일 시각은 `shortId`를 같은 방향으로 정렬한다. 페이지 간에 클라이언트가 별도로 정렬하지 않는다.
+- 잘못된 파라미터는 `400 COMMON_INVALID_INPUT`, 미인증 요청은 `401 COMMON_UNAUTHORIZED`.
+- 비활성 영상도 보관 목록과 건수에 포함한다. `status`는 실제 숏폼 상태이며 `ACTIVE`만 재생 가능하게 표시한다. 모든 상태에서 기존 보관 해제 API를 사용할 수 있다.
+- `hobby`, `thumbnailUrl`은 nullable. `savedAt`은 UTC 기준 ISO 8601(오프셋 포함)이다.
+- 보관 식별자는 사용자 내에서 `shortId`를 사용한다. 실제 DB는 `(user_id, short_id)` 복합 기본 키이며 별도 `saveId`는 없다.
+- 결과가 없으면 `content: []`, `totalElements: 0`, `totalPages: 0`, `hasNext: false`를 반환한다.
 - **Response (200 OK)**:
 ```json
 {
@@ -669,16 +678,38 @@
   "data": {
     "content": [
       {
-        "saveId": 10,
         "shortId": 41,
         "youtubeVideoId": "aBcD123xYz0",
         "title": "퇴근 후 1시간, 볼더링 첫 도전기",
+        "thumbnailUrl": "https://i.ytimg.com/vi/aBcD123xYz0/hqdefault.jpg",
         "hobby": { "id": 3, "name": "클라이밍" },
         "status": "ACTIVE",
-        "savedAt": "2026-10-20T14:20:00+09:00"
+        "savedAt": "2026-10-20T05:20:00Z"
       }
     ],
     "page": { "number": 0, "size": 20, "totalElements": 1, "totalPages": 1, "hasNext": false }
+  },
+  "error": null
+}
+```
+
+#### 7-A) 보관한 숏폼 전체 건수·취미별 집계
+- **Endpoint**: `GET /api/v1/users/me/saved-shorts/summary`
+- **Permission**: `회원 (USER)`
+- 본인의 전체 보관 항목을 기준으로 집계한다. 목록의 페이지·취미 필터와 독립적이며 비활성 영상도 포함한다.
+- `totalCount`는 전체 보관 수, `hobbies`는 취미 이름·ID 오름차순(미분류는 마지막)의 취미별 건수다. 취미 미분류 그룹은 `id: null`, `name: null`이며 전체 건수에 포함한다.
+- 보관 항목이 없으면 `totalCount: 0`, `hobbies: []`.
+- 마이페이지 보관 수와 취미별 필터의 건수에 사용한다. 보관·해제 성공 후 목록과 이 집계를 다시 조회한다.
+- **Response (200 OK)**:
+```json
+{
+  "success": true,
+  "data": {
+    "totalCount": 3,
+    "hobbies": [
+      { "id": 3, "name": "클라이밍", "count": 2 },
+      { "id": null, "name": null, "count": 1 }
+    ]
   },
   "error": null
 }

@@ -936,6 +936,9 @@ strong, b { font-weight: 700; }
 .saved-short-card { min-width: 0; display: grid; grid-template-rows: auto 42px 24px 28px; align-content: start; }
 .saved-short-card__thumbnail { width: 100%; height: auto; aspect-ratio: 2 / 3; border-radius: var(--radius-md); display: grid; place-content: center; gap: 7px; color: var(--color-primary); background: var(--color-primary-soft); text-align: center; font-size: 11px; }
 .saved-short-card.unavailable .saved-short-card__thumbnail { color: #9bb1ad; background: #edf4ed; }
+.saved-short-card__thumbnail--playable { display: block; overflow: hidden; }
+.saved-short-card__thumbnail a { display: block; width: 100%; height: 100%; }
+.saved-short-card__thumbnail img { display: block; width: 100%; height: 100%; object-fit: cover; }
 .saved-short-card h2 { min-height: 0; margin: 10px 0 0; overflow: hidden; font-size: var(--type-body-m); line-height: 1.45; }
 .saved-short-card > div:nth-of-type(2) { display: flex; align-items: center; gap: 8px; color: var(--color-muted); font-size: 11px; }
 .saved-short-card b { padding: 4px 8px; border-radius: 999px; color: var(--color-primary); background: var(--color-primary-soft); font-size: 10px; }

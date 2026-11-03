@@ -4,9 +4,11 @@ import { Bell, X } from 'lucide-react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { logout } from '../../features/auth/api/authApi';
 import { useAuthStore } from '../../features/auth/model/authStore';
+import { useUnreadNotificationCount } from '../../features/notification/model/useUnreadNotificationCount';
 import { brandAssets, characterAssets } from '../assets/assets';
 
 type AppHeaderProps = {
+  /** @deprecated 헤더가 알림 API로 직접 조회한다. 넘겨도 쓰지 않는다 */
   notificationCount?: number;
   onBrandClick?: () => void;
 };
@@ -31,12 +33,13 @@ function getSignupRequiredState(value: unknown): SignupRequiredState | null {
   return { signupRequired: state.signupRequired, returnTo: state.returnTo };
 }
 
-export function AppHeader({ notificationCount = 0, onBrandClick }: AppHeaderProps) {
+export function AppHeader({ onBrandClick }: AppHeaderProps) {
   const location = useLocation();
   const navigate = useNavigate();
   const user = useAuthStore((state) => state.user);
   const initialized = useAuthStore((state) => state.sessionInitialized);
   const authenticated = Boolean(user);
+  const notificationCount = useUnreadNotificationCount(authenticated);
   const queryClient = useQueryClient();
   const logoutMutation = useMutation({
     mutationFn: logout,

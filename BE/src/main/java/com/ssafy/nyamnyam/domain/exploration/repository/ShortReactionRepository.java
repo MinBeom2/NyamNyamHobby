@@ -33,4 +33,11 @@ public interface ShortReactionRepository extends JpaRepository<ShortReaction, Lo
 
     @Query("SELECT sr.shortform.id FROM ShortReaction sr WHERE sr.user.id = :userId AND sr.type = :type")
     List<Long> findShortIdsByUserIdAndType(@Param("userId") Long userId, @Param("type") ReactionType type);
+
+    /** 비회원 이관용: guestKey로 연결된 반응 목록 */
+    List<ShortReaction> findByGuestKey(String guestKey);
+
+    /** 비회원 이관용: 회원이 이미 반응한 숏폼 ID 집합 */
+    @Query("SELECT sr.shortform.id FROM ShortReaction sr WHERE sr.user.id = :userId")
+    List<Long> findShortIdsByUserId(@Param("userId") Long userId);
 }

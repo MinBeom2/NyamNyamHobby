@@ -9,6 +9,8 @@ import com.ssafy.nyamnyam.domain.exploration.repository.ExplorationSessionReposi
 import com.ssafy.nyamnyam.domain.exploration.repository.ExplorationViewRepository;
 import com.ssafy.nyamnyam.domain.exploration.repository.ShortReactionRepository;
 import com.ssafy.nyamnyam.domain.hobby.entity.*;
+import com.ssafy.nyamnyam.domain.recommendation.entity.Recommendation;
+import com.ssafy.nyamnyam.domain.recommendation.entity.RecoBasis;
 import com.ssafy.nyamnyam.domain.recommendation.repository.RecommendationRepository;
 import com.ssafy.nyamnyam.domain.recommendation.service.PreferenceProfileService;
 import com.ssafy.nyamnyam.domain.shortform.entity.Short;
@@ -39,6 +41,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 
 @ExtendWith(MockitoExtension.class)
 class ExplorationServiceTest {
@@ -305,6 +308,72 @@ class ExplorationServiceTest {
 
         // then
         assertThat(testShort.getIrrelevantCount()).isEqualTo(1);
+    }
+
+    // ── AUTH-B06: 비회원 기록 이관 테스트 ──────────────────────────────────
+
+    @Test
+    @DisplayName("비회원 기록 이관: 쿠키 없으면 0/0 반환")
+    void mergeGuestData_nullGuestKey_returnsZero() {
+        MergeExplorationResponse result = explorationService.mergeGuestData(null, testUser);
+        assertThat(result.mergedReactionsCount()).isEqualTo(0);
+        assertThat(result.mergedSessionCount()).isEqualTo(0);
+        verifyNoInteractions(reactionRepository, sessionRepository, recommendationRepository);
+    }
+
+    @Test
+    @DisplayName("비회원 기록 이관: 회원과 겹치지 않는 반응은 이관, 겹치는 반응은 삭제")
+    void mergeGuestData_mergesNonDuplicateReactions() {
+        String guestKey = "abc-uuid";
+
+        Short short10 = Short.builder().hobby(testHobby).build();
+        ReflectionTestUtils.setField(short10, "id", 10L);
+        Short short20 = Short.builder().hobby(testHobby).build();
+        ReflectionTestUtils.setField(short20, "id", 20L);
+
+        ShortReaction guestReaction10 = ShortReaction.builder()
+                .guestKey(guestKey).shortform(short10).type(ReactionType.LIKE).build();
+        ShortReaction guestReaction20 = ShortReaction.builder()
+                .guestKey(guestKey).shortform(short20).type(ReactionType.DISLIKE).build();
+
+        given(reactionRepository.findByGuestKey(guestKey)).willReturn(List.of(guestReaction10, guestReaction20));
+        given(reactionRepository.findShortIdsByUserId(1L)).willReturn(List.of(20L));
+        given(sessionRepository.findByGuestKey(guestKey)).willReturn(List.of());
+        given(recommendationRepository.findByGuestKey(guestKey)).willReturn(List.of());
+
+        MergeExplorationResponse result = explorationService.mergeGuestData(guestKey, testUser);
+
+        assertThat(result.mergedReactionsCount()).isEqualTo(1);
+        assertThat(result.mergedSessionCount()).isEqualTo(0);
+        verify(reactionRepository).delete(guestReaction20);
+        assertThat(guestReaction10.getUser()).isEqualTo(testUser);
+        assertThat(guestReaction10.getGuestKey()).isNull();
+    }
+
+    @Test
+    @DisplayName("비회원 기록 이관: 세션과 추천도 함께 이관")
+    void mergeGuestData_mergesSessionsAndRecommendations() {
+        String guestKey = "abc-uuid";
+
+        given(reactionRepository.findByGuestKey(guestKey)).willReturn(List.of());
+        given(reactionRepository.findShortIdsByUserId(1L)).willReturn(List.of());
+
+        ExplorationSession guestSession = ExplorationSession.builder()
+                .guestKey(guestKey).maxCount((short) 12).build();
+        given(sessionRepository.findByGuestKey(guestKey)).willReturn(List.of(guestSession));
+
+        Recommendation guestReco = Recommendation.builder()
+                .guestKey(guestKey).basis(RecoBasis.REACTION).build();
+        given(recommendationRepository.findByGuestKey(guestKey)).willReturn(List.of(guestReco));
+
+        MergeExplorationResponse result = explorationService.mergeGuestData(guestKey, testUser);
+
+        assertThat(result.mergedReactionsCount()).isEqualTo(0);
+        assertThat(result.mergedSessionCount()).isEqualTo(1);
+        assertThat(guestSession.getUser()).isEqualTo(testUser);
+        assertThat(guestSession.getGuestKey()).isNull();
+        assertThat(guestReco.getUser()).isEqualTo(testUser);
+        assertThat(guestReco.getGuestKey()).isNull();
     }
 
     private void givenReactionSession() {

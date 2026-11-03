@@ -69,4 +69,9 @@ public class ExplorationSession {
         this.status = SessionStatus.ABANDONED;
         this.endedAt = LocalDateTime.now();
     }
+
+    public void assignUser(User user) {
+        this.user = user;
+        this.guestKey = null;
+    }
 }

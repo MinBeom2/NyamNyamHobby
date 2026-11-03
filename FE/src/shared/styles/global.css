@@ -837,6 +837,9 @@ strong, b { font-weight: 700; }
 .notification-item strong { font-size: 13px; }
 .notification-item p { margin: 5px 0 3px; color: #68787c; font-size: 12px; }
 .notification-item time { color: #94a0a3; font-size: 11px; }
+.notifications-page nav button:not(.active) { color: var(--color-muted); }
+.notifications-page header button:disabled { color: var(--color-muted); cursor: default; }
+.notifications-page > .button { width: fit-content; margin: 16px auto 0; display: flex; }
 
 .mypage-preview { display: grid; grid-template-columns: 260px minmax(0, 1fr); gap: 24px; padding-top: 40px; }
 .mypage-profile { padding: 26px 20px; border: 1px solid var(--color-line); border-radius: var(--radius-md); background: #fff; text-align: center; }

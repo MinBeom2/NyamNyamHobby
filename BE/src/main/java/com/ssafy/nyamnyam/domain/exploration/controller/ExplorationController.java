@@ -2,6 +2,7 @@ package com.ssafy.nyamnyam.domain.exploration.controller;
 
 import com.ssafy.nyamnyam.domain.exploration.dto.request.RecordViewRequest;
 import com.ssafy.nyamnyam.domain.exploration.dto.response.ExplorationProgressResponse;
+import com.ssafy.nyamnyam.domain.exploration.dto.response.MergeExplorationResponse;
 import com.ssafy.nyamnyam.domain.exploration.dto.response.NextShortResponse;
 import com.ssafy.nyamnyam.domain.exploration.dto.response.StartExplorationResponse;
 import com.ssafy.nyamnyam.domain.exploration.service.ExplorationService;
@@ -14,6 +15,8 @@ import com.ssafy.nyamnyam.global.common.ApiResponse;
 import com.ssafy.nyamnyam.global.error.CustomException;
 import com.ssafy.nyamnyam.global.error.ErrorCode;
 import com.ssafy.nyamnyam.global.security.UserPrincipal;
+import com.ssafy.nyamnyam.global.util.CookieUtils;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -94,6 +97,22 @@ public class ExplorationController {
         FinishExplorationResult result = recommendationService.finishExploration(sessionId, user);
         return ResponseEntity.status(result.created() ? HttpStatus.CREATED : HttpStatus.OK)
                 .body(ApiResponse.success(result.response()));
+    }
+
+    /**
+     * 6) 비회원 탐색 기록 이관 (200 OK) — FR-AUTH-05 / AUTH-B06
+     * guest_key 쿠키의 세션·반응·추천을 로그인 회원에게 1회 이관하고 쿠키를 만료시킨다.
+     */
+    @PostMapping("/merge")
+    public ResponseEntity<ApiResponse<MergeExplorationResponse>> mergeGuestExploration(
+            @CookieValue(value = CookieUtils.GUEST_KEY_COOKIE_NAME, required = false) String guestKey,
+            @AuthenticationPrincipal UserPrincipal principal,
+            HttpServletResponse response
+    ) {
+        User user = getUser(principal);
+        MergeExplorationResponse result = explorationService.mergeGuestData(guestKey, user);
+        CookieUtils.deleteGuestKeyCookie(response);
+        return ResponseEntity.ok(ApiResponse.success(result));
     }
 
 

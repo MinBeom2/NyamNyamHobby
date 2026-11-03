@@ -78,4 +78,9 @@ public class Recommendation {
         this.conditionSnapshot = conditionSnapshot;
         this.createdAt = LocalDateTime.now();
     }
+
+    public void assignUser(User user) {
+        this.user = user;
+        this.guestKey = null;
+    }
 }

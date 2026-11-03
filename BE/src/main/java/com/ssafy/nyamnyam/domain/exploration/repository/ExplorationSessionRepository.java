@@ -19,4 +19,7 @@ public interface ExplorationSessionRepository extends JpaRepository<ExplorationS
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT s FROM ExplorationSession s WHERE s.id = :id AND s.user = :user")
     Optional<ExplorationSession> findByIdAndUserForUpdate(@Param("id") Long id, @Param("user") User user);
+
+    /** 비회원 이관용: guestKey로 연결된 세션 목록 */
+    List<ExplorationSession> findByGuestKey(String guestKey);
 }

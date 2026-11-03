@@ -12,6 +12,7 @@ public class CookieUtils {
 
     public static final String REFRESH_TOKEN_COOKIE_NAME = "refresh_token";
     public static final String AUTH_COOKIE_PATH = "/api/v1/auth";
+    public static final String GUEST_KEY_COOKIE_NAME = "guest_key";
 
     private CookieUtils() {
     }
@@ -40,6 +41,17 @@ public class CookieUtils {
     public static void deleteRefreshTokenCookie(HttpServletResponse response) {
         ResponseCookie cookie = ResponseCookie.from(REFRESH_TOKEN_COOKIE_NAME, "")
                 .path(AUTH_COOKIE_PATH)
+                .maxAge(0)
+                .httpOnly(true)
+                .secure(false)
+                .sameSite("Lax")
+                .build();
+        response.addHeader("Set-Cookie", cookie.toString());
+    }
+
+    public static void deleteGuestKeyCookie(HttpServletResponse response) {
+        ResponseCookie cookie = ResponseCookie.from(GUEST_KEY_COOKIE_NAME, "")
+                .path("/")
                 .maxAge(0)
                 .httpOnly(true)
                 .secure(false)

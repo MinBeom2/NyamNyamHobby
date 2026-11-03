@@ -9,6 +9,7 @@ import com.ssafy.nyamnyam.domain.exploration.repository.ExplorationSessionReposi
 import com.ssafy.nyamnyam.domain.exploration.repository.ExplorationViewRepository;
 import com.ssafy.nyamnyam.domain.exploration.repository.ShortReactionRepository;
 import com.ssafy.nyamnyam.domain.hobby.entity.Hobby;
+import com.ssafy.nyamnyam.domain.recommendation.entity.Recommendation;
 import com.ssafy.nyamnyam.domain.recommendation.repository.RecommendationRepository;
 import com.ssafy.nyamnyam.domain.recommendation.service.PreferenceProfileService;
 import com.ssafy.nyamnyam.domain.shortform.entity.Short;
@@ -296,6 +297,53 @@ public class ExplorationService {
                 .reactedHobbies(reactedHobbies)
                 .topInterests(topInterests)
                 .build();
+    }
+
+    /**
+     * 7) 비회원 탐색 기록 이관 (FR-AUTH-05 / AUTH-B06)
+     * guestKey에 연결된 세션·반응·추천을 로그인 회원에게 이관한다.
+     * - 같은 숏폼에 이미 회원 반응이 있으면 회원 기록을 우선하고 비회원 반응은 삭제한다.
+     * - guestKey가 없거나 데이터가 없으면 0/0을 반환한다(무해하게 처리).
+     */
+    @Transactional
+    public MergeExplorationResponse mergeGuestData(String guestKey, User user) {
+        if (guestKey == null || guestKey.isBlank()) {
+            return new MergeExplorationResponse(0, 0);
+        }
+
+        // 1) 반응 이관 ─ 회원이 이미 반응한 숏폼 ID 집합을 구한다.
+        List<ShortReaction> guestReactions = reactionRepository.findByGuestKey(guestKey);
+        Set<Long> userReactedShortIds = new HashSet<>(reactionRepository.findShortIdsByUserId(user.getId()));
+
+        int mergedReactions = 0;
+        for (ShortReaction reaction : guestReactions) {
+            Long shortId = reaction.getShortform().getId();
+            if (userReactedShortIds.contains(shortId)) {
+                // 회원 기록 우선 → 비회원 반응 삭제
+                reactionRepository.delete(reaction);
+            } else {
+                reaction.assignUser(user);
+                mergedReactions++;
+            }
+        }
+
+        // 2) 세션 이관
+        List<ExplorationSession> guestSessions = sessionRepository.findByGuestKey(guestKey);
+        for (ExplorationSession session : guestSessions) {
+            session.assignUser(user);
+        }
+        int mergedSessions = guestSessions.size();
+
+        // 3) 추천 이관
+        List<Recommendation> guestRecommendations = recommendationRepository.findByGuestKey(guestKey);
+        for (Recommendation reco : guestRecommendations) {
+            reco.assignUser(user);
+        }
+
+        log.info("비회원 기록 이관 완료: guestKey={}, userId={}, reactions={}, sessions={}, recommendations={}",
+                guestKey, user.getId(), mergedReactions, mergedSessions, guestRecommendations.size());
+
+        return new MergeExplorationResponse(mergedReactions, mergedSessions);
     }
 
     /** 첫 영상과 다음 영상에 같은 규칙을 적용한다. 새 영상이 없을 때만 과거 무반응 영상을 재사용한다. */

@@ -1,9 +1,10 @@
 package com.ssafy.nyamnyam.domain.exploration;
 
 import com.ssafy.nyamnyam.domain.exploration.controller.ExplorationController;
-import com.ssafy.nyamnyam.domain.exploration.service.ExplorationService;
 import com.ssafy.nyamnyam.domain.exploration.dto.response.ExplorationProgressResponse;
+import com.ssafy.nyamnyam.domain.exploration.dto.response.MergeExplorationResponse;
 import com.ssafy.nyamnyam.domain.exploration.entity.ReactionType;
+import com.ssafy.nyamnyam.domain.exploration.service.ExplorationService;
 import com.ssafy.nyamnyam.domain.recommendation.dto.response.FinishExplorationResult;
 import com.ssafy.nyamnyam.domain.recommendation.dto.response.RecommendationResponse;
 import com.ssafy.nyamnyam.domain.recommendation.service.RecommendationService;
@@ -30,6 +31,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import jakarta.servlet.http.Cookie;
 import java.util.List;
 import java.util.Optional;
 
@@ -166,6 +168,43 @@ class ExplorationControllerTest {
 
     @Test void progressRequiresAuthentication() throws Exception {
         mvc.perform(get("/api/v1/explorations/50/progress")).andExpect(status().isUnauthorized());
+        verifyNoInteractions(explorations);
+    }
+
+    @Test
+    void mergeGuestExploration_withGuestKeyCookie_returns200AndDeletesCookie() throws Exception {
+        MergeExplorationResponse mergeResult = new MergeExplorationResponse(8, 1);
+        given(explorations.mergeGuestData("test-guest-uuid", member)).willReturn(mergeResult);
+
+        mvc.perform(post("/api/v1/explorations/merge")
+                        .with(user(principal))
+                        .cookie(new Cookie("guest_key", "test-guest-uuid")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.mergedReactionsCount").value(8))
+                .andExpect(jsonPath("$.data.mergedSessionCount").value(1))
+                .andExpect(header().string("Set-Cookie", org.hamcrest.Matchers.containsString("guest_key=")))
+                .andExpect(header().string("Set-Cookie", org.hamcrest.Matchers.containsString("Max-Age=0")));
+
+        verify(explorations).mergeGuestData("test-guest-uuid", member);
+    }
+
+    @Test
+    void mergeGuestExploration_withoutGuestKeyCookie_returnsZeroCounts() throws Exception {
+        MergeExplorationResponse mergeResult = new MergeExplorationResponse(0, 0);
+        given(explorations.mergeGuestData(null, member)).willReturn(mergeResult);
+
+        mvc.perform(post("/api/v1/explorations/merge")
+                        .with(user(principal)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.mergedReactionsCount").value(0))
+                .andExpect(jsonPath("$.data.mergedSessionCount").value(0));
+    }
+
+    @Test
+    void mergeGuestExploration_requiresAuthentication() throws Exception {
+        mvc.perform(post("/api/v1/explorations/merge"))
+                .andExpect(status().isUnauthorized());
         verifyNoInteractions(explorations);
     }
 }

@@ -66,4 +66,10 @@ public class ShortReaction {
         this.sessionId = sessionId;
         this.updatedAt = LocalDateTime.now();
     }
+
+    public void assignUser(User user) {
+        this.user = user;
+        this.guestKey = null;
+        this.updatedAt = LocalDateTime.now();
+    }
 }

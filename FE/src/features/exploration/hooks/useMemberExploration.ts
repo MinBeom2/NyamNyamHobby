@@ -1,4 +1,4 @@
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
 import {
   deleteShortReaction,
@@ -21,8 +21,11 @@ import type {
   ExplorationShort,
 } from '../model/explorationModel';
 import { deleteSavedShort, saveShort } from '../../shortform/api/shortformApi';
+import { savedShortQueryKeys } from '../../saved-shorts/api/savedShortApi';
+import { userQueryKeys } from '../../user/api/userApi';
 
 export function useMemberExploration() {
+  const queryClient = useQueryClient();
   const [sessionId, setSessionId] = useState<number | null>(null);
   const [maxCount, setMaxCount] = useState(0);
   const [viewedCount, setViewedCount] = useState(0);
@@ -78,6 +81,8 @@ export function useMemberExploration() {
     },
     onSuccess: (response) => {
       setCurrent((short) => short ? { ...short, isSaved: response.isSaved } : short);
+      void queryClient.invalidateQueries({ queryKey: savedShortQueryKeys.all });
+      void queryClient.invalidateQueries({ queryKey: userQueryKeys.summary() });
     },
   });
 

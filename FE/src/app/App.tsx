@@ -16,6 +16,8 @@ import { PersonalInfoEditPage } from '../pages/mypage/ProfileEditPages';
 import { NoticeDetailPage, NoticeListPage } from '../pages/notices/NoticePages';
 import { OAuthCallbackPage } from '../pages/auth/OAuthCallbackPage';
 import { SavedShortsPage } from '../pages/mypage/SavedShortsPage';
+import { MyInterestsPage } from '../pages/mypage/MyInterestsPage';
+import { MyPostsPage } from '../pages/mypage/MyPostsPage';
 import { HobbyDetailPage, HobbyInterestSelectPage, HobbyPlanPreviewPage, HobbySearchPage } from '../pages/hobbies/HobbyPages';
 import { HobbyPlanPage, MyHobbiesPage, TodoFocusPage } from '../pages/activities/ActivityPages';
 import { InfoFeedDetailPage, InfoFeedPage, PlaceSearchPage } from '../pages/places/PlacePages';
@@ -122,6 +124,8 @@ export function App() {
           <Route path="/mypage/profile" element={<MyPage profileEditorOpen />} />
           <Route path="/mypage/edit" element={<PersonalInfoEditPage />} />
           <Route path="/mypage/saved-shorts" element={<SavedShortsPage />} />
+          <Route path="/mypage/interests" element={<MyInterestsPage />} />
+          <Route path="/mypage/posts" element={<MyPostsPage />} />
           <Route path="/notifications" element={<NotificationsPage />} />
           <Route path="/support/inquiries" element={<InquiryListPage />} />
           <Route path="/support/inquiries/new" element={<InquiryWritePage />} />

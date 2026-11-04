@@ -481,8 +481,9 @@ strong, b { font-weight: 700; }
 .place-controls { display: flex; align-items: end; gap: 12px; margin-bottom: 16px; }
 .place-controls label { display: flex; flex-direction: column; gap: 7px; font-size: 11px; font-weight: 700; }
 .place-controls select { min-width: 150px; border-radius: 9px; }
-.place-hobbies { margin-left: auto; display: flex; gap: 8px; }
+.place-controls > .place-hobbies { min-width: 0; max-width: 100%; margin-left: auto; display: flex; gap: 8px; overflow-x: auto; overscroll-behavior-x: contain; }
 .place-hobbies button, .feed-tabs button, .board-tools > div button { min-height: 34px; padding: 0 14px; border: 1px solid var(--color-line); border-radius: 999px; color: var(--color-ink); background: #fff; font-size: 11px; font-weight: 700; cursor: pointer; }
+.place-controls > .place-hobbies button { flex: 0 0 auto; white-space: nowrap; }
 .place-hobbies button.active, .feed-tabs button.active, .board-tools > div button.active { color: #fff; border-color: var(--color-primary); background: var(--color-primary); }
 .place-layout { display: grid; grid-template-columns: 420px 1fr; align-items: start; gap: 20px; }
 .place-results h2 { height: 22px; margin: 0 0 12px; font-size: 14px; line-height: 22px; }
@@ -496,15 +497,13 @@ strong, b { font-weight: 700; }
 .place-results article b { color: #a94b1b; font-size: 10px; }
 .place-results article > a { position: absolute; right: 14px; bottom: 14px; display: flex; align-items: center; gap: 4px; color: var(--color-primary); font-size: 10px; font-weight: 700; }
 .place-results article > a svg { width: 11px; }
-.map-placeholder { position: relative; height: 440px; min-height: 440px; margin-top: 34px; overflow: hidden; border-radius: var(--radius-md); background: #d9f4f3; }
-.map-placeholder > span { position: absolute; top: 18px; left: 18px; color: #738a8d; font-size: 11px; }
-.map-placeholder > button { position: absolute; z-index: 1; width: 42px; height: 46px; padding: 0; border: 0; display: grid; place-items: center; color: var(--color-primary); background: transparent; cursor: pointer; transform: translate(-50%, -50%); }
-.map-placeholder > button svg { width: 38px; height: 38px; display: block; color: var(--color-primary-dark); fill: var(--color-primary); stroke-width: 1.8; }
-.map-placeholder > button i { position: absolute; top: 11px; left: 0; width: 100%; color: #fff; font-size: 9px; font-style: normal; font-weight: 700; line-height: 1; text-align: center; pointer-events: none; }
-.map-placeholder > button.active { z-index: 2; transform: translate(-50%, -50%) scale(1.14); }
-.map-popup { position: absolute; z-index: 3; width: 190px; padding: 14px; border: 1px solid var(--color-line); border-radius: 10px; display: flex; flex-direction: column; gap: 7px; background: #fff; box-shadow: 0 8px 25px rgb(30 55 60 / 15%); transform: translateY(-50%); }
-.map-popup small { color: var(--color-muted); }
-.map-popup a { color: var(--color-primary); font-size: 11px; font-weight: 700; }
+.map-placeholder { position: relative; height: 440px; min-height: 440px; margin-top: 34px; overflow: hidden; border-radius: var(--radius-md); background: #e8eee8; }
+.kakao-map-canvas { position: absolute; inset: 0; }
+.map-status { position: absolute; inset: 0; display: grid; place-items: center; padding: 24px; color: var(--color-muted); background: rgb(248 250 247 / 92%); font-size: 13px; text-align: center; }
+.map-status--error { color: #8d3e2d; }
+.kakao-map-info { padding: 8px 12px; color: var(--color-ink); font-size: 12px; white-space: nowrap; }
+.place-info-check { color: #a94b1b !important; font-weight: 700; }
+.place-query-message { margin: 0 0 14px; color: #8d3e2d; font-size: 13px; }
 .feed-tabs { display: flex; align-items: center; gap: 8px; border-bottom: 1px solid var(--color-line); padding-bottom: 12px; }
 .feed-tabs button { border-color: transparent; border-radius: 0; padding: 0 6px; }
 .feed-tabs button.active { color: var(--color-primary); border-color: transparent; border-bottom: 2px solid var(--color-primary); background: transparent; }
@@ -668,7 +667,7 @@ strong, b { font-weight: 700; }
   .plan-todo { grid-template-columns: auto 1fr; }
   .plan-todo textarea { grid-column: 1 / -1; }
   .place-controls { align-items: stretch; flex-direction: column; }
-  .place-hobbies { margin-left: 0; overflow-x: auto; }
+  .place-controls > .place-hobbies { width: 100%; margin-left: 0; }
   .feed-tabs { overflow-x: auto; }
   .feed-tabs label { min-width: 150px; }
   .feed-list > article { grid-template-columns: 82px 1fr; }

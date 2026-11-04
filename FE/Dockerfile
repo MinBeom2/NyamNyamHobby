@@ -12,4 +12,6 @@ RUN npm ci
 COPY . .
 # API는 같은 도메인의 /api/v1 로 호출 (Nginx가 백엔드로 전달)
 ENV VITE_API_BASE_URL=/api/v1
+ARG VITE_KAKAO_MAP_KEY
+ENV VITE_KAKAO_MAP_KEY=$VITE_KAKAO_MAP_KEY
 RUN npm run build

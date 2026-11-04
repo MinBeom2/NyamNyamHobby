@@ -1,37 +1,88 @@
-import { ExternalLink, Image, MapPin, Search } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { ExternalLink, Image, Search } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Link, Navigate, useParams } from 'react-router-dom';
-import { infoFeedFixtures, placeFixtures } from '../../features/place/model/placeFixtures';
+import { getPlaceHobbies, getPlaces, getRegions, getSidos, placeQueryKeys } from '../../features/place/api/placeApi';
+import { KakaoPlaceMap } from '../../features/place/ui/KakaoPlaceMap';
+import { infoFeedFixtures } from '../../features/place/model/placeFixtures';
 import { characterAssets } from '../../shared/assets/assets';
 import { AppHeader } from '../../shared/ui/AppHeader';
 import { Button } from '../../shared/ui/Button';
 
-const mapMarkerPositions = [
-  { markerLeft: 25, markerTop: 36, popupLeft: 31, popupTop: 24 },
-  { markerLeft: 58, markerTop: 67, popupLeft: 62, popupTop: 55 },
-  { markerLeft: 78, markerTop: 32, popupLeft: 55, popupTop: 20 },
-] as const;
-
 export function PlaceSearchPage() {
-  const [hobby, setHobby] = useState('클라이밍');
-  const [district, setDistrict] = useState('마포구');
-  const places = useMemo(() => placeFixtures.filter((item) => item.hobby === hobby), [hobby]);
-  const [selected, setSelected] = useState(places[0]?.id ?? 0);
-  const selectedIndex = Math.max(places.findIndex((place) => place.id === selected), 0);
-  const selectedPlace = places[selectedIndex];
-  const selectedPosition = mapMarkerPositions[selectedIndex % mapMarkerPositions.length];
+  const [sido, setSido] = useState('');
+  const [regionId, setRegionId] = useState<number>();
+  const [hobbyId, setHobbyId] = useState<number>();
+  const [selectedPlaceId, setSelectedPlaceId] = useState<number>();
+  const sidosQuery = useQuery({ queryKey: placeQueryKeys.regions(), queryFn: getSidos });
+  const availableSido = sidosQuery.data?.find((item) => item.enabled)?.sido ?? '';
+  const regionsQuery = useQuery({
+    queryKey: placeQueryKeys.regions(sido),
+    queryFn: () => getRegions(sido),
+    enabled: Boolean(sido),
+  });
+  const hobbiesQuery = useQuery({ queryKey: placeQueryKeys.hobbies, queryFn: getPlaceHobbies });
+  const placesQuery = useQuery({
+    queryKey: placeQueryKeys.list(regionId, hobbyId),
+    queryFn: () => getPlaces(regionId, hobbyId),
+    enabled: regionId !== undefined && hobbyId !== undefined,
+  });
+  const hobbies = hobbiesQuery.data?.content ?? [];
+  const places = placesQuery.data ?? [];
+  const selectedPlace = places.find((place) => place.id === selectedPlaceId);
+  const selectedRegion = regionsQuery.data?.find((region) => region.id === regionId);
+
+  useEffect(() => {
+    if (!sido && availableSido) setSido(availableSido);
+  }, [availableSido, sido]);
+
+  useEffect(() => {
+    if (!regionsQuery.data?.length) return;
+    if (regionId !== undefined && regionsQuery.data.some((region) => region.id === regionId)) return;
+    const defaultRegion = regionsQuery.data.find((region) => region.sigungu === '마포구') ?? regionsQuery.data[0];
+    setRegionId(defaultRegion.id);
+  }, [regionId, regionsQuery.data]);
+
+  useEffect(() => {
+    if (!hobbies.length) return;
+    if (hobbyId !== undefined && hobbies.some((hobby) => hobby.id === hobbyId)) return;
+    const defaultHobby = hobbies.find((hobby) => hobby.name === '클라이밍') ?? hobbies[0];
+    setHobbyId(defaultHobby.id);
+  }, [hobbyId, hobbies]);
+
+  useEffect(() => {
+    if (!places.length) {
+      setSelectedPlaceId(undefined);
+      return;
+    }
+    if (selectedPlaceId !== undefined && places.some((place) => place.id === selectedPlaceId)) return;
+    setSelectedPlaceId(places[0].id);
+  }, [places, selectedPlaceId]);
+
+  const selectedHobby = hobbies.find((hobby) => hobby.id === hobbyId);
 
   return <div className="site-shell"><AppHeader notificationCount={3} /><main className="page-container places-page"><div className="page-title-row"><div><h1>활동 장소 찾기</h1></div><Button variant="secondary" to="/info-feed">취미 정보 피드</Button></div>
-    <div className="place-controls"><label>시·도<select><option>서울특별시</option></select></label><label>시·군·구<select value={district} onChange={(event) => setDistrict(event.target.value)}><option>마포구</option><option>성동구</option><option>강남구</option></select></label><div className="place-hobbies">{['클라이밍', '요가', '도예'].map((item) => <button className={hobby === item ? 'active' : ''} type="button" onClick={() => { setHobby(item); setSelected(placeFixtures.find((place) => place.hobby === item)?.id ?? 0); }} key={item}>{item}</button>)}</div></div>
-    <div className="place-layout"><section className="place-results"><h2>장소 {places.length}곳 · {hobby}</h2>{places.length ? places.map((place) => <article id={`place-${place.id}`} className={selected === place.id ? 'selected' : ''} key={place.id} onClick={() => setSelected(place.id)}><div className="place-thumb"><Image /><span>사진</span></div><div><h3>{place.name}<span>{place.indoor ? '실내 활동' : '실외 활동'}</span></h3><p>{place.address}</p><small>{place.hours}</small><b>{place.price}</b></div><a href={`https://map.kakao.com/?q=${encodeURIComponent(place.name)}`} target="_blank" rel="noreferrer">홈페이지 <ExternalLink /></a></article>) : <div className="mini-empty"><Search /><b>조건에 맞는 장소가 없어요</b></div>}<Button variant="secondary">더 보기</Button></section>
-      <section className="map-placeholder" aria-label={`${district} 지도`}>
-        <span>Kakao 지도 SDK · 마커 {places.length}개</span>
-        {places.map((place, index) => {
-          const position = mapMarkerPositions[index % mapMarkerPositions.length];
-          return <button aria-label={`${place.name} 지도 위치`} className={selected === place.id ? 'active' : ''} style={{ left: `${position.markerLeft}%`, top: `${position.markerTop}%` }} onClick={() => setSelected(place.id)} type="button" key={place.id}><MapPin /><i>{index + 1}</i></button>;
-        })}
-        {selectedPlace && <div className="map-popup" style={{ left: `${selectedPosition.popupLeft}%`, top: `${selectedPosition.popupTop}%` }}><b>{selectedPlace.name}</b><small>{selectedPlace.hours}</small><a href={`#place-${selectedPlace.id}`}>목록에서 보기</a></div>}
-      </section></div>
+    <div className="place-controls">
+      <label>시·도<select value={sido} onChange={(event) => { setSido(event.target.value); setRegionId(undefined); }} disabled={!sidosQuery.data?.length}>
+        {sidosQuery.data?.map((item) => <option disabled={!item.enabled} value={item.sido} key={item.sido}>{item.sido}{item.enabled ? '' : ' (준비 중)'}</option>)}
+      </select></label>
+      <label>시·군·구<select value={regionId ?? ''} onChange={(event) => setRegionId(Number(event.target.value))} disabled={!regionsQuery.data?.length}>
+        {regionsQuery.data?.map((region) => <option value={region.id} key={region.id}>{region.sigungu}</option>)}
+      </select></label>
+      <div className="place-hobbies">{hobbies.map((hobby) => <button className={hobbyId === hobby.id ? 'active' : ''} type="button" onClick={() => setHobbyId(hobby.id)} key={hobby.id}>{hobby.name}</button>)}</div>
+    </div>
+    {sidosQuery.isError || regionsQuery.isError || hobbiesQuery.isError ? <p className="place-query-message" role="alert">장소 검색 조건을 불러오지 못했어요. 잠시 후 다시 시도해 주세요.</p> : null}
+    <div className="place-layout"><section className="place-results"><h2>장소 {placesQuery.isLoading ? '불러오는 중' : `${places.length}곳`} · {selectedHobby?.name ?? ''}</h2>
+      {placesQuery.isError ? <div className="mini-empty"><Search /><b>장소를 불러오지 못했어요</b></div> : null}
+      {placesQuery.isLoading ? <div className="mini-empty" role="status">장소를 불러오고 있어요.</div> : null}
+      {!placesQuery.isLoading && !placesQuery.isError && places.length === 0 ? <div className="mini-empty"><Search /><b>조건에 맞는 장소가 없어요</b></div> : null}
+      {places.map((place) => <article id={`place-${place.id}`} className={selectedPlaceId === place.id ? 'selected' : ''} key={place.id} onClick={() => setSelectedPlaceId(place.id)}>
+        <div className="place-thumb"><Image /><span>{place.source}</span></div><div><h3>{place.name}<span>{place.category}</span></h3><p>{place.address}</p><small>{place.openingHours || '운영 시간 정보 없음'}</small><b>{place.feeText || '비용 정보 없음'}</b>{place.needsInfoCheck && <small className="place-info-check">정보 확인 필요</small>}</div>
+        {place.externalUrl && <a href={place.externalUrl} target="_blank" rel="noreferrer" onClick={(event) => event.stopPropagation()}>지도에서 보기 <ExternalLink /></a>}
+      </article>)}
+    </section>
+    <KakaoPlaceMap places={places} selectedPlace={selectedPlace} regionName={selectedRegion?.sigungu ?? sido} onSelect={setSelectedPlaceId} />
+    </div>
   </main></div>;
 }
 

@@ -47,6 +47,23 @@ describe('guest access and session-aware pages', () => {
     expect(html).toContain('회원가입 후 이용할 수 있어요');
   });
 
+  it.each([true, false])('keeps the logout route outside access restrictions (authenticated: %s)', (authenticated) => {
+    if (authenticated) useAuthStore.getState().setSession({ user, accessToken: 'test-token', expiresIn: 1800 });
+    const html = renderPage({ pathname: '/logout', state: { signupRequired: '커뮤니티', returnTo: '/' } });
+    expect(html).toContain('로그아웃 중…');
+    expect(html).not.toContain('role="dialog"');
+    expect(html).not.toContain('회원가입 후 이용할 수 있어요');
+  });
+
+  it('shows the guest home without a restriction after logout and still protects member routes', () => {
+    useAuthStore.getState().setSession({ user, accessToken: 'test-token', expiresIn: 1800 });
+    useAuthStore.getState().clearSession();
+    const html = renderPage({ pathname: '/', state: null });
+    expect(html).toContain('class="login-link"');
+    expect(html).not.toContain('role="dialog"');
+    expect(renderPage('/community')).toBe('');
+  });
+
   it('allows guest notices and the guest short exploration', () => {
     expect(renderPage('/notices')).toContain('공지사항');
     expect(renderPage('/explore?guest=true')).toContain('다음 영상');

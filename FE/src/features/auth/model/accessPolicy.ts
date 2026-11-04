@@ -1,7 +1,7 @@
 const memberMenus: Array<[string, string]> = [
   ['/hobbies', '취미 찾기'],
-  ['/places', '장소·정보'],
-  ['/info-feed', '장소·정보'],
+  ['/places', '장소 찾기'],
+  ['/info-feed', '취미 정보'],
   ['/community', '커뮤니티'],
   ['/my-hobbies', '내 취미'],
   ['/mypage', '마이페이지'],

@@ -16,7 +16,8 @@ type AppHeaderProps = {
 const navigation = [
   { label: '숏폼 탐색', to: '/explore' },
   { label: '취미 찾기', to: '/hobbies', requiresAuth: true },
-  { label: '장소·정보', to: '/places', requiresAuth: true },
+  { label: '장소 찾기', to: '/places', requiresAuth: true },
+  { label: '취미 정보', to: '/info-feed', requiresAuth: true },
   { label: '커뮤니티', to: '/community', requiresAuth: true },
   { label: '공지', to: '/notices' },
 ];
@@ -83,7 +84,7 @@ export function AppHeader({ onBrandClick }: AppHeaderProps) {
                 onClick={(event) => {
                   if (!authenticated && item.requiresAuth) {
                     event.preventDefault();
-                    navigate(`${location.pathname}${location.search}${location.hash}`, {
+                  navigate(item.to, {
                       state: {
                         signupRequired: item.label,
                         returnTo: `${location.pathname}${location.search}${location.hash}`,

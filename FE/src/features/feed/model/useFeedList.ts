@@ -2,6 +2,7 @@ import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { getMyInterests, getUserHobbies, userQueryKeys } from '../../user/api/userApi';
 import { feedQueryKeys, getFeeds, type FeedQuery, type FeedScope } from '../api/feedApi';
 import { toFeedItemModel } from './feedAdapter';
+import { getRegions, placeQueryKeys } from '../../place/api/placeApi';
 
 const PAGE_SIZE = 20;
 
@@ -43,4 +44,16 @@ export function useScopeHobbies(scope: FeedScope) {
     hasNoMyHobbies: interestsQuery.isSuccess && hobbiesQuery.isSuccess && my.size === 0,
     isLoading: interestsQuery.isLoading || hobbiesQuery.isLoading,
   };
+}
+
+/** 지역 필터 선택지. MVP 정보 피드는 서울만 수집하므로 서울 자치구만 보여 준다 */
+export const FEED_SIDO = '서울특별시';
+
+export function useFeedRegions(enabled: boolean) {
+  return useQuery({
+    queryKey: placeQueryKeys.regions(FEED_SIDO),
+    queryFn: () => getRegions(FEED_SIDO),
+    enabled,
+    staleTime: Infinity,
+  });
 }

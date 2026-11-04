@@ -21,6 +21,8 @@ export type FeedItemDto = {
   eventEnd: string | null;
   publishedAt: string;
   isEnded: boolean;
+  /** 강좌 접수가 끝남(접수종료·예약마감 등). 행사 자체는 진행 중일 수 있어 링크는 열려 있다 */
+  isClosed: boolean;
 };
 
 export type FeedQuery = {
@@ -28,6 +30,12 @@ export type FeedQuery = {
   hobbyId?: number;
   type?: FeedType;
   excludeEnded: boolean;
+  /** 제목·요약 검색어(2자 이상) */
+  keyword?: string;
+  /** yyyy-MM-dd. 진행 기간이 [from, to]와 겹치는 항목 */
+  from?: string;
+  to?: string;
+  regionIds?: number[];
 };
 
 export const feedQueryKeys = {
@@ -44,5 +52,9 @@ export function getFeeds(query: FeedQuery, page = 0, size = 20) {
   });
   if (query.hobbyId) params.set('hobbyId', String(query.hobbyId));
   if (query.type) params.set('type', query.type);
+  if (query.keyword) params.set('keyword', query.keyword);
+  if (query.from) params.set('from', query.from);
+  if (query.to) params.set('to', query.to);
+  if (query.regionIds?.length) params.set('regionIds', query.regionIds.join(','));
   return apiRequest<PageDto<FeedItemDto>>(`/feeds?${params}`);
 }

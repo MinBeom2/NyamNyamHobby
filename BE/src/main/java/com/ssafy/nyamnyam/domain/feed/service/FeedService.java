@@ -3,6 +3,7 @@ package com.ssafy.nyamnyam.domain.feed.service;
 import com.ssafy.nyamnyam.domain.feed.dto.request.FeedSearchCondition;
 import com.ssafy.nyamnyam.domain.feed.dto.response.FeedItemResponse;
 import com.ssafy.nyamnyam.domain.feed.entity.FeedItem;
+import com.ssafy.nyamnyam.domain.feed.entity.FeedOrigin;
 import com.ssafy.nyamnyam.domain.feed.entity.FeedScope;
 import com.ssafy.nyamnyam.domain.feed.entity.FeedStatus;
 import com.ssafy.nyamnyam.domain.feed.repository.FeedItemRepository;
@@ -91,13 +92,22 @@ public class FeedService {
             if (condition.type() != null) {
                 predicates.add(cb.equal(root.get("type"), condition.type()));
             }
-            // 종료된 행사 제외 필터 (기본 true). 서버 시간대와 상관없이 한국 날짜로 판단한다
+            // 마감·종료 제외 필터 (기본 true): 기간이 끝난 행사와 접수가 끝난 강좌를 뺀다.
+            // 날짜는 서버 시간대와 상관없이 한국 날짜로, 접수 상태는 요약 맨 앞 글자로 판단한다(FeedItem.isReservationClosed와 같은 규칙)
             if (condition.excludeEnded()) {
                 LocalDate today = LocalDate.now(KST);
                 predicates.add(cb.or(
                         cb.isNull(root.get("eventEnd")),
                         cb.greaterThanOrEqualTo(root.get("eventEnd"), today)
                 ));
+                List<Predicate> closed = FeedItem.CLOSED_STATUSES.stream()
+                        .map(status -> cb.like(root.get("summary"), escapeLike(status) + "%", LIKE_ESCAPE))
+                        .toList();
+                predicates.add(cb.not(cb.and(
+                        cb.equal(root.get("origin"), FeedOrigin.SEOUL_RESERVATION),
+                        cb.isNotNull(root.get("summary")),
+                        cb.or(closed.toArray(new Predicate[0]))
+                )));
             }
             if (condition.keyword() != null) {
                 String like = "%" + escapeLike(condition.keyword().toLowerCase()) + "%";

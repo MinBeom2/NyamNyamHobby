@@ -116,7 +116,7 @@ public class FeedItem {
     }
 
     /** 서울 공공서비스예약의 접수가 끝난 상태. 요약 맨 앞에 접수 상태를 넣어 두므로 그걸로 본다(FeedClassCollectService) */
-    private static final List<String> CLOSED_STATUSES = List.of("접수종료", "예약마감", "예약일시중지", "마감");
+    public static final List<String> CLOSED_STATUSES = List.of("접수종료", "예약마감", "예약일시중지", "마감");
 
     public boolean isReservationClosed() {
         return origin == FeedOrigin.SEOUL_RESERVATION && summary != null

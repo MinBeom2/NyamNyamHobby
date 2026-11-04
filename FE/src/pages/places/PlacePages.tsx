@@ -134,7 +134,7 @@ export function InfoFeedPage() {
     <div className="feed-tabs">
       {feedTypeTabs.map((item) => <button className={type === item.value ? 'active' : ''} type="button" onClick={() => setType(item.value)} key={item.label}>{item.label}</button>)}
       <form className="search-bar feed-search" role="search" onSubmit={(event) => { event.preventDefault(); submitSearch(); }}><Search aria-hidden="true" /><input value={keywordInput} onChange={(event) => setKeywordInput(event.target.value)} placeholder="제목이나 장소로 검색 (2자 이상)" aria-label="정보 피드 검색" /><button type="submit">검색</button></form>
-      <label><input checked={hideEnded} onChange={(event) => setHideEnded(event.target.checked)} type="checkbox" /> 종료된 행사 숨기기</label>
+      <label><input checked={hideEnded} onChange={(event) => setHideEnded(event.target.checked)} type="checkbox" /> 마감·종료된 행사 숨기기</label>
     </div>
     {keywordInput.trim().length === 1 && <p className="form-message form-message--error">검색어는 2자 이상 입력해 주세요.</p>}
     <div className="feed-toolbar">

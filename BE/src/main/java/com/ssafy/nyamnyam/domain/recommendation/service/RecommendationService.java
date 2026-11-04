@@ -85,6 +85,11 @@ public class RecommendationService {
         return toResponse(recommendation);
     }
 
+    /** 내 가장 최근 추천. 숏폼 탐색을 한 번도 끝내지 않았으면 비어 있다. */
+    public Optional<RecommendationResponse> getLatestRecommendation(User user) {
+        return recommendationRepository.findTopByUserIdOrderByIdDesc(user.getId()).map(this::toResponse);
+    }
+
     private RecommendationResponse toResponse(Recommendation recommendation) {
         return RecommendationResponse.builder().recommendationId(recommendation.getId()).basis("EXPLORATION_SESSION")
                 .basisText(recommendation.getBasisText()).isExploratory(recommendation.isExploratory())

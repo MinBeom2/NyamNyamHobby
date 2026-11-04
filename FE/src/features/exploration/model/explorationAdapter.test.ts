@@ -13,6 +13,6 @@ describe('toExplorationRecommendation', () => {
         reason: null, reasonStatus: 'PENDING', fallbackReason: '클라이밍 영상에 좋아요 3회',
         saved: false, conditionWarning: false }],
     };
-    expect(toExplorationRecommendation(response)).toEqual({ reactionCount: 3, hobbyNames: ['클라이밍'] });
+    expect(toExplorationRecommendation(response)).toEqual({ recommendationId: 1, reactionCount: 3, hobbyNames: ['클라이밍'] });
   });
 });

@@ -167,10 +167,21 @@ public class FeedCollectService {
         Set<String> keywords = new LinkedHashSet<>();
         mappings.forEach(m -> keywords.add(m.getKeyword()));
         Set<String> seen = new HashSet<>();
+        List<String> failedKeywords = new ArrayList<>();
+        PublicDataApiException lastError = null;
         for (String keyword : keywords) {
             stats.calls++;
-            for (KopisClient.Performance show : kopisClient.search(keyword, properties.kopisRegionCode(), today, to, 1,
-                    properties.kopisRows())) {
+            List<KopisClient.Performance> shows;
+            try {
+                shows = kopisClient.search(keyword, properties.kopisRegionCode(), today, to, 1, properties.kopisRows());
+            } catch (PublicDataApiException e) {
+                // 검색어 하나가 실패해도 나머지 검색어는 계속 받는다
+                log.warn("[FEED_COLLECT] {}", e.getMessage());
+                failedKeywords.add(keyword);
+                lastError = e;
+                continue;
+            }
+            for (KopisClient.Performance show : shows) {
                 if (!seen.add(show.id())) continue; // 다른 검색어로 이미 본 공연
                 stats.processed++;
                 // 공연명 부분 검색이라 검색어가 다른 뜻으로 걸릴 수 있어, 저장 전에 같은 규칙으로 한 번 더 대조한다
@@ -189,6 +200,14 @@ public class FeedCollectService {
                         KOPIS_SOURCE, KopisClient.DETAIL_URL + show.id(), show.posterUrl(), null,
                         show.start(), show.end()), hobby.get(), stats);
             }
+        }
+        if (lastError != null && failedKeywords.size() == keywords.size()) {
+            throw lastError; // 모든 검색어가 실패하면 KOPIS 전체 실패로 기록
+        }
+        if (!failedKeywords.isEmpty()) {
+            stats.partial = true;
+            stats.note("kopis 검색어 " + failedKeywords.size() + "/" + keywords.size() + "개 실패("
+                    + String.join(", ", failedKeywords.subList(0, Math.min(5, failedKeywords.size()))) + ")");
         }
     }
 
@@ -269,6 +288,8 @@ public class FeedCollectService {
         int calls;
         int succeeded;
         int failed;
+        /** 출처는 성공했지만 일부 검색어가 실패함 */
+        boolean partial;
         String fatal;
         final List<String> notes = new ArrayList<>();
 
@@ -279,7 +300,7 @@ public class FeedCollectService {
         BatchRunStatus status() {
             if (fatal != null) return BatchRunStatus.FAILED;
             if (failed > 0) return succeeded == 0 ? BatchRunStatus.FAILED : BatchRunStatus.PARTIAL;
-            return BatchRunStatus.SUCCESS;
+            return partial ? BatchRunStatus.PARTIAL : BatchRunStatus.SUCCESS;
         }
 
         String message() {

@@ -5,6 +5,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientResponseException;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.NodeList;
@@ -75,10 +76,22 @@ public class KopisClient {
                     .uri("/pblprfr?service={service}&stdate={stdate}&eddate={eddate}&cpage={cpage}&rows={rows}"
                             + "&signgucode={signgucode}&shprfnm={shprfnm}", vars)
                     .retrieve().body(byte[].class);
+        } catch (RestClientResponseException e) {
+            // 원인을 알 수 있게 상태 코드와 응답 앞부분을 남긴다. 응답에 키가 섞여 오더라도 지운다
+            throw new PublicDataApiException("KOPIS 호출 실패(" + keyword + "): HTTP " + e.getStatusCode().value()
+                    + " " + mask(e.getResponseBodyAsString()));
         } catch (RuntimeException e) {
-            throw new PublicDataApiException("KOPIS 호출 실패: " + e.getClass().getSimpleName());
+            throw new PublicDataApiException("KOPIS 호출 실패(" + keyword + "): " + e.getClass().getSimpleName());
         }
         return parse(xml);
+    }
+
+    /** 응답 본문 앞 200자만, 인증키와 줄바꿈은 지워서 */
+    String mask(String body) {
+        if (body == null) return "";
+        String text = body.replaceAll("\s+", " ").trim();
+        if (serviceKey != null && !serviceKey.isBlank()) text = text.replace(serviceKey, "***");
+        return text.length() <= 200 ? text : text.substring(0, 200) + "…";
     }
 
     static List<Performance> parse(byte[] xml) {

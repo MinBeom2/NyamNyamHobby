@@ -150,4 +150,35 @@ class FeedCollectServiceTest {
         verify(culture, never()).detail("2"); // 전시가 아니면 상세를 부르지 않는다
         assertThat(run.getRejected()).isEqualTo(1);
     }
+
+    @Test void oneKopisKeywordFailingSkipsOnlyThatKeyword() {
+        Hobby guitar = Hobby.builder().name("기타").build();
+        ReflectionTestUtils.setField(guitar, "id", 18L);
+        given(mappings.findAllWithHobby(SourceTarget.EVENT_KEYWORD, HobbyStatus.PUBLISHED)).willReturn(List.of(
+                HobbySourceMapping.builder().hobby(climbing).target(SourceTarget.EVENT_KEYWORD).keyword("클라이밍").build(),
+                HobbySourceMapping.builder().hobby(guitar).target(SourceTarget.EVENT_KEYWORD).keyword("기타").build()));
+        given(kopis.isConfigured()).willReturn(true);
+        given(kopis.search(eq("클라이밍"), any(), any(), any(), anyInt(), anyInt()))
+                .willThrow(new PublicDataApiException("KOPIS 호출 실패(클라이밍): HTTP 400"));
+        given(kopis.search(eq("기타"), any(), any(), any(), anyInt(), anyInt())).willReturn(List.of(
+                new KopisClient.Performance("PF2", "기타 리사이틀", today, today, null, "홀", "클래식")));
+        given(writer.create(any(), eq(guitar), anyDouble())).willReturn(FeedWriter.Result.CREATED);
+
+        BatchRun run = service.collect();
+
+        verify(writer).create(any(), eq(guitar), anyDouble());
+        assertThat(run.getStatus()).isEqualTo(BatchRunStatus.PARTIAL);
+        assertThat(run.getMessage()).contains("kopis 검색어 1/2개 실패(클라이밍)");
+    }
+
+    @Test void allKopisKeywordsFailingMarksKopisFailed() {
+        given(kopis.isConfigured()).willReturn(true);
+        given(kopis.search(any(), any(), any(), any(), anyInt(), anyInt()))
+                .willThrow(new PublicDataApiException("KOPIS 호출 실패(클라이밍): HTTP 400"));
+
+        BatchRun run = service.collect();
+
+        assertThat(run.getStatus()).isEqualTo(BatchRunStatus.FAILED);
+        assertThat(run.getMessage()).contains("kopis 실패(KOPIS 호출 실패(클라이밍): HTTP 400)");
+    }
 }

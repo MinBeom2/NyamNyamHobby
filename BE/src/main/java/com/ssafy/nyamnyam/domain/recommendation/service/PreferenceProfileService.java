@@ -2,6 +2,7 @@ package com.ssafy.nyamnyam.domain.recommendation.service;
 
 import com.ssafy.nyamnyam.domain.exploration.entity.*;
 import com.ssafy.nyamnyam.domain.exploration.repository.*;
+import com.ssafy.nyamnyam.domain.exploration.service.ViewScore;
 import com.ssafy.nyamnyam.domain.hobby.entity.*;
 import com.ssafy.nyamnyam.domain.user.entity.User;
 import lombok.RequiredArgsConstructor;
@@ -46,8 +47,7 @@ public class PreferenceProfileService {
             if (type == ReactionType.IRRELEVANT) continue;
             if (r != null) count++;
             if (type == ReactionType.LIKE) likes.merge(hobby.getId(), 1L, Long::sum);
-            double score = (type == ReactionType.LIKE ? 3 : type == ReactionType.DISLIKE ? -3 : 0)
-                    + (v.getWatchRatio() == null ? 0 : v.getWatchRatio().doubleValue()) * 2 - 1;
+            double score = ViewScore.of(type, v);
             hobbyScores.merge(hobby.getId(), score, Double::sum);
             for (HobbyTag tag : hobby.getHobbyTags()) tagScores.merge(tag.getTag().getName(), score * 0.3, Double::sum);
             if (hobby.getCategory() != null) categoryViews.merge(hobby.getCategory().getId(), 1L, Long::sum);

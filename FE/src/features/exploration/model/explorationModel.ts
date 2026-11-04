@@ -21,6 +21,7 @@ export type ExplorationProgress = {
 };
 
 export type ExplorationRecommendation = {
+  recommendationId: number;
   reactionCount: number;
   hobbyNames: string[];
 };

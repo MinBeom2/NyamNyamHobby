@@ -23,6 +23,7 @@ import type {
 import { deleteSavedShort, saveShort } from '../../shortform/api/shortformApi';
 import { savedShortQueryKeys } from '../../saved-shorts/api/savedShortApi';
 import { userQueryKeys } from '../../user/api/userApi';
+import { recommendationQueryKeys } from '../../recommendation/api/recommendationApi';
 
 export function useMemberExploration() {
   const queryClient = useQueryClient();
@@ -86,6 +87,14 @@ export function useMemberExploration() {
     },
   });
 
+  /** 완료 응답을 추천 상세 캐시에 넣어 완료 화면이 바로 그리고, GPT 이유는 그 캐시를 다시 불러 채운다. */
+  const finishAndCache = async (finishedSessionId: number) => {
+    const response = await finishExploration(finishedSessionId);
+    queryClient.setQueryData(recommendationQueryKeys.detail(response.recommendationId), response);
+    void queryClient.invalidateQueries({ queryKey: recommendationQueryKeys.latest() });
+    return toExplorationRecommendation(response);
+  };
+
   const advanceMutation = useMutation({
     mutationFn: async () => {
       if (!current || sessionId === null) {
@@ -98,11 +107,11 @@ export function useMemberExploration() {
       });
 
       if (viewedCount >= maxCount) {
-        return { recommendation: toExplorationRecommendation(await finishExploration(sessionId)), next: null };
+        return { recommendation: await finishAndCache(sessionId), next: null };
       }
       const next = await getNextShort(sessionId);
       if (next.finished || !next.short) {
-        return { recommendation: toExplorationRecommendation(await finishExploration(sessionId)), next };
+        return { recommendation: await finishAndCache(sessionId), next };
       }
       return { recommendation: null, next };
     },

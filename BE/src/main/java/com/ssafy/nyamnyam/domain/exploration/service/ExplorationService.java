@@ -262,11 +262,7 @@ public class ExplorationService {
                 latestReactions.merge(h.getId(), reaction,
                         (a, b) -> reactionOrder.compare(a, b) > 0 ? a : b);
             }
-            int reactionScore = type == ReactionType.LIKE ? 3 : type == ReactionType.DISLIKE ? -3 : 0;
-            BigDecimal ratio = v.getWatchRatio() != null ? v.getWatchRatio() : BigDecimal.ZERO;
-            BigDecimal videoScore = ratio.multiply(BigDecimal.valueOf(2)).subtract(BigDecimal.ONE)
-                    .add(BigDecimal.valueOf(reactionScore));
-            hobbyScores.merge(h.getId(), videoScore, BigDecimal::add);
+            hobbyScores.merge(h.getId(), ViewScore.decimalOf(type, v), BigDecimal::add);
         }
 
         List<ExplorationProgressResponse.ReactedHobbyResponse> reactedHobbies = hobbies.values().stream()

@@ -100,7 +100,7 @@ public class FeedItem {
 
     /** 행사 종료 여부 판단 (eventEnd가 있고 오늘보다 이전이면 종료됨) */
     public boolean computeIsEnded() {
-        return eventEnd != null && eventEnd.isBefore(LocalDate.now());
+        return eventEnd != null && eventEnd.isBefore(LocalDate.now(java.time.ZoneId.of("Asia/Seoul")));
     }
 }
 

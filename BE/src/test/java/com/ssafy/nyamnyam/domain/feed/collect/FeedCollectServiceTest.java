@@ -56,7 +56,7 @@ class FeedCollectServiceTest {
 
     @BeforeEach void setUp() {
         service = new FeedCollectService(tour, kopis, culture, regions, mappings, writer, runs,
-                new FeedCollectProperties(true, "11", "11", 60, 100, 5, 50, 0.8, "서울", "서울특별시", 100, 10));
+                new FeedCollectProperties(true, "11", "11", 60, 100, 5, 50, 0.8, "서울", "서울특별시", 100, 5));
         climbing = Hobby.builder().name("클라이밍").build();
         ReflectionTestUtils.setField(climbing, "id", 1L);
         given(runs.save(any(BatchRun.class))).willAnswer(call -> call.getArgument(0));
@@ -130,7 +130,7 @@ class FeedCollectServiceTest {
         given(culture.isConfigured()).willReturn(true);
         given(regions.findBySidoOrderBySigunguAsc("서울특별시")).willReturn(List.of(
                 Region.builder().code("11710").sido("서울특별시").sigungu("송파구").build()));
-        given(culture.searchByArea("서울", today, today.plusDays(60), 1, 100)).willReturn(new CulturePortalClient.EventPage(List.of(
+        given(culture.searchByRealm("서울", "D000", today, today.plusDays(60), 1, 100)).willReturn(new CulturePortalClient.EventPage(List.of(
                 new CulturePortalClient.Event("1", "현대 회화 기획전", today, today.plusDays(10), "미술관", "전시", "송파구", "http://t"),
                 new CulturePortalClient.Event("2", "롯콘 마티네", today, today.plusDays(1), "홀", "음악/콘서트", "송파구", null)), 2));
         given(culture.detail("1")).willReturn(Optional.of(new CulturePortalClient.EventDetail(null, "http://museum", null)));

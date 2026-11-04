@@ -22,7 +22,7 @@ import java.util.Optional;
 
 /**
  * 한국문화정보원 한눈에보는문화정보(공공데이터포털 B553457/cultureinfo) 클라이언트. 응답은 XML이다.
- * 목록(area2)에는 원문 링크가 없어 새 항목만 상세(detail2)를 불러 예매·안내 주소와 소개를 받는다.
+ * 목록(realm2)에는 원문 링크가 없어 새 항목만 상세(detail2)를 불러 예매·안내 주소와 소개를 받는다.
  * 서비스키는 공공데이터포털 Decoding 키를 URI 변수로 넘겨 인코딩되게 한다.
  */
 @Component
@@ -60,16 +60,20 @@ public class CulturePortalClient {
     public record EventDetail(String url, String placeUrl, String contents) {
     }
 
-    /** 시도(예: 서울)에서 기간 안에 열리는 공연·전시·행사 목록 */
-    public EventPage searchByArea(String sido, LocalDate from, LocalDate to, int pageNo, int numOfRows) {
+    /** 전시 분야 코드(realm2 realmCode). 응답 realmName은 '전시' */
+    public static final String REALM_EXHIBITION = "D000";
+
+    /** 시도(예: 서울)에서 기간 안에 열리는 한 분야(예: 전시 D000)의 목록(realm2) */
+    public EventPage searchByRealm(String sido, String realmCode, LocalDate from, LocalDate to, int pageNo, int numOfRows) {
         Map<String, Object> vars = new HashMap<>();
         vars.put("serviceKey", serviceKey);
         vars.put("sido", sido);
+        vars.put("realmCode", realmCode);
         vars.put("from", BASIC.format(from));
         vars.put("to", BASIC.format(to));
         vars.put("pageNo", pageNo);
         vars.put("rows", numOfRows);
-        Document doc = get("/area2?serviceKey={serviceKey}&sido={sido}&from={from}&to={to}"
+        Document doc = get("/realm2?serviceKey={serviceKey}&sido={sido}&realmCode={realmCode}&from={from}&to={to}"
                 + "&PageNo={pageNo}&numOfrows={rows}", vars);
         List<Event> items = new ArrayList<>();
         for (Element item : items(doc)) {

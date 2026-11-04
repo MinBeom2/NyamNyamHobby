@@ -40,7 +40,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * <ul>
  *   <li>TourAPI(축제·행사): 서울에서 진행 중·예정인 행사 목록을 받아 제목으로 취미를 찾는다. 새 항목만 소개·홈페이지를 더 받는다</li>
  *   <li>KOPIS(공연): 취미 검색어로 공연명을 검색한다(장르가 넓어 전체를 받으면 대부분 취미와 무관)</li>
- *   <li>문화포털(전시): 서울에서 기간 안에 열리는 항목 중 분야가 전시인 것만 받는다. 공연은 KOPIS가 더 자세해서 제외.
+ *   <li>문화포털(전시): 분야별 목록(realm2)으로 서울에서 기간 안에 열리는 전시(D000)만 받는다. 공연은 KOPIS가 더 자세해서 제외.
  *       제목에 더 구체적인 취미(도자기·사진 등)가 없으면 '전시 관람' 취미로 저장한다</li>
  * </ul>
  * 이미 받은 항목은 (origin, source_ref)로 알아보고 기간·제목·이미지만 고친다. 한 출처가 실패해도 다른 출처는 계속 받는다.
@@ -202,8 +202,8 @@ public class FeedCollectService {
         int fetched = 0;
         for (int page = 1; page <= properties.cultureMaxPages(); page++) {
             stats.calls++;
-            CulturePortalClient.EventPage result = culturePortalClient.searchByArea(
-                    properties.cultureSido(), today, to, page, properties.culturePageSize());
+            CulturePortalClient.EventPage result = culturePortalClient.searchByRealm(properties.cultureSido(),
+                    CulturePortalClient.REALM_EXHIBITION, today, to, page, properties.culturePageSize());
             for (CulturePortalClient.Event event : result.items()) {
                 stats.processed++;
                 if (event.seq() == null || event.title() == null || !isExhibition(event.realmName())
@@ -234,7 +234,7 @@ public class FeedCollectService {
         }
     }
 
-    /** 분야 이름이 '전시', '미술' 등으로 오므로 포함 여부로 본다 */
+    /** 전시 분야로 요청하지만, 다른 분야가 섞여 와도 걸러지도록 분야 이름을 한 번 더 본다 */
     static boolean isExhibition(String realmName) {
         return realmName != null && (realmName.contains("전시") || realmName.contains("미술"));
     }

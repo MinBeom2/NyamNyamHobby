@@ -105,7 +105,7 @@ class RecommendationWorkflowIntegrationTest {
                 .andExpect(jsonPath("$.data.items[0].hobbyName").doesNotExist())
                 .andReturn().getResponse().getContentAsString();
         long recommendationId=mapper.readTree(json).get("data").get("recommendationId").asLong();
-        assertThat(jdbc.queryForObject("SELECT score FROM recommendation_items WHERE recommendation_id=? AND hobby_id=?",BigDecimal.class,recommendationId,hobbyId)).isEqualByComparingTo("10.000");
+        assertThat(jdbc.queryForObject("SELECT score FROM recommendation_items WHERE recommendation_id=? AND hobby_id=?",BigDecimal.class,recommendationId,hobbyId)).isEqualByComparingTo("9.000"); // 좋아요 3개 x 3점, 시청 시간은 반응이 있으면 보지 않음
         mvc.perform(post("/api/v1/explorations/"+sessionId+"/finish").with(user(principal(owner))))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.data.recommendationId").value(recommendationId));
         mvc.perform(get("/api/v1/recommendations/"+recommendationId).with(user(principal(owner))))

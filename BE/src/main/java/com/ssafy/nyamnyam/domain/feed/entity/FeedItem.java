@@ -108,6 +108,12 @@ public class FeedItem {
         this.updatedAt = LocalDateTime.now();
     }
 
+    /** 강좌처럼 요약에 접수 상태가 들어가 매일 바뀌는 항목만 쓴다 */
+    public void refreshSummary(String summary) {
+        this.summary = summary;
+        this.updatedAt = LocalDateTime.now();
+    }
+
     public boolean computeIsEnded() {
         return eventEnd != null && eventEnd.isBefore(LocalDate.now(java.time.ZoneId.of("Asia/Seoul")));
     }

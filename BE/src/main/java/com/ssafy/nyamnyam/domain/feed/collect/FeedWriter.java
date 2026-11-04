@@ -44,6 +44,19 @@ public class FeedWriter {
                 .orElse(false);
     }
 
+    /** 위와 같고 요약도 새 값으로 바꾼다(강좌 요약에는 매일 바뀌는 접수 상태가 들어간다) */
+    @Transactional
+    public boolean refreshIfExists(FeedOrigin origin, String sourceRef, String title, String thumbnailUrl,
+                                   LocalDate start, LocalDate end, String summary) {
+        return feedItemRepository.findByOriginAndSourceRef(origin, sourceRef)
+                .map(item -> {
+                    item.refreshFromSource(cut(title, TITLE_MAX), cut(thumbnailUrl, URL_MAX), start, end);
+                    item.refreshSummary(cut(summary, SUMMARY_MAX));
+                    return true;
+                })
+                .orElse(false);
+    }
+
     /** 새 항목 저장. 다른 출처에 같은 행사(시작일 같고 제목이 비슷)가 있으면 저장하지 않는다 */
     @Transactional
     public Result create(FeedCandidate candidate, Hobby hobby, double titleSimilarity) {

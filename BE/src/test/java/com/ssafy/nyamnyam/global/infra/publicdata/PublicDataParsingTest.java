@@ -46,4 +46,11 @@ class PublicDataParsingTest {
         assertThat(client.mask(html)).isEqualTo("400 Bad Request");
         assertThat(client.mask("<error>key secret-key invalid</error>")).isEqualTo("key *** invalid");
     }
+
+    @Test void seoulTitleEntitiesAndDatesAreCleaned() {
+        assertThat(SeoulReservationClient.unescape("2026년 하반기 &#39;우리 가족 경희궁 탐험대&#39; &amp; 체험"))
+                .isEqualTo("2026년 하반기 '우리 가족 경희궁 탐험대' & 체험");
+        assertThat(SeoulReservationClient.date("2026-11-21 00:00:00.0")).isEqualTo(LocalDate.of(2026, 11, 21));
+        assertThat(SeoulReservationClient.date(null)).isNull();
+    }
 }

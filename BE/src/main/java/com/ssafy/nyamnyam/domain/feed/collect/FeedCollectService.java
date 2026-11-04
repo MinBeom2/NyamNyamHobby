@@ -298,7 +298,7 @@ public class FeedCollectService {
         else stats.rejected++;
     }
 
-    private static String joinNonBlank(String... values) {
+    static String joinNonBlank(String... values) {
         List<String> parts = new ArrayList<>();
         for (String value : values) if (value != null && !value.isBlank()) parts.add(value);
         return parts.isEmpty() ? null : String.join(" · ", parts);

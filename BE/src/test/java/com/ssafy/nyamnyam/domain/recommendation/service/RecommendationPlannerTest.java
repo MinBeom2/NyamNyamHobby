@@ -18,6 +18,15 @@ class RecommendationPlannerTest {
         assertThat(result.choices()).extracting(c -> c.hobby().getId()).containsExactly(1L,3L,5L,6L,7L);
         assertThat(result.choices().get(0).fallbackReason()).contains("좋아요 3회");
     }
+    @Test void fillsRecommendedHobbiesWithLikedOnesWhenFewerThanThreeArePositive() {
+        List<Hobby> hobbies = IntStream.rangeClosed(1,6).mapToObj(i -> hobby(i,i)).toList();
+        // 1만 양수, 2·3은 좋아요를 받았지만 넘긴 영상이 많아 0 이하, 4는 좋아요 없음
+        var profile = new PreferenceProfileService.Profile(Map.of(1L,5.0,2L,-0.3,3L,-1.2,4L,-0.6),Map.of(),
+                Map.of(1L,2L,2L,1L,3L,1L),Map.of(),4);
+        var result = planner.plan(hobbies,profile,Set.of(),Set.of(),null);
+        assertThat(result.choices()).filteredOn(c -> c.type() == com.ssafy.nyamnyam.domain.recommendation.entity.RecoItemType.INTEREST)
+                .extracting(c -> c.hobby().getId()).containsExactly(1L,2L,3L);
+    }
     @Test void insufficientLikesUsePopularDistinctCategoriesAndReturnFewerWhenNeeded() {
         Hobby duplicate = hobby(2,1);
         ReflectionTestUtils.setField(duplicate,"saveCount",100);

@@ -64,31 +64,33 @@ class ExplorationProgressTest {
         Hobby climbing = hobby(1L, "클라이밍");
         Hobby running = hobby(2L, "러닝");
         Hobby pottery = hobby(3L, "도예");
-        expose(climbing, "1", ReactionType.LIKE, false); // 4
+        expose(climbing, "1", ReactionType.LIKE, false); // 3 (반응이 있으면 시청 시간은 보지 않는다)
         expose(running, "0.5", ReactionType.LIKE, false); // 3
-        expose(pottery, "0.9", null, false); // 0.8
-        expose(pottery, "0.9", null, false); // 0.8
-        expose(hobby(4L, "뜨개질"), "0.6", null, false); // 0.2
+        expose(pottery, "0.9", null, false); // 0.5 (거의 끝까지 봄)
+        expose(pottery, "0.9", null, false); // 0.5
+        expose(hobby(4L, "뜨개질"), "0.6", null, false); // -0.3 (0초 기록 = 바로 넘김)
 
         var result = progress();
 
         assertThat(result.getCurrentStep()).isEqualTo(5);
         assertThat(result.getTopInterests()).extracting(TopInterestResponse::getHobbyName)
                 .containsExactly("클라이밍", "러닝", "도예");
-        assertThat(result.getTopInterests()).extracting(TopInterestResponse::getPercent).containsExactly(100, 75, 40);
+        assertThat(result.getTopInterests()).extracting(TopInterestResponse::getPercent).containsExactly(100, 100, 33);
     }
 
     @Test void sumsPositiveAndNegativeVideosForSameHobbyAndRoundsPercentages() {
         Hobby climbing = hobby(1L, "클라이밍");
-        expose(climbing, "1", ReactionType.LIKE, false); // +4
-        expose(climbing, "1", ReactionType.DISLIKE, false); // -2
+        expose(climbing, "1", ReactionType.LIKE, false); // +3
+        expose(climbing, "1", ReactionType.LIKE, false); // +3
+        expose(climbing, "1", ReactionType.DISLIKE, false); // -3
         expose(hobby(2L, "러닝"), "0.5", ReactionType.LIKE, false); // +3
+        expose(hobby(2L, "러닝"), "1", null, false); // +0.5
 
         var result = progress();
 
         assertThat(result.getTopInterests()).extracting(TopInterestResponse::getHobbyName)
                 .containsExactly("러닝", "클라이밍");
-        assertThat(result.getTopInterests()).extracting(TopInterestResponse::getPercent).containsExactly(100, 67);
+        assertThat(result.getTopInterests()).extracting(TopInterestResponse::getPercent).containsExactly(100, 86);
         assertThat(result.getReactedHobbies()).extracting(ExplorationProgressResponse.ReactedHobbyResponse::getName)
                 .containsExactly("클라이밍", "러닝");
         assertThat(result.getReactedHobbies().get(0).getReaction()).isEqualTo(ReactionType.DISLIKE);
@@ -154,7 +156,7 @@ class ExplorationProgressTest {
     @Test void reactionChangeAndCancellationRecomputeScoresAndKeepWatchTime() {
         expose(hobby(1L, "클라이밍"), "1", ReactionType.LIKE, false);
         expose(hobby(2L, "러닝"), "1", null, false);
-        assertThat(progress().getTopInterests()).extracting(TopInterestResponse::getPercent).containsExactly(100, 25);
+        assertThat(progress().getTopInterests()).extracting(TopInterestResponse::getPercent).containsExactly(100, 17);
         reactions.get(0).updateType(ReactionType.DISLIKE, 50L);
         assertThat(progress().getTopInterests()).extracting(TopInterestResponse::getHobbyName).containsExactly("러닝");
         reactions.clear();

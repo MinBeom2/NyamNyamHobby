@@ -27,9 +27,10 @@ class PreferenceProfileServiceTest {
         ExplorationView previous = ExplorationView.builder().session(old).shortform(s).watchRatio(BigDecimal.ONE).build();
         when(views.findHistoryByUserId(1L)).thenReturn(List.of(latest,previous));
         when(reactions.findByUser(user)).thenReturn(List.of(ShortReaction.builder().user(user).shortform(s).type(ReactionType.LIKE).build()));
-        assertThat(service.load(user).hobbyScores().get(1L)).isEqualTo(2.5);
+        // 좋아요를 누른 영상은 시청 비율과 상관없이 +3
+        assertThat(service.load(user).hobbyScores().get(1L)).isEqualTo(3.0);
         assertThat(service.load(user).likeCount()).isEqualTo(1);
-        assertThat(service.load(user,2L).hobbyScores().get(1L)).isEqualTo(4.0);
+        assertThat(service.load(user,2L).hobbyScores().get(1L)).isEqualTo(3.0);
         ReflectionTestUtils.setField(latest,"playFailed",true);
         assertThat(service.load(user).hobbyScores()).isEmpty();
     }

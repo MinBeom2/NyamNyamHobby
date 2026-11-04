@@ -29,12 +29,18 @@ public class RecommendationPlanner {
             }
             return new Plan(true, exploratory);
         }
-        List<Choice> interests = eligible.stream().filter(h -> profile.hobbyScores().getOrDefault(h.getId(), 0.0) > 0)
-                .map(h -> choice(h, RecoItemType.INTEREST, profile.hobbyScores().get(h.getId()), condition,
+        // 점수가 양수인 취미가 먼저, 3개가 안 되면 좋아요를 받은 취미로 점수 순으로 채운다.
+        // 좋아요는 확실한 호감 표시라 다른 영상을 넘기느라 점수가 깎였어도 추천 후보로 남긴다.
+        List<Choice> interests = eligible.stream()
+                .filter(h -> profile.hobbyScores().getOrDefault(h.getId(), 0.0) > 0
+                        || profile.likes().getOrDefault(h.getId(), 0L) > 0)
+                .map(h -> choice(h, RecoItemType.INTEREST, profile.hobbyScores().getOrDefault(h.getId(), 0.0), condition,
                         profile.likes().getOrDefault(h.getId(), 0L) > 0
                                 ? h.getName() + " 영상에 좋아요 " + profile.likes().get(h.getId()) + "회 남겼어요"
                                 : h.getName() + " 영상을 관심 있게 시청했어요"))
-                .sorted(order()).limit(3).toList();
+                .sorted(Comparator.comparing((Choice c) -> profile.hobbyScores().getOrDefault(c.hobby().getId(), 0.0) <= 0)
+                        .thenComparing(order()))
+                .limit(3).toList();
         Set<Long> interestIds = interests.stream().map(c -> c.hobby().getId()).collect(Collectors.toSet());
         double maxTagScore = Math.max(1e-9, profile.tagScores().values().stream().mapToDouble(Double::doubleValue).max().orElse(1));
         List<Choice> related = eligible.stream().filter(h -> !interestIds.contains(h.getId()) && !inProgress.contains(h.getId()))

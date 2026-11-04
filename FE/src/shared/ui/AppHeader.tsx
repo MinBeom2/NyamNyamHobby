@@ -1,8 +1,6 @@
 import { useCallback, useEffect } from 'react';
 import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { Bell, X } from 'lucide-react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { logout } from '../../features/auth/api/authApi';
 import { useAuthStore } from '../../features/auth/model/authStore';
 import { useUnreadNotificationCount } from '../../features/notification/model/useUnreadNotificationCount';
 import { brandAssets, characterAssets } from '../assets/assets';
@@ -40,16 +38,6 @@ export function AppHeader({ onBrandClick }: AppHeaderProps) {
   const initialized = useAuthStore((state) => state.sessionInitialized);
   const authenticated = Boolean(user);
   const notificationCount = useUnreadNotificationCount(authenticated);
-  const queryClient = useQueryClient();
-  const logoutMutation = useMutation({
-    mutationFn: logout,
-    onSettled: () => {
-      useAuthStore.getState().clearSession();
-      queryClient.clear();
-      navigate('/', { replace: true });
-    },
-  });
-  const logoutPending = logoutMutation.isPending;
   const restriction = authenticated ? null : getSignupRequiredState(location.state);
   const restrictedMenu = restriction?.signupRequired ?? null;
   const closeRestriction = useCallback(() => {
@@ -105,8 +93,8 @@ export function AppHeader({ onBrandClick }: AppHeaderProps) {
                   {notificationCount > 0 && <b>{notificationCount}</b>}
                 </Link>
                 <Link to="/mypage">마이페이지</Link>
-                <button className="account-nav__button" type="button" onClick={() => logoutMutation.mutate()} disabled={logoutPending}>
-                  {logoutPending ? '로그아웃 중…' : '로그아웃'}
+                <button className="account-nav__button" type="button" onClick={() => navigate('/logout', { replace: true, state: null })}>
+                  로그아웃
                 </button>
               </>
             ) : (

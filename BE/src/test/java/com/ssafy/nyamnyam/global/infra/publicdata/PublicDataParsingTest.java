@@ -38,4 +38,12 @@ class PublicDataParsingTest {
         assertThat(CulturePortalClient.items(doc)).singleElement()
                 .satisfies(item -> assertThat(CulturePortalClient.text(item, "realmName")).isEqualTo("전시"));
     }
+
+    @Test void kopisErrorPageKeepsOnlyTitleAndHidesKey() {
+        KopisClient client = new KopisClient("http://localhost", "secret-key");
+        String html = "<!DOCTYPE HTML PUBLIC \"-//IETF//DTD HTML 2.0//EN\"><html><head><title>400 Bad Request</title></head>"
+                + "<body><p>bad request secret-key</p></body></html>";
+        assertThat(client.mask(html)).isEqualTo("400 Bad Request");
+        assertThat(client.mask("<error>key secret-key invalid</error>")).isEqualTo("key *** invalid");
+    }
 }

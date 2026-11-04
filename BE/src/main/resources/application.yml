@@ -115,7 +115,8 @@ app:
   # 로컬·테스트에서 외부 API를 부르지 않도록 기본은 꺼 두고, 서버 .env에서 FEED_COLLECT_ENABLED=true로 켠다.
   feed-collect:
     enabled: ${FEED_COLLECT_ENABLED:false}
-    cron: "0 0 5 * * *"   # 매일 05:00 (Asia/Seoul)
+    cron: "0 0 5 * * *"   # 매일 05:00 (Asia/Seoul) 축제·공연·전시
+    class-cron: "0 30 5 * * *" # 매일 05:30 공공 강좌(서울 공공서비스예약)
     tour-region-code: "11" # TourAPI 법정동 시도 코드(서울)
     kopis-region-code: "11"
     kopis-interval-millis: 500     # KOPIS 검색어 사이 쉬는 시간(연달아 부르면 웹서버가 400으로 막음)
@@ -130,6 +131,8 @@ app:
       key: ${KOPIS_API_KEY:}
     culture-portal:
       key: ${CULTURE_PORTAL_API_KEY:}
+    seoul-open-api:
+      key: ${SEOUL_OPEN_API_KEY:}
 
 management:
   endpoints:

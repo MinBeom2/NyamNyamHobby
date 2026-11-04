@@ -46,4 +46,27 @@ class PublicDataParsingTest {
         assertThat(client.mask(html)).isEqualTo("400 Bad Request");
         assertThat(client.mask("<error>key secret-key invalid</error>")).isEqualTo("key *** invalid");
     }
+
+    @Test void seoulTitleEntitiesAndDatesAreCleaned() {
+        assertThat(SeoulReservationClient.unescape("2026년 하반기 &#39;우리 가족 경희궁 탐험대&#39; &amp; 체험"))
+                .isEqualTo("2026년 하반기 '우리 가족 경희궁 탐험대' & 체험");
+        assertThat(SeoulReservationClient.date("2026-11-21 00:00:00.0")).isEqualTo(LocalDate.of(2026, 11, 21));
+        assertThat(SeoulReservationClient.date(null)).isNull();
+    }
+
+    @Test void doubleEscapedAndNamedEntitiesBecomeText() {
+        // 문화포털: XML에 '&amp;lt;'로 와서 한 번 풀어도 '&lt;'가 남는다
+        assertThat(HtmlText.unescape("김환, 남종현 &lt;마주하는, 마주하지 않는 Facing, Without Facing&gt;"))
+                .isEqualTo("김환, 남종현 <마주하는, 마주하지 않는 Facing, Without Facing>");
+        assertThat(HtmlText.unescape("시니어와 함께하는 &amp;lt;미술관 한걸음&amp;gt;")).isEqualTo("시니어와 함께하는 <미술관 한걸음>");
+        assertThat(HtmlText.unescape("달리&middot;Differently&middot;Dali")).isEqualTo("달리·Differently·Dali");
+        assertThat(HtmlText.unescape("&#39;경희궁&#39; &#x27;탐험대&#x27;")).isEqualTo("'경희궁' '탐험대'");
+        assertThat(HtmlText.unescape("모르는 &unknown; 참조와 R&D")).isEqualTo("모르는 &unknown; 참조와 R&D");
+        assertThat(HtmlText.unescape("  ")).isNull();
+    }
+
+    @Test void plainStripsTagsForDescriptions() {
+        assertThat(HtmlText.plain("<p>첫 줄<br/>둘째&nbsp;줄</p>  <b>끝</b>")).isEqualTo("첫 줄 둘째 줄 끝");
+        assertThat(HtmlText.plain("<p></p>")).isNull();
+    }
 }

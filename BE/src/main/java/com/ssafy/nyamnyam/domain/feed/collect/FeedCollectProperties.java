@@ -21,6 +21,8 @@ import org.springframework.boot.context.properties.bind.DefaultValue;
  * @param cultureMaxPages  문화포털 최대 페이지 수(서울 전시는 보통 100건 안팎)
  * @param kopisIntervalMillis   KOPIS 검색어 사이 쉬는 시간. 쉬지 않고 연달아 부르면 13번째쯤부터 웹서버가 400으로 막는다
  * @param kopisRetryDelayMillis KOPIS가 실패하면 이만큼 쉬고 한 번만 다시 시도한다
+ * @param classPageSize    서울 공공서비스예약 한 번에 받을 강좌 수(최대 1,000)
+ * @param classMaxPages    서울 공공서비스예약 최대 호출 수(교육 강좌는 보통 수백 건)
  */
 @ConfigurationProperties(prefix = "app.feed-collect")
 public record FeedCollectProperties(
@@ -37,6 +39,8 @@ public record FeedCollectProperties(
         @DefaultValue("100") int culturePageSize,
         @DefaultValue("5") int cultureMaxPages,
         @DefaultValue("500") long kopisIntervalMillis,
-        @DefaultValue("2000") long kopisRetryDelayMillis
+        @DefaultValue("2000") long kopisRetryDelayMillis,
+        @DefaultValue("1000") int classPageSize,
+        @DefaultValue("5") int classMaxPages
 ) {
 }

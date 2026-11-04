@@ -56,7 +56,7 @@ class FeedCollectServiceTest {
 
     @BeforeEach void setUp() {
         service = new FeedCollectService(tour, kopis, culture, regions, mappings, writer, runs,
-                new FeedCollectProperties(true, "11", "11", 60, 100, 5, 50, 0.8, "서울", "서울특별시", 100, 5, 0, 0));
+                new FeedCollectProperties(true, "11", "11", 60, 100, 5, 50, 0.8, "서울", "서울특별시", 100, 5, 0, 0, 1000, 5));
         climbing = Hobby.builder().name("클라이밍").build();
         ReflectionTestUtils.setField(climbing, "id", 1L);
         given(runs.save(any(BatchRun.class))).willAnswer(call -> call.getArgument(0));

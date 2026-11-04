@@ -14,10 +14,17 @@ import org.springframework.stereotype.Component;
 public class FeedCollectScheduler {
 
     private final FeedCollectService feedCollectService;
+    private final FeedClassCollectService feedClassCollectService;
 
     /** 매일 05:00 축제·행사·공연·전시(FR-FEED-02) */
     @Scheduled(cron = "${app.feed-collect.cron:0 0 5 * * *}", zone = "Asia/Seoul")
     public void collect() {
         feedCollectService.collect();
+    }
+
+    /** 매일 05:30 공공 강좌·클래스(FR-FEED-02). 05:00 수집과 겹치지 않게 30분 뒤 */
+    @Scheduled(cron = "${app.feed-collect.class-cron:0 30 5 * * *}", zone = "Asia/Seoul")
+    public void collectClasses() {
+        feedClassCollectService.collect();
     }
 }

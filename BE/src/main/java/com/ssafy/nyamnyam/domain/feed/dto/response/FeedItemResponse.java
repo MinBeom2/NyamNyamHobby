@@ -24,7 +24,9 @@ public record FeedItemResponse(
         LocalDate eventStart,
         LocalDate eventEnd,
         OffsetDateTime publishedAt,
-        @JsonProperty("isEnded") boolean isEnded
+        @JsonProperty("isEnded") boolean isEnded,
+        /** 강좌 접수가 끝남(접수종료·예약마감 등). 행사는 진행 중이라 자세히 보기는 열어 둔다 */
+        @JsonProperty("isClosed") boolean isClosed
 ) {
     public static FeedItemResponse from(FeedItem item) {
         return new FeedItemResponse(
@@ -41,7 +43,8 @@ public record FeedItemResponse(
                 item.getEventStart(),
                 item.getEventEnd(),
                 toKst(item.getPublishedAt()),
-                item.computeIsEnded()
+                item.computeIsEnded(),
+                item.isReservationClosed()
         );
     }
 

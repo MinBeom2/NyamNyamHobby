@@ -17,7 +17,10 @@ export type FeedItemModel = {
   /** 진행 지역 · 기간. 지역이 없는 입문 자료는 작성처 · 게시일 */
   meta: string;
   sourceUrl: string;
+  /** 행사가 끝남 → 회색 카드, 링크 닫힘 */
   ended: boolean;
+  /** 강좌 접수가 끝남 → 회색 카드, 링크는 열림. 종료된 행사에는 붙이지 않는다 */
+  closed: boolean;
 };
 
 function formatMonthDay(date: string) {
@@ -46,5 +49,6 @@ export function toFeedItemModel(dto: FeedItemDto): FeedItemModel {
     ].filter(Boolean).join(' · '),
     sourceUrl: dto.sourceUrl,
     ended: dto.isEnded,
+    closed: !dto.isEnded && dto.isClosed,
   };
 }

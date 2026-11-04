@@ -5,7 +5,7 @@ import { toFeedItemModel } from './feedAdapter';
 const base: FeedItemDto = {
   id: 1, hobbyId: 3, hobbyName: '클라이밍', type: 'EVENT', title: '클라이밍 페스티벌', summary: '요약',
   sourceName: '한국관광공사 TourAPI', sourceUrl: 'https://example.com/1', thumbnailUrl: null, regionName: '서울 송파구',
-  eventStart: '2026-11-01', eventEnd: '2026-11-03', publishedAt: '2026-10-18T10:00:00+09:00', isEnded: false,
+  eventStart: '2026-11-01', eventEnd: '2026-11-03', publishedAt: '2026-10-18T10:00:00+09:00', isEnded: false, isClosed: false,
 };
 
 describe('toFeedItemModel', () => {
@@ -25,5 +25,10 @@ describe('toFeedItemModel', () => {
 
   it('keeps an empty summary as empty text', () => {
     expect(toFeedItemModel({ ...base, summary: null }).summary).toBe('');
+  });
+
+  it('marks closed classes but lets an ended event win', () => {
+    expect(toFeedItemModel({ ...base, type: 'CLASS', isClosed: true })).toMatchObject({ closed: true, ended: false });
+    expect(toFeedItemModel({ ...base, isClosed: true, isEnded: true })).toMatchObject({ closed: false, ended: true });
   });
 });

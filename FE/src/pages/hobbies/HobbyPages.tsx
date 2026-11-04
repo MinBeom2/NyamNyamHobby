@@ -4,6 +4,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { getHobbies, getHobbyDetail, getHobbyPlanPreview, getHobbyShorts, hobbyQueryKeys, startHobby, type HobbyDifficulty } from '../../features/hobby/api/hobbyApi';
 import { toHobbyCardModel, toHobbyDetailModel, type HobbyCardModel } from '../../features/hobby/model/hobbyAdapter';
+import { HobbyStartErrorModal } from '../../features/hobby/ui/HobbyStartErrorModal';
 import { useAuthStore } from '../../features/auth/model/authStore';
 import { deleteUserHobby, getMyInterests, getUserHobbies, saveUserHobby, userQueryKeys } from '../../features/user/api/userApi';
 import { AppHeader } from '../../shared/ui/AppHeader';
@@ -152,7 +153,7 @@ export function HobbyDetailPage() {
         {activeGuide === 'hobby-plan' && <article className="hobby-guide-section"><header><h3>활동 계획</h3><p>입문 과정을 미리 확인한 뒤 내 계획으로 시작합니다.</p></header>{planQuery.isLoading && <p>계획을 불러오고 있어요.</p>}{plan && plan.ready ? <><div className="hobby-guide__plan-head"><div><h4>{plan.title}</h4><p>총 {plan.totalWeeks}주 · 미리보기 {plan.previewWeeks}주</p></div><div className="hobby-guide__progress"><span /></div><Button disabled={startMutation.isPending} onClick={beginHobby}>{startLabel}</Button></div><div className="hobby-guide__week-list">{plan.weeks.map((week) => <div key={week.weekNo}><span>{week.weekNo}주차</span><strong>{week.title}</strong><small>활동 {week.items.length}개</small><Link to={`/hobbies/${id}/plan-preview#week-${week.weekNo}`}>보기 ›</Link></div>)}</div><Button variant="secondary" to={`/hobbies/${id}/plan-preview`}>전체 계획 미리보기</Button></> : !planQuery.isLoading && <p>아직 준비된 입문 계획이 없어요.</p>}</article>}
         {activeGuide === 'hobby-content' && <article className="hobby-guide-section"><header><h3>콘텐츠·장소</h3><p>숏폼과 주변 정보를 탐색합니다.</p></header><h4>관련 숏폼</h4><div className="hobby-guide__shorts">{(shortsQuery.data ?? []).map((short) => <article key={short.shortId}><div>{short.thumbnailUrl ? <img src={short.thumbnailUrl} alt="" /> : <><Image /><span>이미지 영역</span></>}</div><b>{short.title}</b></article>)}<Button variant="secondary" to="/explore">전체 숏폼</Button></div><div className="hobby-guide__columns hobby-guide__columns--footer"><section><h4>주변에서 시작하기</h4><div><Button to="/places">주변 장소</Button></div></section></div></article>}
       </div></div></section>
-  </main></div>;
+  </main>{startMutation.isError && <HobbyStartErrorModal error={startMutation.error} onClose={() => startMutation.reset()} />}</div>;
 }
 
 export function HobbyPlanPreviewPage() {

@@ -832,11 +832,13 @@ strong, b { font-weight: 700; }
 .explore-complete__actions { margin-top: 28px; display: flex; gap: 10px; }
 .explore-complete__actions .button { gap: 7px; }
 .explore-restart-backdrop { position: fixed; z-index: 120; inset: 0; padding: 24px; display: grid; place-items: center; background: rgb(18 36 42 / 42%); backdrop-filter: blur(2px); -webkit-backdrop-filter: blur(2px); }
-.explore-restart-modal { width: min(390px, 100%); padding: 28px; border: 1px solid var(--color-line); border-radius: var(--radius-lg); background: #fff; box-shadow: 0 22px 60px rgb(20 37 43 / 24%); text-align: left; }
-.explore-restart-modal h2 { margin: 0 0 12px; font-family: var(--font-ui); font-size: 18px; line-height: 26px; }
-.explore-restart-modal p { margin: 0; color: var(--color-muted); font-size: 13px; line-height: 21px; }
-.explore-restart-modal > div { margin-top: 24px; display: flex; justify-content: flex-end; gap: 10px; }
-.explore-restart-modal .button { min-height: 40px; padding: 0 16px; }
+.explore-restart-modal, .hobby-start-error-modal { width: min(390px, 100%); padding: 28px; border: 1px solid var(--color-line); border-radius: var(--radius-lg); background: #fff; box-shadow: 0 22px 60px rgb(20 37 43 / 24%); text-align: left; }
+.explore-restart-modal h2, .hobby-start-error-modal h2 { margin: 0 0 12px; font-family: var(--font-ui); font-size: 18px; line-height: 26px; }
+.explore-restart-modal p, .hobby-start-error-modal p { margin: 0; color: var(--color-muted); font-size: 13px; line-height: 21px; }
+.explore-restart-modal > div, .hobby-start-error-modal > div { margin-top: 24px; display: flex; justify-content: flex-end; gap: 10px; }
+.explore-restart-modal .button, .hobby-start-error-modal .button { min-height: 40px; padding: 0 16px; }
+.hobby-start-error-modal { max-width: calc(100% - 48px); color: var(--color-ink); }
+.hobby-start-error-modal::backdrop { background: rgb(18 36 42 / 42%); backdrop-filter: blur(2px); -webkit-backdrop-filter: blur(2px); }
 
 /* Customer inquiry, notifications, and My Page preview */
 .support-page { padding-top: 48px; }
@@ -1128,7 +1130,7 @@ strong, b { font-weight: 700; }
 
 /* Keep long content and dialogs reachable on short screens and mobile browsers. */
 .signup-required-backdrop, .modal-backdrop, .explore-restart-backdrop, .profile-modal-backdrop { overflow-y: auto; }
-.signup-required-modal, .report-modal, .explore-restart-modal, .profile-modal {
+.signup-required-modal, .report-modal, .explore-restart-modal, .profile-modal, .hobby-start-error-modal {
   max-height: calc(100dvh - 48px);
   overflow-y: auto;
 }

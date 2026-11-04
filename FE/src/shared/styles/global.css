@@ -525,6 +525,16 @@ strong, b { font-weight: 700; }
 .feed-tabs label { margin-left: auto; display: flex; align-items: center; gap: 7px; color: var(--color-muted); font-size: 11px; }
 .feed-tabs input { accent-color: var(--color-primary); }
 .feed-hobbies { margin: 14px 0 20px; }
+.feed-scope { margin-top: 16px; display: inline-flex; padding: 3px; border: 1px solid var(--color-line); border-radius: 999px; background: #fff; }
+.feed-scope button { min-height: 32px; padding: 0 16px; border: 0; border-radius: 999px; color: var(--color-muted); background: transparent; font-weight: 600; cursor: pointer; }
+.feed-scope button.active { color: #fff; background: var(--color-primary); }
+.feed-scope + .feed-list, .feed-scope + section { margin-top: 20px; }
+.feed-notice { margin: 14px 0 0; padding: 12px 16px; border-radius: 10px; color: var(--color-ink); background: var(--color-primary-soft); font-size: 13px; }
+.feed-notice a { margin-left: 6px; color: var(--color-primary); font-weight: 700; }
+.feed-notice + .feed-list, .feed-notice + section { margin-top: 20px; }
+.feed-thumb img { width: 100%; height: 100%; border-radius: inherit; object-fit: cover; }
+.feed-thumb:has(img) { overflow: hidden; }
+.feed-more { margin-top: 20px; display: flex; justify-content: center; }
 .feed-list { display: grid; gap: 12px; }
 .feed-list > article { min-height: 120px; padding: 14px; border: 1px solid var(--color-line); border-radius: 12px; display: grid; grid-template-columns: 110px 1fr auto; align-items: center; gap: 16px; background: #fff; }
 .feed-thumb { height: 88px; border-radius: 9px; display: grid; place-items: center; align-content: center; gap: 5px; color: var(--color-primary); background: var(--color-primary-soft); font-size: 10px; }

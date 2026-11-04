@@ -1,7 +1,10 @@
 import { ExternalLink, Image, MapPin, Search } from 'lucide-react';
 import { useMemo, useState } from 'react';
-import { Link, Navigate, useParams } from 'react-router-dom';
-import { infoFeedFixtures, placeFixtures } from '../../features/place/model/placeFixtures';
+import { Link, Navigate } from 'react-router-dom';
+import { placeFixtures } from '../../features/place/model/placeFixtures';
+import type { FeedScope, FeedType } from '../../features/feed/api/feedApi';
+import { feedTypeLabels } from '../../features/feed/model/feedAdapter';
+import { useFeedList, useScopeHobbies } from '../../features/feed/model/useFeedList';
 import { characterAssets } from '../../shared/assets/assets';
 import { AppHeader } from '../../shared/ui/AppHeader';
 import { Button } from '../../shared/ui/Button';
@@ -35,33 +38,50 @@ export function PlaceSearchPage() {
   </main></div>;
 }
 
-export function InfoFeedPage() {
-  const [type, setType] = useState('전체');
-  const [hobby, setHobby] = useState('전체 취미');
-  const [hideEnded, setHideEnded] = useState(true);
-  const items = infoFeedFixtures.filter((item) => (type === '전체' || item.type === type) && (hobby === '전체 취미' || item.hobby === hobby) && (!hideEnded || !item.ended));
+const feedTypeTabs: Array<{ label: string; value?: FeedType }> = [
+  { label: '전체' },
+  { label: feedTypeLabels.EVENT, value: 'EVENT' },
+  { label: feedTypeLabels.CLASS, value: 'CLASS' },
+  { label: feedTypeLabels.SHOW, value: 'SHOW' },
+  { label: feedTypeLabels.GUIDE, value: 'GUIDE' },
+];
+const feedScopes: Array<{ label: string; value: FeedScope }> = [
+  { label: '내 취미', value: 'MY' },
+  { label: '관심 취미', value: 'SAVED' },
+  { label: '전체', value: 'ALL' },
+];
 
-  return <div className="site-shell"><AppHeader notificationCount={3} /><main className="page-container feed-page"><div className="page-title-row"><div><h1>취미 정보 피드</h1><p>관심·진행 중인 취미의 축제, 강좌, 공연과 입문 자료를 모았어요.</p></div><Button variant="secondary" to="/places">장소 찾기</Button></div>
-    <div className="feed-tabs">{['전체', '축제·행사', '강좌·클래스', '공연·전시', '입문 자료'].map((item) => <button className={type === item ? 'active' : ''} type="button" onClick={() => setType(item)} key={item}>{item}</button>)}<label><input checked={hideEnded} onChange={(event) => setHideEnded(event.target.checked)} type="checkbox" /> 종료된 행사 숨기기</label></div>
-    <div className="place-hobbies feed-hobbies">{['전체 취미', '클라이밍', '요가', '도예'].map((item) => <button className={hobby === item ? 'active' : ''} type="button" onClick={() => setHobby(item)} key={item}>{item}</button>)}</div>
-    <section className="feed-list">{items.length ? items.map((item) => <article key={item.id}><div className="feed-thumb"><Image /><span>{item.type}</span></div><div className="feed-content"><div><span className="badge">{item.type}</span><span className="badge badge--soft">{item.hobby}</span>{item.ended && <span className="badge badge--paused">종료</span>}</div><h2>{item.title}</h2><p>{item.summary}</p><small>{item.source} · {item.location} · {item.period}</small></div><Link to={`/info-feed/${item.id}`}>자세히 보기 <ExternalLink /></Link></article>) : <section className="empty-state feed-empty"><img src={characterAssets.searching} alt="정보를 찾는 냠냠취미 캐릭터" /><h2>선택한 조건의 정보가 없어요</h2><p>다른 취미나 정보 유형을 선택해 보세요.</p></section>}</section>
+export function InfoFeedPage() {
+  const [type, setType] = useState<FeedType | undefined>();
+  const [scope, setScope] = useState<FeedScope>('MY');
+  const [hobbyId, setHobbyId] = useState<number | undefined>();
+  const [hideEnded, setHideEnded] = useState(true);
+  const scopeHobbies = useScopeHobbies(scope);
+  // 내 취미가 없으면 맞춤 피드 대신 전체 피드를 보여 주고 안내한다
+  const fallbackToAll = scope === 'MY' && scopeHobbies.hasNoMyHobbies;
+  const feeds = useFeedList({ scope: fallbackToAll ? 'ALL' : scope, hobbyId, type, excludeEnded: hideEnded });
+  const changeScope = (next: FeedScope) => { setScope(next); setHobbyId(undefined); };
+
+  return <div className="site-shell"><AppHeader notificationCount={3} /><main className="page-container feed-page"><div className="page-title-row"><div><h1>취미 정보 피드</h1><p>내 취미의 축제, 강좌, 공연과 입문 자료를 모았어요.</p></div><Button variant="secondary" to="/places">장소 찾기</Button></div>
+    <div className="feed-tabs">{feedTypeTabs.map((item) => <button className={type === item.value ? 'active' : ''} type="button" onClick={() => setType(item.value)} key={item.label}>{item.label}</button>)}<label><input checked={hideEnded} onChange={(event) => setHideEnded(event.target.checked)} type="checkbox" /> 종료된 행사 숨기기</label></div>
+    <div className="feed-scope" role="group" aria-label="피드 기준">{feedScopes.map((item) => <button aria-pressed={scope === item.value} className={scope === item.value ? 'active' : ''} type="button" onClick={() => changeScope(item.value)} key={item.value}>{item.label}</button>)}</div>
+    {fallbackToAll && <p className="feed-notice">내 취미를 선택하면 맞춤 소식을 볼 수 있어요. 지금은 전체 취미 소식을 보여 드려요. <Link to="/mypage/interests">내 취미 선택</Link></p>}
+    {scopeHobbies.hobbies.length > 0 && <div className="place-hobbies feed-hobbies">
+      <button className={hobbyId === undefined ? 'active' : ''} type="button" onClick={() => setHobbyId(undefined)}>전체 취미</button>
+      {scopeHobbies.hobbies.map((item) => <button className={hobbyId === item.hobbyId ? 'active' : ''} type="button" onClick={() => setHobbyId(item.hobbyId)} key={item.hobbyId}>{item.name}</button>)}
+    </div>}
+    {feeds.isPending && <section className="empty-state feed-empty"><p>정보 피드를 불러오고 있어요.</p></section>}
+    {feeds.isError && <section className="empty-state feed-empty"><h2>정보 피드를 불러오지 못했어요</h2><Button onClick={() => feeds.refetch()}>다시 시도</Button></section>}
+    {feeds.isSuccess && <section className="feed-list">{feeds.items.length ? feeds.items.map((item) => <article key={item.id}>
+      <div className="feed-thumb">{item.thumbnailUrl ? <img src={item.thumbnailUrl} alt="" loading="lazy" /> : <><Image /><span>{item.typeLabel}</span></>}</div>
+      <div className="feed-content"><div><span className="badge">{item.typeLabel}</span><span className="badge badge--soft">{item.hobbyName}</span>{item.ended && <span className="badge badge--paused">종료</span>}</div><h2>{item.title}</h2>{item.summary && <p>{item.summary}</p>}<small>{item.meta}</small></div>
+      <a href={item.sourceUrl} target="_blank" rel="noopener noreferrer" aria-label={`${item.title} 자세히 보기 (새 탭)`}>자세히 보기 <ExternalLink /></a>
+    </article>) : <section className="empty-state feed-empty"><img src={characterAssets.searching} alt="정보를 찾는 냠냠취미 캐릭터" /><h2>선택한 조건의 정보가 없어요</h2><p>다른 취미나 정보 유형을 선택해 보세요.</p></section>}</section>}
+    {feeds.hasNextPage && <div className="feed-more"><Button variant="secondary" disabled={feeds.isFetchingNextPage} onClick={() => feeds.fetchNextPage()}>{feeds.isFetchingNextPage ? '불러오는 중' : '더 보기'}</Button></div>}
   </main></div>;
 }
 
+/** 피드 상세는 출처 사이트(새 탭)로 보낸다. 예전 내부 상세 주소로 들어오면 목록으로 돌려보낸다. */
 export function InfoFeedDetailPage() {
-  const { feedId } = useParams();
-  const item = infoFeedFixtures.find((feed) => feed.id === Number(feedId));
-
-  if (!item) return <Navigate replace to="/info-feed" />;
-
-  return <div className="site-shell"><AppHeader notificationCount={3} /><main className="page-container feed-detail-page">
-    <article className="feed-detail-card">
-      <div className="feed-detail-card__badges"><span className="badge">{item.type}</span><span className="badge badge--soft">{item.hobby}</span>{item.ended && <span className="badge badge--paused">종료</span>}</div>
-      <h1>{item.title}</h1>
-      <p className="feed-detail-card__meta">{item.source} · {item.location} · {item.period}</p>
-      <div className="feed-detail-card__image"><Image aria-hidden="true" /><span>{item.type} 이미지</span></div>
-      <p className="feed-detail-card__summary">{item.summary}</p>
-      <Link className="button button--secondary" to="/info-feed">목록으로</Link>
-    </article>
-  </main></div>;
+  return <Navigate replace to="/info-feed" />;
 }

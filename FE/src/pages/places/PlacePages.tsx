@@ -72,13 +72,24 @@ export function InfoFeedPage() {
     </div>}
     {feeds.isPending && <section className="empty-state feed-empty"><p>정보 피드를 불러오고 있어요.</p></section>}
     {feeds.isError && <section className="empty-state feed-empty"><h2>정보 피드를 불러오지 못했어요</h2><Button onClick={() => feeds.refetch()}>다시 시도</Button></section>}
-    {feeds.isSuccess && <section className="feed-list">{feeds.items.length ? feeds.items.map((item) => <article key={item.id}>
-      <div className="feed-thumb">{item.thumbnailUrl ? <img src={item.thumbnailUrl} alt="" loading="lazy" /> : <><Image /><span>{item.typeLabel}</span></>}</div>
-      <div className="feed-content"><div><span className="badge">{item.typeLabel}</span><span className="badge badge--soft">{item.hobbyName}</span>{item.ended && <span className="badge badge--paused">종료</span>}</div><h2>{item.title}</h2>{item.summary && <p>{item.summary}</p>}<small>{item.meta}</small></div>
-      <a href={item.sourceUrl} target="_blank" rel="noopener noreferrer" aria-label={`${item.title} 자세히 보기 (새 탭)`}>자세히 보기 <ExternalLink /></a>
+    {feeds.isSuccess && <section className="feed-list">{feeds.items.length ? feeds.items.map((item) => <article className={item.ended ? 'feed-card--ended' : undefined} aria-disabled={item.ended || undefined} key={item.id}>
+      <FeedThumbnail url={item.thumbnailUrl} />
+      <div className="feed-content"><div>{item.ended && <span className="badge badge--ended">종료된 행사</span>}<span className="badge">{item.typeLabel}</span><span className="badge badge--soft">{item.hobbyName}</span></div><h2>{item.title}</h2>{item.summary && <p>{item.summary}</p>}<small>{item.meta}</small></div>
+      {item.ended
+        ? <span className="feed-link feed-link--disabled">종료됨</span>
+        : <a className="feed-link" href={item.sourceUrl} target="_blank" rel="noopener noreferrer" aria-label={`${item.title} 자세히 보기 (새 탭)`}>자세히 보기 <ExternalLink /></a>}
     </article>) : <section className="empty-state feed-empty"><img src={characterAssets.searching} alt="정보를 찾는 냠냠취미 캐릭터" /><h2>선택한 조건의 정보가 없어요</h2><p>다른 취미나 정보 유형을 선택해 보세요.</p></section>}</section>}
     {feeds.hasNextPage && <div className="feed-more"><Button variant="secondary" disabled={feeds.isFetchingNextPage} onClick={() => feeds.fetchNextPage()}>{feeds.isFetchingNextPage ? '불러오는 중' : '더 보기'}</Button></div>}
   </main></div>;
+}
+
+/** 썸네일이 없거나 출처 이미지가 깨지면(404 등) 냠냠취미 캐릭터 이미지로 대신한다 */
+function FeedThumbnail({ url }: { url: string | null }) {
+  const [failed, setFailed] = useState(false);
+  const fallback = !url || failed;
+  return <div className={fallback ? 'feed-thumb feed-thumb--fallback' : 'feed-thumb'}>
+    <img src={fallback ? characterAssets.searching : url} alt="" loading="lazy" onError={fallback ? undefined : () => setFailed(true)} />
+  </div>;
 }
 
 /** 피드 상세는 출처 사이트(새 탭)로 보낸다. 예전 내부 상세 주소로 들어오면 목록으로 돌려보낸다. */

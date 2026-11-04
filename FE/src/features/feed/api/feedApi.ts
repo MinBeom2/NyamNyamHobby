@@ -15,6 +15,8 @@ export type FeedItemDto = {
   sourceName: string;
   sourceUrl: string;
   thumbnailUrl: string | null;
+  /** 진행 지역(예: '서울 송파구'). 입문 자료처럼 지역이 없으면 null */
+  regionName: string | null;
   eventStart: string | null;
   eventEnd: string | null;
   publishedAt: string;

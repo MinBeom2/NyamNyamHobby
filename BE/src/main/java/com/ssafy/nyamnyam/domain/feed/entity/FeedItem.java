@@ -99,6 +99,15 @@ public class FeedItem {
     }
 
     /** 행사 종료 여부 판단 (eventEnd가 있고 오늘보다 이전이면 종료됨) */
+    /** 수집 배치가 같은 출처 항목을 다시 받았을 때 바뀔 수 있는 값(제목·이미지·기간)만 고친다 */
+    public void refreshFromSource(String title, String thumbnailUrl, LocalDate eventStart, LocalDate eventEnd) {
+        this.title = title;
+        this.thumbnailUrl = thumbnailUrl;
+        this.eventStart = eventStart;
+        this.eventEnd = eventEnd;
+        this.updatedAt = LocalDateTime.now();
+    }
+
     public boolean computeIsEnded() {
         return eventEnd != null && eventEnd.isBefore(LocalDate.now(java.time.ZoneId.of("Asia/Seoul")));
     }

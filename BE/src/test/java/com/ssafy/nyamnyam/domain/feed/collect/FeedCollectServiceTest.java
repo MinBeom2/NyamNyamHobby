@@ -10,6 +10,9 @@ import com.ssafy.nyamnyam.domain.hobby.repository.HobbySourceMappingRepository;
 import com.ssafy.nyamnyam.global.batchrun.BatchRun;
 import com.ssafy.nyamnyam.global.batchrun.BatchRunRepository;
 import com.ssafy.nyamnyam.global.batchrun.BatchRunStatus;
+import com.ssafy.nyamnyam.domain.user.entity.Region;
+import com.ssafy.nyamnyam.domain.user.repository.RegionRepository;
+import com.ssafy.nyamnyam.global.infra.publicdata.CulturePortalClient;
 import com.ssafy.nyamnyam.global.infra.publicdata.KopisClient;
 import com.ssafy.nyamnyam.global.infra.publicdata.PublicDataApiException;
 import com.ssafy.nyamnyam.global.infra.publicdata.TourApiClient;
@@ -41,6 +44,8 @@ class FeedCollectServiceTest {
 
     @Mock TourApiClient tour;
     @Mock KopisClient kopis;
+    @Mock CulturePortalClient culture;
+    @Mock RegionRepository regions;
     @Mock HobbySourceMappingRepository mappings;
     @Mock FeedWriter writer;
     @Mock BatchRunRepository runs;
@@ -50,8 +55,8 @@ class FeedCollectServiceTest {
     LocalDate today = LocalDate.now(ZoneId.of("Asia/Seoul"));
 
     @BeforeEach void setUp() {
-        service = new FeedCollectService(tour, kopis, mappings, writer, runs,
-                new FeedCollectProperties(true, "11", "11", 60, 100, 5, 50, 0.8));
+        service = new FeedCollectService(tour, kopis, culture, regions, mappings, writer, runs,
+                new FeedCollectProperties(true, "11", "11", 60, 100, 5, 50, 0.8, "서울", "서울특별시", 100, 10));
         climbing = Hobby.builder().name("클라이밍").build();
         ReflectionTestUtils.setField(climbing, "id", 1L);
         given(runs.save(any(BatchRun.class))).willAnswer(call -> call.getArgument(0));
@@ -114,5 +119,35 @@ class FeedCollectServiceTest {
         assertThat(saved.getValue().summary()).isEqualTo("뮤지컬 · 홀");
         assertThat(run.getStatus()).isEqualTo(BatchRunStatus.PARTIAL);
         assertThat(run.getMessage()).contains("tour 실패");
+    }
+
+    @Test void keepsOnlyExhibitionsAndFallsBackToExhibitionHobby() {
+        Hobby exhibition = Hobby.builder().name("전시 관람").build();
+        ReflectionTestUtils.setField(exhibition, "id", 30L);
+        given(mappings.findAllWithHobby(SourceTarget.EVENT_KEYWORD, HobbyStatus.PUBLISHED)).willReturn(List.of(
+                HobbySourceMapping.builder().hobby(climbing).target(SourceTarget.EVENT_KEYWORD).keyword("클라이밍").build(),
+                HobbySourceMapping.builder().hobby(exhibition).target(SourceTarget.EVENT_KEYWORD).keyword("갤러리").build()));
+        given(culture.isConfigured()).willReturn(true);
+        given(regions.findBySidoOrderBySigunguAsc("서울특별시")).willReturn(List.of(
+                Region.builder().code("11710").sido("서울특별시").sigungu("송파구").build()));
+        given(culture.searchByArea("서울", today, today.plusDays(60), 1, 100)).willReturn(new CulturePortalClient.EventPage(List.of(
+                new CulturePortalClient.Event("1", "현대 회화 기획전", today, today.plusDays(10), "미술관", "전시", "송파구", "http://t"),
+                new CulturePortalClient.Event("2", "롯콘 마티네", today, today.plusDays(1), "홀", "음악/콘서트", "송파구", null)), 2));
+        given(culture.detail("1")).willReturn(Optional.of(new CulturePortalClient.EventDetail(null, "http://museum", null)));
+        given(writer.create(any(), eq(exhibition), anyDouble())).willReturn(FeedWriter.Result.CREATED);
+
+        BatchRun run = service.collect();
+
+        ArgumentCaptor<FeedCandidate> saved = ArgumentCaptor.forClass(FeedCandidate.class);
+        verify(writer).create(saved.capture(), eq(exhibition), anyDouble());
+        assertThat(saved.getValue()).satisfies(c -> {
+            assertThat(c.origin()).isEqualTo(FeedOrigin.CULTURE_PORTAL);
+            assertThat(c.type()).isEqualTo(FeedType.SHOW);
+            assertThat(c.sourceUrl()).isEqualTo("http://museum"); // 예매 링크가 없으면 장소 홈페이지
+            assertThat(c.summary()).isEqualTo("미술관");           // 소개가 없으면 장소 이름
+            assertThat(c.regionCode()).isEqualTo("11710");
+        });
+        verify(culture, never()).detail("2"); // 전시가 아니면 상세를 부르지 않는다
+        assertThat(run.getRejected()).isEqualTo(1);
     }
 }

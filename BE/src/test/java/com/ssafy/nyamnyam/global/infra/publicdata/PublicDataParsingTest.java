@@ -29,4 +29,13 @@ class PublicDataParsingTest {
             assertThat(show.genre()).isEqualTo("대중음악");
         });
     }
+
+    @Test void cultureXmlItemsAndErrorsAreRead() {
+        String ok = "<?xml version=\"1.0\" encoding=\"UTF-8\"?><response><header><resultCode>00</resultCode></header>"
+                + "<body><totalCount>1</totalCount><items><item><seq>7</seq><title>기획전</title><realmName>전시</realmName>"
+                + "</item></items></body></response>";
+        var doc = CulturePortalClient.parse(ok.getBytes(StandardCharsets.UTF_8));
+        assertThat(CulturePortalClient.items(doc)).singleElement()
+                .satisfies(item -> assertThat(CulturePortalClient.text(item, "realmName")).isEqualTo("전시"));
+    }
 }

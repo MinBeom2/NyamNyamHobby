@@ -11,6 +11,8 @@ import com.ssafy.nyamnyam.global.batchrun.BatchJob;
 import com.ssafy.nyamnyam.global.batchrun.BatchRun;
 import com.ssafy.nyamnyam.global.batchrun.BatchRunRepository;
 import com.ssafy.nyamnyam.global.batchrun.BatchRunStatus;
+import com.ssafy.nyamnyam.domain.user.repository.RegionRepository;
+import com.ssafy.nyamnyam.global.infra.publicdata.CulturePortalClient;
 import com.ssafy.nyamnyam.global.infra.publicdata.KopisClient;
 import com.ssafy.nyamnyam.global.infra.publicdata.PublicDataApiException;
 import com.ssafy.nyamnyam.global.infra.publicdata.TourApiClient;
@@ -23,9 +25,11 @@ import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -36,6 +40,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * <ul>
  *   <li>TourAPI(축제·행사): 서울에서 진행 중·예정인 행사 목록을 받아 제목으로 취미를 찾는다. 새 항목만 소개·홈페이지를 더 받는다</li>
  *   <li>KOPIS(공연): 취미 검색어로 공연명을 검색한다(장르가 넓어 전체를 받으면 대부분 취미와 무관)</li>
+ *   <li>문화포털(전시): 서울에서 기간 안에 열리는 항목 중 분야가 전시인 것만 받는다. 공연은 KOPIS가 더 자세해서 제외.
+ *       제목에 더 구체적인 취미(도자기·사진 등)가 없으면 '전시 관람' 취미로 저장한다</li>
  * </ul>
  * 이미 받은 항목은 (origin, source_ref)로 알아보고 기간·제목·이미지만 고친다. 한 출처가 실패해도 다른 출처는 계속 받는다.
  */
@@ -48,9 +54,14 @@ public class FeedCollectService {
     static final String TOUR_SOURCE = "한국관광공사 TourAPI";
     static final String KOPIS_SOURCE = "KOPIS 공연예술통합전산망";
     static final String TOUR_SEARCH_URL = "https://korean.visitkorea.or.kr/search/search_list.do?keyword=";
+    static final String CULTURE_SOURCE = "문화포털";
+    static final String CULTURE_HOME_URL = "https://www.culture.go.kr";
+    static final String EXHIBITION_HOBBY = "전시 관람";
 
     private final TourApiClient tourApiClient;
     private final KopisClient kopisClient;
+    private final CulturePortalClient culturePortalClient;
+    private final RegionRepository regionRepository;
     private final HobbySourceMappingRepository mappingRepository;
     private final FeedWriter feedWriter;
     private final BatchRunRepository batchRunRepository;
@@ -75,6 +86,7 @@ public class FeedCollectService {
                 LocalDate today = LocalDate.now(KST);
                 runSource("tour", stats, tourApiClient.isConfigured(), () -> collectTour(matcher, today, stats));
                 runSource("kopis", stats, kopisClient.isConfigured(), () -> collectKopis(mappings, matcher, today, stats));
+                runSource("culture", stats, culturePortalClient.isConfigured(), () -> collectCulture(mappings, matcher, today, stats));
             }
         } catch (RuntimeException e) {
             log.error("[FEED_COLLECT] unexpected failure", e);
@@ -177,6 +189,63 @@ public class FeedCollectService {
                         KOPIS_SOURCE, KopisClient.DETAIL_URL + show.id(), show.posterUrl(), null,
                         show.start(), show.end()), hobby.get(), stats);
             }
+        }
+    }
+
+    void collectCulture(List<HobbySourceMapping> mappings, FeedHobbyMatcher matcher, LocalDate today, Stats stats) {
+        Optional<Hobby> exhibition = mappings.stream().map(HobbySourceMapping::getHobby)
+                .filter(h -> EXHIBITION_HOBBY.equals(h.getName())).findFirst();
+        Map<String, String> regionCodes = new HashMap<>();
+        regionRepository.findBySidoOrderBySigunguAsc(properties.regionSido())
+                .forEach(region -> regionCodes.put(region.getSigungu(), region.getCode()));
+        LocalDate to = today.plusDays(properties.lookaheadDays());
+        int fetched = 0;
+        for (int page = 1; page <= properties.cultureMaxPages(); page++) {
+            stats.calls++;
+            CulturePortalClient.EventPage result = culturePortalClient.searchByArea(
+                    properties.cultureSido(), today, to, page, properties.culturePageSize());
+            for (CulturePortalClient.Event event : result.items()) {
+                stats.processed++;
+                if (event.seq() == null || event.title() == null || !isExhibition(event.realmName())
+                        || (event.end() != null && event.end().isBefore(today))) {
+                    stats.rejected++;
+                    continue;
+                }
+                Optional<Hobby> hobby = matcher.match(event.title()).or(() -> exhibition);
+                if (hobby.isEmpty()) {
+                    stats.rejected++;
+                    continue;
+                }
+                if (feedWriter.refreshIfExists(FeedOrigin.CULTURE_PORTAL, event.seq(), event.title(),
+                        event.thumbnailUrl(), event.start(), event.end())) {
+                    stats.updated++;
+                    continue;
+                }
+                CulturePortalClient.EventDetail detail = cultureDetail(event.seq(), stats);
+                String url = detail == null ? null : detail.url() != null ? detail.url() : detail.placeUrl();
+                String summary = detail != null && detail.contents() != null ? detail.contents() : event.place();
+                save(new FeedCandidate(FeedOrigin.CULTURE_PORTAL, event.seq(), FeedType.SHOW, event.title(), summary,
+                        CULTURE_SOURCE, url == null ? CULTURE_HOME_URL : url, event.thumbnailUrl(),
+                        event.sigungu() == null ? null : regionCodes.get(event.sigungu()),
+                        event.start(), event.end()), hobby.get(), stats);
+            }
+            fetched += result.items().size();
+            if (result.items().isEmpty() || fetched >= result.totalCount()) break;
+        }
+    }
+
+    /** 분야 이름이 '전시', '미술' 등으로 오므로 포함 여부로 본다 */
+    static boolean isExhibition(String realmName) {
+        return realmName != null && (realmName.contains("전시") || realmName.contains("미술"));
+    }
+
+    private CulturePortalClient.EventDetail cultureDetail(String seq, Stats stats) {
+        try {
+            stats.calls++;
+            return culturePortalClient.detail(seq).orElse(null);
+        } catch (PublicDataApiException e) {
+            log.debug("[FEED_COLLECT] culture detail {} skipped: {}", seq, e.getMessage());
+            return null;
         }
     }
 

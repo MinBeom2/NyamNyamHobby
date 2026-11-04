@@ -16,7 +16,7 @@ import java.util.Optional;
 public interface FeedItemRepository extends JpaRepository<FeedItem, Long>, JpaSpecificationExecutor<FeedItem> {
 
     @Override
-    @EntityGraph(attributePaths = {"hobby"})
+    @EntityGraph(attributePaths = {"hobby", "region"})
     Page<FeedItem> findAll(Specification<FeedItem> spec, Pageable pageable);
 
     Optional<FeedItem> findByOriginAndSourceRef(FeedOrigin origin, String sourceRef);

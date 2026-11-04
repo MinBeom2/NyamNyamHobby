@@ -109,7 +109,7 @@ public class FeedItem {
     }
 
     public boolean computeIsEnded() {
-        return eventEnd != null && eventEnd.isBefore(LocalDate.now());
+        return eventEnd != null && eventEnd.isBefore(LocalDate.now(java.time.ZoneId.of("Asia/Seoul")));
     }
 }
 

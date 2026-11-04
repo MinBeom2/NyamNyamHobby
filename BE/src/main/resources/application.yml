@@ -111,6 +111,21 @@ app:
     refresh-interval-days: 7
     refresh-window-days: 30
     refresh-max-per-keyword: 5
+  # 정보 피드 수집(FR-FEED-02): 서울 행사·공연을 받아 제목을 취미 행사 검색어(EVENT_KEYWORD)와 대조해 저장
+  # 로컬·테스트에서 외부 API를 부르지 않도록 기본은 꺼 두고, 서버 .env에서 FEED_COLLECT_ENABLED=true로 켠다.
+  feed-collect:
+    enabled: ${FEED_COLLECT_ENABLED:false}
+    cron: "0 0 5 * * *"   # 매일 05:00 (Asia/Seoul)
+    tour-region-code: "11" # TourAPI 법정동 시도 코드(서울)
+    kopis-region-code: "11"
+    lookahead-days: 60     # KOPIS: 오늘부터 60일 안에 열리는 공연
+    title-similarity: 0.8  # 출처가 다른 같은 행사 판단(시작일 같고 제목 유사도 이상)
+  # 공공·문화 데이터 인증키(공공데이터포털은 Decoding 키)
+  public-data:
+    tour-api:
+      key: ${TOUR_API_KEY:}
+    kopis:
+      key: ${KOPIS_API_KEY:}
 
 management:
   endpoints:

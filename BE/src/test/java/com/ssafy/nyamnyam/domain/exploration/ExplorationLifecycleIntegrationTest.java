@@ -128,7 +128,8 @@ class ExplorationLifecycleIntegrationTest {
         assertThat(first.created()).isTrue();
         assertThat(repeated.created()).isFalse();
         assertThat(repeated.response().getRecommendationId()).isEqualTo(first.response().getRecommendationId());
-        assertRecommendationUsedScore("3.500");
+        // 좋아요를 누른 영상은 시청 시간과 상관없이 +3 (ViewScore)
+        assertRecommendationUsedScore("3.000");
         assertEnded(() -> explorations.recordView(fixture.sessionId(), new RecordViewRequest(fixture.shortId(), 1, false), user));
         assertEnded(() -> explorations.recordReaction(fixture.shortId(), new ReactionRequest(ReactionType.DISLIKE, fixture.sessionId()), user));
         assertEnded(() -> explorations.cancelReaction(fixture.shortId(), user));

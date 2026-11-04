@@ -3,9 +3,12 @@ import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { useForm } from 'react-hook-form';
 import { AppHeader } from '../../shared/ui/AppHeader';
 import { Button } from '../../shared/ui/Button';
 import { getOnboardingOptions, userQueryKeys } from '../../features/user/api/userApi';
+import { communityWriteSchema, type CommunityWriteFormValues } from '../../features/community/model/communityWriteSchema';
 import {
   communityQueryKeys,
   createComment,
@@ -257,9 +260,11 @@ export function CommunityWritePage() {
   const editPostId = postId ? Number(postId) : null;
   const isEdit = editPostId !== null && Number.isFinite(editPostId);
   const queryClient = useQueryClient();
-  const [title, setTitle] = useState('');
-  const [content, setContent] = useState('');
-  const [hobbyId, setHobbyId] = useState<number | null>(null);
+  const { register, handleSubmit, watch, setValue, reset, formState: { errors, isSubmitted } } = useForm<CommunityWriteFormValues>({
+    resolver: zodResolver(communityWriteSchema),
+    defaultValues: { hobbyId: 0, title: '', content: '' },
+  });
+  const hobbyId = watch('hobbyId');
   const [type, setType] = useState<PostType>('REVIEW');
   const [imageUrls, setImageUrls] = useState<string[]>([]);
   const [message, setMessage] = useState('');
@@ -271,18 +276,16 @@ export function CommunityWritePage() {
   });
   useEffect(() => {
     if (isEdit) return;
-    if (hobbyId === null && optionsQuery.data?.hobbies[0]) setHobbyId(optionsQuery.data.hobbies[0].hobbyId);
-  }, [hobbyId, isEdit, optionsQuery.data]);
+    if (!hobbyId && optionsQuery.data?.hobbies[0]) setValue('hobbyId', optionsQuery.data.hobbies[0].hobbyId, { shouldValidate: isSubmitted });
+  }, [hobbyId, isEdit, isSubmitted, optionsQuery.data, setValue]);
   useEffect(() => {
     if (!postQuery.data) return;
-    setHobbyId(postQuery.data.hobby.id);
+    reset({ hobbyId: postQuery.data.hobby.id, title: postQuery.data.title, content: postQuery.data.content });
     setType(postQuery.data.type);
-    setTitle(postQuery.data.title);
-    setContent(postQuery.data.content);
     setImageUrls(postQuery.data.imageUrls);
-  }, [postQuery.data]);
+  }, [postQuery.data, reset]);
   const createMutation = useMutation({
-    mutationFn: () => createPost({ hobbyId: hobbyId as number, type, title: title.trim(), content: content.trim(), imageUrls }),
+    mutationFn: (values: CommunityWriteFormValues) => createPost({ ...values, type, imageUrls }),
     onSuccess: (post) => {
       queryClient.setQueryData(communityQueryKeys.post(post.id), post);
       void queryClient.invalidateQueries({ queryKey: communityQueryKeys.all });
@@ -293,7 +296,7 @@ export function CommunityWritePage() {
     onError: (error: Error) => setMessage(error.message),
   });
   const updateMutation = useMutation({
-    mutationFn: () => updatePost(editPostId as number, { type, title: title.trim(), content: content.trim(), imageUrls }),
+    mutationFn: ({ title, content }: CommunityWriteFormValues) => updatePost(editPostId as number, { type, title, content, imageUrls }),
     onSuccess: (post) => {
       queryClient.setQueryData(communityQueryKeys.post(post.id), post);
       void queryClient.invalidateQueries({ queryKey: communityQueryKeys.all });
@@ -311,25 +314,41 @@ export function CommunityWritePage() {
     },
     onError: (error: Error) => setMessage(error.message),
   });
-  function submit(event: FormEvent) {
-    event.preventDefault();
-    if (!hobbyId || title.trim().length < 2 || content.trim().length < 10) return;
-    if (isEdit) updateMutation.mutate();
-    else createMutation.mutate();
-  }
+  const submit = handleSubmit((values) => {
+    if (createMutation.isPending || updateMutation.isPending) return;
+    setMessage('');
+    if (isEdit) updateMutation.mutate(values);
+    else createMutation.mutate(values);
+  });
 
   return (
     <div className="site-shell">
       <AppHeader notificationCount={3} />
       <main className="page-container write-page">
         <h1>{isEdit ? '글 수정' : '글쓰기'}</h1>
-        <form onSubmit={submit}>
-          <div className="write-grid"><label>게시판<select disabled={isEdit} value={hobbyId ?? ''} onChange={(event) => setHobbyId(Number(event.target.value))}>{isEdit && postQuery.data && <option value={postQuery.data.hobby.id}>{postQuery.data.hobby.name}</option>}{!isEdit && (optionsQuery.data?.hobbies ?? []).map((item) => <option value={item.hobbyId} key={item.hobbyId}>{item.name}</option>)}</select></label><label>글 유형<select value={type} onChange={(event) => setType(event.target.value as PostType)}><option value="REVIEW">후기</option><option value="QUESTION">질문</option><option value="INFO">정보 공유</option><option value="SHARE">모임</option></select></label></div>
-          <label>제목<input value={title} onChange={(event) => setTitle(event.target.value)} placeholder="제목을 입력하세요 (50자)" maxLength={50} /></label>
-          <label>내용<textarea value={content} onChange={(event) => setContent(event.target.value)} placeholder="내용을 입력하세요 (10자 이상, 5,000자 이하)" maxLength={5000} /></label>
+        <form onSubmit={submit} noValidate>
+          <div className="write-grid">
+            <label>게시판
+              <select disabled={isEdit} aria-invalid={Boolean(errors.hobbyId)} aria-describedby={errors.hobbyId ? 'write-hobby-error' : undefined} {...register('hobbyId', { valueAsNumber: true })}>
+                <option value={0}>게시판을 선택해 주세요</option>
+                {isEdit && postQuery.data && <option value={postQuery.data.hobby.id}>{postQuery.data.hobby.name}</option>}
+                {!isEdit && (optionsQuery.data?.hobbies ?? []).map((item) => <option value={item.hobbyId} key={item.hobbyId}>{item.name}</option>)}
+              </select>
+              {errors.hobbyId && <span id="write-hobby-error" className="form-field__error" role="alert">{errors.hobbyId.message}</span>}
+            </label>
+            <label>글 유형<select value={type} onChange={(event) => setType(event.target.value as PostType)}><option value="REVIEW">후기</option><option value="QUESTION">질문</option><option value="INFO">정보 공유</option><option value="SHARE">모임</option></select></label>
+          </div>
+          <label>제목
+            <input placeholder="제목을 입력하세요 (50자)" maxLength={50} aria-invalid={Boolean(errors.title)} aria-describedby={errors.title ? 'write-title-error' : undefined} {...register('title')} />
+            {errors.title && <span id="write-title-error" className="form-field__error" role="alert">{errors.title.message}</span>}
+          </label>
+          <label>내용
+            <textarea placeholder="내용을 입력하세요 (10자 이상, 5,000자 이하)" maxLength={5000} aria-invalid={Boolean(errors.content)} aria-describedby={errors.content ? 'write-content-error' : undefined} {...register('content')} />
+            {errors.content && <span id="write-content-error" className="form-field__error" role="alert">{errors.content.message}</span>}
+          </label>
           <div className="image-upload">{imageUrls.map((url, index) => <span key={url}><Image /> 이미지 {index + 1}</span>)}{imageUrls.length < 5 && <label className="button button--secondary">{uploadMutation.isPending ? '업로드 중…' : '＋ 추가'}<input disabled={uploadMutation.isPending} hidden type="file" accept="image/jpeg,image/png,image/webp" onChange={(event) => { const file = event.target.files?.[0]; if (file) uploadMutation.mutate(file); event.target.value = ''; }} /></label>}<small>JPG · PNG · WEBP, 이미지당 5MB 이하</small></div>
           {message && <p role="alert" className="profile-edit-error">{message}</p>}
-          <div className="write-actions"><Button variant="secondary" onClick={() => navigate(isEdit ? `/community/${editPostId}` : '/community')}>취소</Button><Button type="submit" disabled={!hobbyId || title.trim().length < 2 || content.trim().length < 10 || createMutation.isPending || updateMutation.isPending}>{createMutation.isPending || updateMutation.isPending ? '저장 중…' : isEdit ? '저장' : '등록'}</Button></div>
+          <div className="write-actions"><Button variant="secondary" onClick={() => navigate(isEdit ? `/community/${editPostId}` : '/community')}>취소</Button><Button type="submit" disabled={createMutation.isPending || updateMutation.isPending}>{createMutation.isPending || updateMutation.isPending ? '저장 중…' : isEdit ? '저장' : '등록'}</Button></div>
         </form>
       </main>
     </div>

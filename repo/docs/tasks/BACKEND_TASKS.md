@@ -168,7 +168,7 @@
   - 현재 비밀번호 확인, 같은 비밀번호 거부, 다른 기기 Refresh 폐기, 소셜 계정 거부.
   - API·배치: /users/me/password
   - 근거: FR-USER-03
-- [ ] **USER-B04 마이페이지 요약·내 글** · `필수` · 마이페이지
+- [x] **USER-B04 마이페이지 요약·내 글** · `필수` · 마이페이지
   - GET /users/me/summary(관심 취미·진행 중·보관한 숏폼·내 글 수, 보관한 숏폼은 보관 기능(P2) 도입 전 0 또는 숨김), GET /users/me/posts.
   - API·배치: /users/me/summary · /users/me/posts
   - 근거: FR-USER-04
@@ -234,7 +234,7 @@
   - API·배치: shorts · youtube_channels.hidden_short_count
   - 근거: FR-SHORT-08
   - 비고: 11장 #26 · 채널 점검 필요 표시는 권장(P1), 복구·영구 제외는 후순위(P3, ADM-B10)
-- [ ] **SHORT-B13 YouTube 할당량 경고** · `권장` · 운영
+- [x] **SHORT-B13 YouTube 할당량 경고** · `권장` · 운영
   - 하루 사용량이 80%를 넘으면 Mattermost 운영 채널에 경고.
   - API·배치: batch_runs.quota_used
   - 근거: NFR-EXT-01
@@ -344,7 +344,7 @@
 
 필수 0 · 권장 5 · 후순위 0 · 제외 0 · 프론트엔드 짝: PLACE-F01~F03
 
-- [ ] **PLACE-B01 지역 API** · `권장` · 지역
+- [x] **PLACE-B01 지역 API** · `권장` · 지역
   - GET /regions?sido=(시·도 / 시·군·구), 행정구역 코드 시드.
   - API·배치: /regions · regions
   - 근거: FR-PLACE-01

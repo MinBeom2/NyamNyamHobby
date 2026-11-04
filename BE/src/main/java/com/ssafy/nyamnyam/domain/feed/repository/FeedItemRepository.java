@@ -11,7 +11,7 @@ import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 public interface FeedItemRepository extends JpaRepository<FeedItem, Long>, JpaSpecificationExecutor<FeedItem> {
 
     @Override
-    @EntityGraph(attributePaths = {"hobby"})
+    @EntityGraph(attributePaths = {"hobby", "region"})
     Page<FeedItem> findAll(Specification<FeedItem> spec, Pageable pageable);
 }
 

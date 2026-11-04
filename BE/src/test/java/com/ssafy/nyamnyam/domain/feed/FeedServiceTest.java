@@ -11,6 +11,7 @@ import com.ssafy.nyamnyam.domain.feed.service.FeedService;
 import com.ssafy.nyamnyam.domain.hobby.entity.Category;
 import com.ssafy.nyamnyam.domain.hobby.entity.Hobby;
 import com.ssafy.nyamnyam.domain.user.entity.InterestSelection;
+import com.ssafy.nyamnyam.domain.user.entity.Region;
 import com.ssafy.nyamnyam.domain.user.entity.User;
 import com.ssafy.nyamnyam.domain.user.entity.UserHobby;
 import com.ssafy.nyamnyam.domain.user.entity.UserHobbyStatus;
@@ -67,6 +68,7 @@ class FeedServiceTest {
         // 1) 진행 중인 행사 (종료일이 내일) -> isEnded = false
         FeedItem ongoingFeed = FeedItem.builder()
                 .hobby(hobby)
+                .region(Region.builder().code("11710").sido("서울특별시").sigungu("송파구").build())
                 .type(FeedType.EVENT)
                 .title("클라이밍 페스티벌")
                 .sourceName("TourAPI")
@@ -102,6 +104,8 @@ class FeedServiceTest {
         assertThat(response.content()).hasSize(2);
         assertThat(response.content().get(0).isEnded()).isFalse();
         assertThat(response.content().get(1).isEnded()).isTrue();
+        assertThat(response.content().get(0).regionName()).isEqualTo("서울 송파구");
+        assertThat(response.content().get(1).regionName()).isNull();
     }
 
     @Test

@@ -54,6 +54,7 @@ class FeedControllerTest {
                 "한국관광공사 TourAPI",
                 "https://korean.visitkorea.or.kr/detail/...",
                 "https://cdn.example.com/events/climbing.jpg",
+                "서울 송파구",
                 LocalDate.of(2026, 11, 1),
                 LocalDate.of(2026, 11, 3),
                 OffsetDateTime.of(2026, 10, 18, 10, 0, 0, 0, ZoneOffset.ofHours(9)),
@@ -80,6 +81,7 @@ class FeedControllerTest {
                 .andExpect(jsonPath("$.data.content[0].hobbyName").value("클라이밍"))
                 .andExpect(jsonPath("$.data.content[0].type").value("EVENT"))
                 .andExpect(jsonPath("$.data.content[0].isEnded").value(false))
+                .andExpect(jsonPath("$.data.content[0].regionName").value("서울 송파구"))
                 .andExpect(jsonPath("$.data.content[0].publishedAt").value("2026-10-18T10:00:00+09:00"))
                 .andExpect(jsonPath("$.data.page.totalElements").value(1));
     }

@@ -14,7 +14,7 @@ export type FeedItemModel = {
   title: string;
   summary: string;
   thumbnailUrl: string | null;
-  /** 출처 · 기간(행사) 또는 출처 · 게시일(입문 자료 등 기간이 없는 항목) */
+  /** 진행 지역 · 기간. 지역이 없는 입문 자료는 작성처 · 게시일 */
   meta: string;
   sourceUrl: string;
   ended: boolean;
@@ -40,7 +40,10 @@ export function toFeedItemModel(dto: FeedItemDto): FeedItemModel {
     title: dto.title,
     summary: dto.summary ?? '',
     thumbnailUrl: dto.thumbnailUrl,
-    meta: [dto.sourceName, period ?? `게시 ${formatMonthDay(dto.publishedAt)}`].join(' · '),
+    meta: [
+      dto.regionName ?? (dto.type === 'GUIDE' ? dto.sourceName : null),
+      period ?? `게시 ${formatMonthDay(dto.publishedAt)}`,
+    ].filter(Boolean).join(' · '),
     sourceUrl: dto.sourceUrl,
     ended: dto.isEnded,
   };

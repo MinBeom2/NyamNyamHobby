@@ -12,6 +12,8 @@ public interface RecommendationRepository extends JpaRepository<Recommendation, 
     Optional<Recommendation> findBySessionId(Long sessionId);
     boolean existsBySessionId(Long sessionId);
     Optional<Recommendation> findByIdAndUserId(Long id, Long userId);
+    /** 홈 '맞춤 추천 취미'용: 가장 최근에 만든 추천(같은 시각이면 나중에 저장된 것) */
+    Optional<Recommendation> findTopByUserIdOrderByIdDesc(Long userId);
 
     /** 비회원 이관용: guestKey로 연결된 추천 목록 */
     List<Recommendation> findByGuestKey(String guestKey);

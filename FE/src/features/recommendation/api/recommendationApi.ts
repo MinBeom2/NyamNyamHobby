@@ -41,6 +41,7 @@ export type RecommendationPreviewResponse = {
 export const recommendationQueryKeys = {
   all: ['recommendations'] as const,
   detail: (recommendationId: number) => ['recommendations', recommendationId] as const,
+  latest: () => ['recommendations', 'latest'] as const,
 };
 
 export function createRecommendation(sessionId: number) {
@@ -52,6 +53,11 @@ export function createRecommendation(sessionId: number) {
 
 export function getRecommendation(recommendationId: number) {
   return apiRequest<RecommendationResponse>(`/recommendations/${recommendationId}`);
+}
+
+/** 내 가장 최근 추천. 숏폼 탐색을 한 번도 끝내지 않았으면 null. */
+export function getLatestRecommendation() {
+  return apiRequest<RecommendationResponse | null>('/recommendations/latest');
 }
 
 export function previewRecommendations(request: {

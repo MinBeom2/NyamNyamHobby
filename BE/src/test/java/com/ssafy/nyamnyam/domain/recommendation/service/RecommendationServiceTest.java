@@ -95,6 +95,18 @@ class RecommendationServiceTest {
         assertError(() -> service.getRecommendation(88L,user),ErrorCode.COMMON_NOT_FOUND);
         verifyNoInteractions(itemRepository);
     }
+    @Test void latestRecommendationIsEmptyBeforeFirstExploration() {
+        when(recommendationRepository.findTopByUserIdOrderByIdDesc(1L)).thenReturn(Optional.empty());
+        assertThat(service.getLatestRecommendation(user)).isEmpty();
+        verifyNoInteractions(itemRepository);
+    }
+    @Test void latestRecommendationReturnsMostRecentWithItems() {
+        Recommendation latest = Recommendation.builder().user(user).session(session).basis(RecoBasis.REACTION).build();
+        ReflectionTestUtils.setField(latest,"id",99L);
+        when(recommendationRepository.findTopByUserIdOrderByIdDesc(1L)).thenReturn(Optional.of(latest));
+        when(itemRepository.findByRecommendationOrderByRankNoAsc(latest)).thenReturn(List.of());
+        assertThat(service.getLatestRecommendation(user)).hasValueSatisfying(r -> assertThat(r.getRecommendationId()).isEqualTo(99L));
+    }
     private void assertError(Runnable r,ErrorCode code) {
         assertThatThrownBy(r::run).isInstanceOfSatisfying(CustomException.class,e -> assertThat(e.getErrorCode()).isEqualTo(code));
     }

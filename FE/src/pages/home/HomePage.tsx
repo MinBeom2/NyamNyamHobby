@@ -1,10 +1,13 @@
-import { ChartNoAxesColumnIncreasing, Check, CircleDollarSign, Clock3, MessageCircleQuestion, Play, Search } from 'lucide-react';
+import { ChartNoAxesColumnIncreasing, Check, ChevronLeft, ChevronRight, CircleDollarSign, Clock3, MessageCircleQuestion, Play, Search } from 'lucide-react';
+import { useRef } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../features/auth/model/authStore';
 import { activityQueryKeys, getTodoSummary } from '../../features/activity/api/activityApi';
 import { getHobbies, hobbyQueryKeys } from '../../features/hobby/api/hobbyApi';
 import { toHobbyCardModel, type HobbyCardModel } from '../../features/hobby/model/hobbyAdapter';
+import { recommendationKindLabels } from '../../features/recommendation/model/recommendationAdapter';
+import { useLatestRecommendedHobbies } from '../../features/recommendation/model/useRecommendationResult';
 import { deleteUserHobby, getUserHobbies, saveUserHobby, userQueryKeys, type UserHobbyDto } from '../../features/user/api/userApi';
 import { AppHeader } from '../../shared/ui/AppHeader';
 import { Button } from '../../shared/ui/Button';
@@ -26,7 +29,7 @@ function PageShell({
   );
 }
 
-function HobbyCard({ hobby }: { hobby: HobbyCardModel }) {
+function HobbyCard({ hobby, badge }: { hobby: HobbyCardModel; badge?: { label: string; related: boolean } }) {
   const navigate = useNavigate();
   const user = useAuthStore((state) => state.user);
   const queryClient = useQueryClient();
@@ -45,6 +48,7 @@ function HobbyCard({ hobby }: { hobby: HobbyCardModel }) {
     <article className="hobby-card">
       <div className="hobby-card__visual">
         {hobby.relation && <span className="hobby-card__relation">{hobby.relation}</span>}
+        {badge && <span className={badge.related ? 'hobby-card__kind hobby-card__kind--related' : 'hobby-card__kind'}>{badge.label}</span>}
         {hobby.thumbnailUrl
           ? <img src={hobby.thumbnailUrl} alt="" />
           : <MediaPlaceholder />}
@@ -129,12 +133,9 @@ export function GuestHomePage() {
 
 export function MemberHomePage() {
   const user = useAuthStore((state) => state.user);
-  const recommendedQuery = useQuery({
-    queryKey: hobbyQueryKeys.list({ sort: 'RECOMMEND', size: 4 }),
-    queryFn: () => getHobbies({ sort: 'RECOMMEND', size: 4 }),
-  });
+  const sliderRef = useRef<HTMLDivElement>(null);
+  const recommendedQuery = useLatestRecommendedHobbies(Boolean(user));
   const todoSummaryQuery = useQuery({ queryKey: activityQueryKeys.summary(), queryFn: getTodoSummary });
-  const recommendedHobbies = recommendedQuery.data?.content.map(toHobbyCardModel) ?? [];
   const activeHobbies = todoSummaryQuery.data?.plans.filter((item) => item.status === 'IN_PROGRESS' || item.status === 'PAUSED').slice(0, 2) ?? [];
   const remainingTodoCount = todoSummaryQuery.data?.remainingThisWeekCount;
 
@@ -156,12 +157,29 @@ export function MemberHomePage() {
         </section>
 
         <section className="section-block recommendations">
-          <div className="section-heading"><h2>맞춤 추천 취미</h2><Link to="/hobbies/recommendations">추천 전체 보기</Link></div>
-          <div className="hobby-grid">
-            {recommendedQuery.isPending && <p>추천 취미를 불러오고 있어요.</p>}
-            {recommendedQuery.isError && <p>추천 취미를 불러오지 못했어요.</p>}
-            {recommendedHobbies.map((hobby) => <HobbyCard key={hobby.id} hobby={hobby} />)}
+          <div className="section-heading">
+            <div className="section-heading__title"><h2>맞춤 추천 취미</h2><p>쇼츠 탐색을 통해 추천받은 취미들이에요</p></div>
+            {recommendedQuery.data && <SliderControls targetRef={sliderRef} />}
           </div>
+          {recommendedQuery.isPending && <p>추천 취미를 불러오고 있어요.</p>}
+          {recommendedQuery.isError && <p>추천 취미를 불러오지 못했어요.</p>}
+          {recommendedQuery.data === null && (
+            <div className="recommend-empty">
+              <p>숏폼을 탐색하면 맞춤 취미를 추천해 드려요.</p>
+              <Button to="/explore">숏폼 탐색하기</Button>
+            </div>
+          )}
+          {recommendedQuery.data && (
+            <div className="hobby-slider" ref={sliderRef} aria-label="맞춤 추천 취미 목록">
+              {recommendedQuery.data.map((hobby) => (
+                <HobbyCard
+                  key={hobby.id}
+                  hobby={hobby}
+                  badge={{ label: recommendationKindLabels[hobby.kind], related: hobby.kind === 'RELATED' }}
+                />
+              ))}
+            </div>
+          )}
         </section>
 
         <div className="dashboard-grid">
@@ -191,6 +209,23 @@ export function MemberHomePage() {
         </section>
       </div>
     </PageShell>
+  );
+}
+
+/** 카드 한 장 너비만큼 좌우로 넘긴다. 터치·트랙패드로 직접 밀어도 된다. */
+function SliderControls({ targetRef }: { targetRef: React.RefObject<HTMLDivElement | null> }) {
+  const slide = (direction: 1 | -1) => {
+    const slider = targetRef.current;
+    if (!slider) return;
+    const card = slider.firstElementChild as HTMLElement | null;
+    const gap = Number.parseFloat(getComputedStyle(slider).columnGap) || 0;
+    slider.scrollBy({ left: direction * ((card?.offsetWidth ?? slider.clientWidth) + gap), behavior: 'smooth' });
+  };
+  return (
+    <div className="slider-controls">
+      <button type="button" aria-label="이전 추천 취미" onClick={() => slide(-1)}><ChevronLeft aria-hidden="true" /></button>
+      <button type="button" aria-label="다음 추천 취미" onClick={() => slide(1)}><ChevronRight aria-hidden="true" /></button>
+    </div>
   );
 }
 

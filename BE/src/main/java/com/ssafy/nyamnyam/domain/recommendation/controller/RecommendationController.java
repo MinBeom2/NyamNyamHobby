@@ -33,6 +33,11 @@ public class RecommendationController {
         var result = recommendations.finishExploration(request.sessionId(), user(principal));
         return ResponseEntity.status(result.created() ? 201 : 200).body(ApiResponse.success(result.response()));
     }
+    /** 홈 '맞춤 추천 취미'용 내 최근 추천. 없으면 data가 null이다. */
+    @GetMapping("/latest")
+    public ApiResponse<RecommendationResponse> latest(@AuthenticationPrincipal UserPrincipal principal) {
+        return ApiResponse.success(recommendations.getLatestRecommendation(user(principal)).orElse(null));
+    }
     @GetMapping("/{id}")
     public ApiResponse<RecommendationResponse> detail(@PathVariable Long id, @AuthenticationPrincipal UserPrincipal principal) {
         return ApiResponse.success(recommendations.getRecommendation(id, user(principal)));

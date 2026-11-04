@@ -36,6 +36,7 @@ export function toExplorationRecommendation(
   response: RecommendationResponse,
 ): ExplorationRecommendation {
   return {
+    recommendationId: response.recommendationId,
     reactionCount: response.reactionCount,
     hobbyNames: response.items.slice(0, 3).map((item) => item.hobby.name),
   };

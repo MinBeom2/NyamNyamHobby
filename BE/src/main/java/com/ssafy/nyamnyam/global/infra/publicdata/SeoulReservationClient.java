@@ -106,9 +106,6 @@ public class SeoulReservationClient {
 
     /** 제목에 '&#39;', '&amp;' 같은 HTML 문자 참조가 그대로 들어 있어 화면용 글자로 되돌린다 */
     static String unescape(String value) {
-        if (value == null) return null;
-        String text = value.replace("&#39;", "'").replace("&quot;", "\"").replace("&lt;", "<")
-                .replace("&gt;", ">").replace("&nbsp;", " ").replace("&amp;", "&");
-        return text.isBlank() ? null : text.trim();
+        return HtmlText.unescape(value);
     }
 }

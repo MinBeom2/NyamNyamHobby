@@ -29,7 +29,6 @@ public class TourApiClient {
 
     private static final DateTimeFormatter BASIC = DateTimeFormatter.BASIC_ISO_DATE;
     private static final Pattern HREF = Pattern.compile("href=[\"']([^\"']+)[\"']");
-    private static final Pattern TAG = Pattern.compile("<[^>]+>");
 
     private final RestClient restClient;
     private final String serviceKey;
@@ -158,11 +157,7 @@ public class TourApiClient {
     }
 
     static String stripTags(String html) {
-        if (html == null) return null;
-        String text = TAG.matcher(html.replaceAll("(?i)<br\\s*/?>", " ")).replaceAll("")
-                .replace("&nbsp;", " ").replace("&amp;", "&").replace("&lt;", "<").replace("&gt;", ">")
-                .replaceAll("\\s+", " ").trim();
-        return text.isEmpty() ? null : text;
+        return HtmlText.plain(html);
     }
 
     private static String blankToNull(String value) {

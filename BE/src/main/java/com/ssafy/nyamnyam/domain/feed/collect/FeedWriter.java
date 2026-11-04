@@ -6,6 +6,7 @@ import com.ssafy.nyamnyam.domain.feed.entity.FeedStatus;
 import com.ssafy.nyamnyam.domain.feed.repository.FeedItemRepository;
 import com.ssafy.nyamnyam.domain.hobby.entity.Hobby;
 import com.ssafy.nyamnyam.domain.user.repository.RegionRepository;
+import com.ssafy.nyamnyam.global.infra.publicdata.HtmlText;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -16,7 +17,7 @@ import java.util.HashSet;
 import java.util.Set;
 
 /**
- * 수집한 행사를 feed_items에 저장한다. 항목마다 트랜잭션을 따로 써서 한 건이 실패해도 나머지는 저장된다.
+ * 수집한 행사를 feed_items에 저장한다. 출처와 상관없이 제목·요약의 HTML 문자 참조(&lt; &middot; 등)는 여기서 푼다. 항목마다 트랜잭션을 따로 써서 한 건이 실패해도 나머지는 저장된다.
  * MVP는 관리자 검토(P2)가 없어 취미가 정해진 항목은 바로 PUBLISHED로 공개한다.
  */
 @Component
@@ -38,7 +39,7 @@ public class FeedWriter {
                                    LocalDate start, LocalDate end) {
         return feedItemRepository.findByOriginAndSourceRef(origin, sourceRef)
                 .map(item -> {
-                    item.refreshFromSource(cut(title, TITLE_MAX), cut(thumbnailUrl, URL_MAX), start, end);
+                    item.refreshFromSource(cut(HtmlText.unescape(title), TITLE_MAX), cut(thumbnailUrl, URL_MAX), start, end);
                     return true;
                 })
                 .orElse(false);
@@ -50,8 +51,8 @@ public class FeedWriter {
                                    LocalDate start, LocalDate end, String summary) {
         return feedItemRepository.findByOriginAndSourceRef(origin, sourceRef)
                 .map(item -> {
-                    item.refreshFromSource(cut(title, TITLE_MAX), cut(thumbnailUrl, URL_MAX), start, end);
-                    item.refreshSummary(cut(summary, SUMMARY_MAX));
+                    item.refreshFromSource(cut(HtmlText.unescape(title), TITLE_MAX), cut(thumbnailUrl, URL_MAX), start, end);
+                    item.refreshSummary(cut(HtmlText.plain(summary), SUMMARY_MAX));
                     return true;
                 })
                 .orElse(false);
@@ -63,15 +64,15 @@ public class FeedWriter {
         if (candidate.eventStart() != null) {
             boolean duplicate = feedItemRepository.findByEventStart(candidate.eventStart()).stream()
                     .anyMatch(other -> other.getOrigin() != candidate.origin()
-                            && similarity(other.getTitle(), candidate.title()) >= titleSimilarity);
+                            && similarity(other.getTitle(), HtmlText.unescape(candidate.title())) >= titleSimilarity);
             if (duplicate) return Result.DUPLICATE;
         }
         LocalDateTime now = LocalDateTime.now();
         feedItemRepository.save(FeedItem.builder()
                 .hobby(hobby)
                 .type(candidate.type())
-                .title(cut(candidate.title(), TITLE_MAX))
-                .summary(cut(candidate.summary(), SUMMARY_MAX))
+                .title(cut(HtmlText.unescape(candidate.title()), TITLE_MAX))
+                .summary(cut(HtmlText.plain(candidate.summary()), SUMMARY_MAX))
                 .sourceName(candidate.sourceName())
                 .sourceUrl(cut(candidate.sourceUrl(), URL_MAX))
                 .sourceRef(candidate.sourceRef())

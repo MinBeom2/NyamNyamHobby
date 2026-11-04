@@ -118,6 +118,8 @@ app:
     cron: "0 0 5 * * *"   # 매일 05:00 (Asia/Seoul)
     tour-region-code: "11" # TourAPI 법정동 시도 코드(서울)
     kopis-region-code: "11"
+    kopis-interval-millis: 500     # KOPIS 검색어 사이 쉬는 시간(연달아 부르면 웹서버가 400으로 막음)
+    kopis-retry-delay-millis: 2000 # 실패 시 쉬고 한 번 다시 시도
     lookahead-days: 60     # KOPIS: 오늘부터 60일 안에 열리는 공연
     title-similarity: 0.8  # 출처가 다른 같은 행사 판단(시작일 같고 제목 유사도 이상)
   # 공공·문화 데이터 인증키(공공데이터포털은 Decoding 키)

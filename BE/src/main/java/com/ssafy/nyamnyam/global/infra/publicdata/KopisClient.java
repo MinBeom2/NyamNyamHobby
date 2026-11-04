@@ -20,6 +20,8 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * KOPIS(공연예술통합전산망) 공연 목록 클라이언트. 응답은 XML이다.
@@ -31,6 +33,7 @@ public class KopisClient {
 
     private static final DateTimeFormatter BASIC = DateTimeFormatter.BASIC_ISO_DATE;
     private static final DateTimeFormatter DOTTED = DateTimeFormatter.ofPattern("yyyy.MM.dd");
+    private static final Pattern TITLE = Pattern.compile("(?is)<title>(.*?)</title>");
     public static final String DETAIL_URL = "https://www.kopis.or.kr/por/db/pblprfr/pblprfrView.do?menuId=MNU_00020&mt20Id=";
 
     private final RestClient restClient;
@@ -86,10 +89,15 @@ public class KopisClient {
         return parse(xml);
     }
 
-    /** 응답 본문 앞 200자만, 인증키와 줄바꿈은 지워서 */
+    /**
+     * 응답 본문을 로그용으로 줄인다. 웹서버 HTML 오류 페이지면 제목(title)만, 아니면 태그를 걷고 앞 200자만 남긴다.
+     * 응답에 인증키가 섞여 오더라도 지운다.
+     */
     String mask(String body) {
         if (body == null) return "";
-        String text = body.replaceAll("\s+", " ").trim();
+        Matcher title = TITLE.matcher(body);
+        String text = title.find() ? title.group(1) : body.replaceAll("<[^>]+>", " ");
+        text = text.replaceAll("\s+", " ").trim();
         if (serviceKey != null && !serviceKey.isBlank()) text = text.replace(serviceKey, "***");
         return text.length() <= 200 ? text : text.substring(0, 200) + "…";
     }

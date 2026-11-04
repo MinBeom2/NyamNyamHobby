@@ -56,7 +56,7 @@ class FeedCollectServiceTest {
 
     @BeforeEach void setUp() {
         service = new FeedCollectService(tour, kopis, culture, regions, mappings, writer, runs,
-                new FeedCollectProperties(true, "11", "11", 60, 100, 5, 50, 0.8, "서울", "서울특별시", 100, 5));
+                new FeedCollectProperties(true, "11", "11", 60, 100, 5, 50, 0.8, "서울", "서울특별시", 100, 5, 0, 0));
         climbing = Hobby.builder().name("클라이밍").build();
         ReflectionTestUtils.setField(climbing, "id", 1L);
         given(runs.save(any(BatchRun.class))).willAnswer(call -> call.getArgument(0));
@@ -158,6 +158,7 @@ class FeedCollectServiceTest {
                 HobbySourceMapping.builder().hobby(climbing).target(SourceTarget.EVENT_KEYWORD).keyword("클라이밍").build(),
                 HobbySourceMapping.builder().hobby(guitar).target(SourceTarget.EVENT_KEYWORD).keyword("기타").build()));
         given(kopis.isConfigured()).willReturn(true);
+        // 재시도까지 두 번 모두 실패
         given(kopis.search(eq("클라이밍"), any(), any(), any(), anyInt(), anyInt()))
                 .willThrow(new PublicDataApiException("KOPIS 호출 실패(클라이밍): HTTP 400"));
         given(kopis.search(eq("기타"), any(), any(), any(), anyInt(), anyInt())).willReturn(List.of(
@@ -180,5 +181,19 @@ class FeedCollectServiceTest {
 
         assertThat(run.getStatus()).isEqualTo(BatchRunStatus.FAILED);
         assertThat(run.getMessage()).contains("kopis 실패(KOPIS 호출 실패(클라이밍): HTTP 400)");
+    }
+
+    @Test void kopisRetriesOnceAfterATemporaryBlock() {
+        given(kopis.isConfigured()).willReturn(true);
+        given(kopis.search(eq("클라이밍"), any(), any(), any(), anyInt(), anyInt()))
+                .willThrow(new PublicDataApiException("KOPIS 호출 실패(클라이밍): HTTP 400 400 Bad Request"))
+                .willReturn(List.of(new KopisClient.Performance("PF3", "클라이밍 뮤지컬", today, today, null, "홀", "뮤지컬")));
+        given(writer.create(any(), eq(climbing), anyDouble())).willReturn(FeedWriter.Result.CREATED);
+
+        BatchRun run = service.collect();
+
+        verify(kopis, org.mockito.Mockito.times(2)).search(eq("클라이밍"), any(), any(), any(), anyInt(), anyInt());
+        verify(writer).create(any(), eq(climbing), anyDouble());
+        assertThat(run.getStatus()).isEqualTo(BatchRunStatus.SUCCESS);
     }
 }

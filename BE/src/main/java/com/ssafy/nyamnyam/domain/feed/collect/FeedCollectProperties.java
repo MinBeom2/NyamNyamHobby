@@ -19,6 +19,8 @@ import org.springframework.boot.context.properties.bind.DefaultValue;
  * @param regionSido       regions.sido 이름. 문화포털의 시군구 이름을 지역 코드로 바꿀 때 쓴다
  * @param culturePageSize  문화포털 한 번에 받을 항목 수
  * @param cultureMaxPages  문화포털 최대 페이지 수(서울 전시는 보통 100건 안팎)
+ * @param kopisIntervalMillis   KOPIS 검색어 사이 쉬는 시간. 쉬지 않고 연달아 부르면 13번째쯤부터 웹서버가 400으로 막는다
+ * @param kopisRetryDelayMillis KOPIS가 실패하면 이만큼 쉬고 한 번만 다시 시도한다
  */
 @ConfigurationProperties(prefix = "app.feed-collect")
 public record FeedCollectProperties(
@@ -33,6 +35,8 @@ public record FeedCollectProperties(
         @DefaultValue("서울") String cultureSido,
         @DefaultValue("서울특별시") String regionSido,
         @DefaultValue("100") int culturePageSize,
-        @DefaultValue("5") int cultureMaxPages
+        @DefaultValue("5") int cultureMaxPages,
+        @DefaultValue("500") long kopisIntervalMillis,
+        @DefaultValue("2000") long kopisRetryDelayMillis
 ) {
 }

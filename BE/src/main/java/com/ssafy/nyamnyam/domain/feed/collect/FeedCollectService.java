@@ -169,11 +169,13 @@ public class FeedCollectService {
         Set<String> seen = new HashSet<>();
         List<String> failedKeywords = new ArrayList<>();
         PublicDataApiException lastError = null;
+        boolean first = true;
         for (String keyword : keywords) {
-            stats.calls++;
+            if (!first) pause(properties.kopisIntervalMillis());
+            first = false;
             List<KopisClient.Performance> shows;
             try {
-                shows = kopisClient.search(keyword, properties.kopisRegionCode(), today, to, 1, properties.kopisRows());
+                shows = searchKopis(keyword, today, to, stats);
             } catch (PublicDataApiException e) {
                 // 검색어 하나가 실패해도 나머지 검색어는 계속 받는다
                 log.warn("[FEED_COLLECT] {}", e.getMessage());
@@ -208,6 +210,28 @@ public class FeedCollectService {
             stats.partial = true;
             stats.note("kopis 검색어 " + failedKeywords.size() + "/" + keywords.size() + "개 실패("
                     + String.join(", ", failedKeywords.subList(0, Math.min(5, failedKeywords.size()))) + ")");
+        }
+    }
+
+    /** 실패하면 잠시 쉬고 한 번만 다시 시도한다(순간 호출 제한에 걸린 경우를 넘기려고) */
+    private List<KopisClient.Performance> searchKopis(String keyword, LocalDate from, LocalDate to, Stats stats) {
+        try {
+            stats.calls++;
+            return kopisClient.search(keyword, properties.kopisRegionCode(), from, to, 1, properties.kopisRows());
+        } catch (PublicDataApiException first) {
+            pause(properties.kopisRetryDelayMillis());
+            stats.calls++;
+            return kopisClient.search(keyword, properties.kopisRegionCode(), from, to, 1, properties.kopisRows());
+        }
+    }
+
+    private static void pause(long millis) {
+        if (millis <= 0) return;
+        try {
+            Thread.sleep(millis);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PublicDataApiException("수집 중단(인터럽트)");
         }
     }
 

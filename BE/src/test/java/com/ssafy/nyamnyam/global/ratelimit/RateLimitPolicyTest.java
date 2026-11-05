@@ -63,6 +63,6 @@ class RateLimitPolicyTest {
         assertThat(RateLimitPolicy.AUTH.rejectWhenUnavailable()).isFalse();
         assertThat(RateLimitPolicy.READ.rejectWhenUnavailable()).isFalse();
 
-        assertThat(RateLimitPolicy.AI.period()).isEqualTo(Duration.ofHours(1));
+        assertThat(RateLimitPolicy.AI.period()).isEqualTo(Duration.ofMinutes(1));
     }
 }

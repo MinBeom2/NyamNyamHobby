@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link, Navigate } from 'react-router-dom';
 import { getPlaceHobbies, getPlaces, getRegions, getSidos, placeQueryKeys } from '../../features/place/api/placeApi';
+import { HOBBY_THUMBNAIL_MAP } from '../../features/place/model/hobbyThumbnailMap';
 import { KakaoPlaceMap } from '../../features/place/ui/KakaoPlaceMap';
 import type { FeedScope, FeedType } from '../../features/feed/api/feedApi';
 import { feedTypeLabels, OTHER_HOBBY_LABEL } from '../../features/feed/model/feedAdapter';
@@ -72,6 +73,10 @@ export function PlaceSearchPage() {
   }, [selectedPlaceId]);
 
   const selectedHobby = hobbies.find((hobby) => hobby.id === hobbyId);
+  const currentHobbyThumbnail =
+    (selectedHobby?.name && HOBBY_THUMBNAIL_MAP[selectedHobby.name]) ||
+    selectedHobby?.thumbnailUrl ||
+    characterAssets.searching;
 
   return <div className="site-shell"><AppHeader notificationCount={3} /><main className="page-container places-page"><div className="page-title-row"><div><h1>활동 장소 찾기</h1></div></div>
     <div className="place-controls">
@@ -92,7 +97,16 @@ export function PlaceSearchPage() {
         {!placesQuery.isLoading && !placesQuery.isError && places.length === 0 ? <div className="mini-empty"><Search /><b>조건에 맞는 장소가 없어요</b></div> : null}
         <div className="place-results__list">
           {places.map((place) => <article id={`place-${place.id}`} className={selectedPlaceId === place.id ? 'selected' : ''} key={place.id} onClick={() => setSelectedPlaceId(place.id)}>
-            <div className="place-thumb"><Image /><span>{place.source}</span></div>
+            <div className="place-thumb">
+              <img
+                src={currentHobbyThumbnail}
+                alt={selectedHobby?.name ?? place.name}
+                loading="lazy"
+                onError={(event) => {
+                  (event.currentTarget as HTMLImageElement).src = characterAssets.searching;
+                }}
+              />
+            </div>
             <div>
               <h3>{place.name}<span>{place.category}</span></h3>
               <p>{place.address}</p>

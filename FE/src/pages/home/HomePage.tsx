@@ -247,7 +247,8 @@ function TodoRow({ hobby }: { hobby: UserHobbyDto }) {
 
 function NewsRow({ item }: { item: FeedHighlightModel }) {
   return (
-    <a aria-label={`${item.title} 자세히 보기 (새 탭)`} className="news-row" href={item.sourceUrl} target="_blank" rel="noopener noreferrer">
+    <a aria-label={`${item.isNew ? '새 소식, ' : ''}${item.title} 자세히 보기 (새 탭)`} className="news-row" href={item.sourceUrl} target="_blank" rel="noopener noreferrer">
+      <i className={item.isNew ? 'news-row__dot news-row__dot--new' : 'news-row__dot'} aria-hidden="true" />
       <span className={item.accent ? 'badge badge--orange' : 'badge'}>{item.badge}</span>
       <strong title={item.title}>{item.title}</strong>
       <small>{item.meta}</small>

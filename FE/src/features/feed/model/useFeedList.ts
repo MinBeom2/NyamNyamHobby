@@ -63,6 +63,6 @@ export function useFeedHighlights(limit = 5) {
   return useQuery({
     queryKey: feedQueryKeys.highlights(limit),
     queryFn: () => getFeedHighlights(limit),
-    select: (items) => items.map(toFeedHighlightModel),
+    select: (items) => items.map((item) => toFeedHighlightModel(item)),
   });
 }

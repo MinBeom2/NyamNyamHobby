@@ -183,7 +183,10 @@ strong, b { font-weight: 700; }
 .todo-row__title small { color: #9aa4a6; }
 .progress-track { height: 7px; margin-top: 11px; overflow: hidden; border-radius: 999px; background: #ede7d7; }
 .progress-track span { display: block; height: 100%; border-radius: inherit; background: #13b8bd; }
-.news-row { min-height: 44px; display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 12px; border-bottom: 1px solid #f1eadf; font-size: 12px; }
+.news-row { min-height: 44px; display: grid; grid-template-columns: 6px auto 1fr auto; align-items: center; gap: 12px; border-bottom: 1px solid #f1eadf; font-size: 12px; }
+/* 최근 3일 안에 올라온 소식: 알림 배지와 같은 색의 점. 점이 없는 줄도 자리를 비워 배지 위치를 맞춘다 */
+.news-row__dot { width: 6px; height: 6px; border-radius: 50%; }
+.news-row__dot--new { background: var(--color-orange); }
 .news-row:last-child { border-bottom: 0; }
 .news-row small { color: #899699; white-space: nowrap; }
 /* 실제 피드 제목은 길어서 한 줄로 자르고 전체 제목은 title(마우스 오버)로 */

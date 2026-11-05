@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { FeedItemDto } from '../api/feedApi';
-import { toFeedHighlightModel, toFeedItemModel } from './feedAdapter';
+import { isRecentlyPublished, toFeedHighlightModel, toFeedItemModel } from './feedAdapter';
 
 const base: FeedItemDto = {
   id: 1, hobbyId: 3, hobbyName: '클라이밍', type: 'EVENT', title: '클라이밍 페스티벌', summary: '요약',
@@ -42,5 +42,20 @@ describe('toFeedHighlightModel', () => {
     expect(toFeedHighlightModel(base)).toMatchObject({ badge: '행사', accent: true, meta: '송파구 · 11.01~11.03' });
     expect(toFeedHighlightModel({ ...base, type: 'CLASS', regionName: null })).toMatchObject({ badge: '클래스', accent: false, meta: '11.01~11.03' });
     expect(toFeedHighlightModel({ ...base, type: 'GUIDE', regionName: null, eventStart: null, eventEnd: null }).meta).toBe('게시 10.18');
+  });
+});
+
+describe('isRecentlyPublished', () => {
+  // 2026-11-05 오전
+  const today = new Date(2026, 10, 5, 9, 0);
+  it('keeps the new dot for today, yesterday and the day before', () => {
+    expect(isRecentlyPublished('2026-11-05T06:00:00+09:00', today)).toBe(true);
+    expect(isRecentlyPublished('2026-11-03T23:59:00+09:00', today)).toBe(true);
+    expect(isRecentlyPublished('2026-11-02T23:59:00+09:00', today)).toBe(false);
+  });
+
+  it('crosses month boundaries', () => {
+    expect(isRecentlyPublished('2026-10-31T10:00:00+09:00', new Date(2026, 10, 2))).toBe(true);
+    expect(isRecentlyPublished('2026-10-30T10:00:00+09:00', new Date(2026, 10, 2))).toBe(false);
   });
 });

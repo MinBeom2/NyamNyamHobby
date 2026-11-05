@@ -99,11 +99,16 @@ export function PlaceSearchPage() {
           {places.map((place) => <article id={`place-${place.id}`} className={selectedPlaceId === place.id ? 'selected' : ''} key={place.id} onClick={() => setSelectedPlaceId(place.id)}>
             <div className="place-thumb">
               <img
-                src={currentHobbyThumbnail}
-                alt={selectedHobby?.name ?? place.name}
+                src={place.thumbnailUrl || currentHobbyThumbnail}
+                alt={place.name}
                 loading="lazy"
                 onError={(event) => {
-                  (event.currentTarget as HTMLImageElement).src = characterAssets.searching;
+                  const target = event.currentTarget as HTMLImageElement;
+                  if (place.thumbnailUrl && target.src === place.thumbnailUrl && currentHobbyThumbnail) {
+                    target.src = currentHobbyThumbnail;
+                  } else {
+                    target.src = characterAssets.searching;
+                  }
                 }}
               />
             </div>

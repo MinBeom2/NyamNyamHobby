@@ -36,6 +36,9 @@ class PlaceWriterTest {
     @Mock
     RegionRepository regionRepository;
 
+    @Mock
+    com.ssafy.nyamnyam.global.infra.kakao.KakaoLocalClient kakaoLocalClient;
+
     @InjectMocks
     PlaceWriter placeWriter;
 

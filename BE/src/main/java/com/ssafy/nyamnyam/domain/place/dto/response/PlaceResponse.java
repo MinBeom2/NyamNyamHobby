@@ -15,6 +15,7 @@ public record PlaceResponse(
         String openingHours,
         String feeText,
         String externalUrl,
+        String thumbnailUrl,
         String source,
         boolean needsInfoCheck
 ) {
@@ -29,9 +30,9 @@ public record PlaceResponse(
                 place.getOpeningHours(),
                 place.getFeeText(),
                 place.getExternalUrl(),
+                place.getThumbnailUrl(),
                 place.getSource(),
                 place.computeNeedsInfoCheck()
         );
     }
 }
-

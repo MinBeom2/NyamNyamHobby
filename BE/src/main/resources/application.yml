@@ -129,7 +129,7 @@ app:
   # 켜고 끄는 것은 feed-collect.enabled를 따름
   feed-classify:
     cron: "0 0 6 * * *"    # 매일 06:00 (수집이 끝난 뒤)
-    daily-limit: 60        # 하루 최대 분류 건수(20건씩 GMS 3번 ≈ 4~5천 토큰). 남은 건 다음 날
+    daily-limit: 200       # 하루 최대 분류 건수(20건씩 GMS 10번, gpt-4o-mini로 약 35크레딧). 남은 건 다음 날
     chunk-size: 20
     model: gpt-4o-mini     # 30종 중 하나를 고르는 단순 판단이라 싼 모델 사용
     max-attempts: 3        # 답을 못 받은 횟수가 이만큼이면 후보(없으면 '그 외')로 확정

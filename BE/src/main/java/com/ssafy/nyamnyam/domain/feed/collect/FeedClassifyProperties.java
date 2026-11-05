@@ -14,7 +14,7 @@ import org.springframework.boot.context.properties.bind.DefaultValue;
  */
 @ConfigurationProperties(prefix = "app.feed-classify")
 public record FeedClassifyProperties(
-        @DefaultValue("60") int dailyLimit,
+        @DefaultValue("200") int dailyLimit,
         @DefaultValue("20") int chunkSize,
         @DefaultValue("gpt-4o-mini") String model,
         @DefaultValue("3") int maxAttempts

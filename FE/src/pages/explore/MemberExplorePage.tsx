@@ -1,11 +1,9 @@
-import { Bookmark, Check, ChevronDown, ChevronRight, Heart, Image, ThumbsDown } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Bookmark, ChevronDown, Heart, ThumbsDown } from 'lucide-react';
+import { Navigate } from 'react-router-dom';
 import type { AuthUser } from '../../features/auth/model/authStore';
-import type { ExplorationProgress, ExplorationRecommendation, ExplorationShort } from '../../features/exploration/model/explorationModel';
+import type { ExplorationProgress, ExplorationShort } from '../../features/exploration/model/explorationModel';
 import { useMemberExploration } from '../../features/exploration/hooks/useMemberExploration';
-import { useRecommendationResult } from '../../features/recommendation/model/useRecommendationResult';
 import { ApiError } from '../../shared/api/client';
-import { characterAssets } from '../../shared/assets/assets';
 import { AppHeader } from '../../shared/ui/AppHeader';
 import { RestartExploreControl } from './RestartExploreControl';
 
@@ -14,7 +12,8 @@ export function MemberExplorePage({ user }: { user: AuthUser }) {
   return <div className="site-shell">
     <AppHeader />
     <main className="page-container explore-page">
-      {exploration.recommendation ? <RecommendationComplete recommendation={exploration.recommendation} onRestart={exploration.restart} />
+      {/* 결과는 주소(/explore/result/:id)로 넘긴다. replace라 결과 화면에서 뒤로가기하면 끝난 쇼츠 화면이 아니라 탐색 전 페이지로 간다 */}
+      {exploration.recommendation ? <Navigate replace to={`/explore/result/${exploration.recommendation.recommendationId}`} />
         : exploration.isStartError ? <ExploreError error={exploration.startError} onRetry={exploration.restart} />
         : exploration.isStarting || !exploration.current ? <ExploreStatus />
         : <>
@@ -62,34 +61,6 @@ function ServerShortPlayer({ short }: { short: ExplorationShort }) {
 
 function ReactionButton({ active, disabled, label, onClick, children }: { active: boolean; disabled: boolean; label: string; onClick: () => void; children: React.ReactNode }) {
   return <button type="button" disabled={disabled} className={active ? 'short-action active' : 'short-action'} aria-pressed={active} onClick={onClick}>{children}<span>{label}</span></button>;
-}
-
-function RecommendationComplete({ recommendation, onRestart }: { recommendation: ExplorationRecommendation; onRestart: () => void }) {
-  const resultQuery = useRecommendationResult(recommendation.recommendationId);
-  const result = resultQuery.data;
-  return <section className="explore-complete">
-    <div className="explore-complete__icon"><Check /></div><img src={characterAssets.celebration} alt="탐색 완료를 축하하는 냠냠취미 캐릭터" />
-    <h1>탐색을 마쳤어요!</h1>
-    {resultQuery.isPending && <p role="status">추천 결과를 불러오고 있어요.</p>}
-    {resultQuery.isError && <p role="alert">추천 결과를 불러오지 못했어요.</p>}
-    {result && <>
-      <ul className="recommend-result-list" aria-label="추천 취미">
-        {result.interests.map((hobby) => <li key={hobby.hobbyId}>
-          <Link className="recommend-result" to={`/hobbies/${hobby.hobbyId}`} aria-label={`${hobby.name} 취미 정보 보기`}>
-            <span className="recommend-result__thumb">{hobby.thumbnailUrl ? <img src={hobby.thumbnailUrl} alt="" /> : <Image aria-hidden="true" />}</span>
-            <span className="recommend-result__body"><strong>{hobby.name}</strong><span>{hobby.reason}</span></span>
-            <ChevronRight className="recommend-result__arrow" aria-hidden="true" />
-          </Link>
-        </li>)}
-      </ul>
-      {result.reasonPending && <p className="recommend-result__pending" role="status">추천 이유를 정리하고 있어요.</p>}
-      {result.related.length > 0 && <div className="recommend-related">
-        <h2>그 외의 유사한 취미들이에요</h2>
-        <div className="explore-complete__chips">{result.related.map((hobby) => <Link key={hobby.hobbyId} to={`/hobbies/${hobby.hobbyId}`}>{hobby.name}</Link>)}</div>
-      </div>}
-    </>}
-    <div className="explore-complete__actions"><RestartExploreControl onConfirm={onRestart} /><Link className="button button--primary" to="/home">홈으로 가기</Link></div>
-  </section>;
 }
 
 function ExploreStatus() {

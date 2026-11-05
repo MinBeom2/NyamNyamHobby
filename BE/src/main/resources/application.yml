@@ -154,6 +154,10 @@ app:
     kakao-local:
       base-url: ${KAKAO_LOCAL_BASE_URL:https://dapi.kakao.com}
       key: ${KAKAO_LOCAL_API_KEY:${KAKAO_REST_API_KEY:}}
+  # 레이트 리밋(Redis + Bucket4j 토큰 버킷). 정책별 한도는 global/ratelimit/RateLimitPolicy
+  rate-limit:
+    enabled: ${RATE_LIMIT_ENABLED:true}   # 로컬 부하 테스트·시연 때 false로 끌 수 있다
+    client-ip-header: X-Real-IP           # 서버 Nginx가 $remote_addr로 덮어쓰는 헤더
 
 management:
   endpoints:

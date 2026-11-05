@@ -32,7 +32,9 @@ pipeline {
                         // 배포 단계에 들어왔다는 표시. 알림은 이 값이 있을 때만 보낸다
                         script { env.FE_DEPLOY = 'true' }
                         // npm ci → tsc -b(타입 검사) → vite build. 타입 오류가 있으면 여기서 실패하고 서버는 그대로
-                        sh 'docker build -t $BUILD_IMAGE:$BUILD_NUMBER FE'
+                        withCredentials([string(credentialsId: 'kakao-map-js-key', variable: 'VITE_KAKAO_MAP_KEY')]) {
+                            sh 'docker build --build-arg VITE_KAKAO_MAP_KEY="$VITE_KAKAO_MAP_KEY" -t $BUILD_IMAGE:$BUILD_NUMBER FE'
+                        }
                     }
                 }
                 stage('Extract') {

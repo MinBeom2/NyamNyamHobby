@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Navigate, Outlet, Route, Routes, useLocation } from 'react-router-dom';
 import { GuestHomePage, MemberHomePage } from '../pages/home/HomePage';
 import { LoginPage } from '../pages/auth/LoginPage';
+import { LogoutPage } from '../pages/auth/LogoutPage';
 import { SignupPage } from '../pages/auth/SignupPage';
 import { EmailSentPage, LinkExpiredPage, VerifyEmailPage } from '../pages/auth/EmailVerificationPages';
 import { PasswordResetConfirmPage, PasswordResetRequestPage } from '../pages/auth/PasswordResetPages';
@@ -130,6 +131,7 @@ export function App() {
       <Routes>
         <Route path="/" element={<HomePage />} />
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/logout" element={<LogoutPage />} />
         <Route path="/oauth/callback" element={<OAuthCallbackPage />} />
         <Route path="/signup" element={<SignupPage />} />
         <Route path="/signup/email-sent" element={<EmailSentPage />} />

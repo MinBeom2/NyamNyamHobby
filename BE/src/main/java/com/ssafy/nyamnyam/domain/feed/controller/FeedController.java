@@ -53,4 +53,17 @@ public class FeedController {
         PageResponse<FeedItemResponse> response = feedService.getFeeds(userId, condition, page, size);
         return ResponseEntity.ok(ApiResponse.success(response));
     }
+
+    /**
+     * 홈 '관심 취미 새 소식'(회원). 내 취미 기준(없으면 전체), 오늘 새로 올라온 소식을 마감일 순으로 먼저,
+     * 모자라면 최신순으로 채워 최대 limit개(최대 10)를 준다.
+     */
+    @GetMapping("/highlights")
+    public ResponseEntity<ApiResponse<List<FeedItemResponse>>> getHighlights(
+            @RequestParam(value = "limit", defaultValue = "5") int limit,
+            @AuthenticationPrincipal UserPrincipal principal
+    ) {
+        Long userId = principal == null ? null : principal.getUserId();
+        return ResponseEntity.ok(ApiResponse.success(feedService.getHighlights(userId, limit)));
+    }
 }

@@ -55,3 +55,44 @@ export function toFeedItemModel(dto: FeedItemDto): FeedItemModel {
     closed: !dto.isEnded && dto.isClosed,
   };
 }
+
+/** 홈 새 소식 줄에 쓰는 짧은 유형 이름 */
+const shortTypeLabels: Record<FeedType, string> = { EVENT: '행사', SHOW: '공연·전시', CLASS: '클래스', GUIDE: '입문 자료' };
+
+export type FeedHighlightModel = {
+  id: number;
+  badge: string;
+  /** 축제·행사만 주황 배지(기존 디자인) */
+  accent: boolean;
+  title: string;
+  /** 자치구 · 기간 (지역이 없으면 기간만, 기간도 없으면 게시일) */
+  meta: string;
+  sourceUrl: string;
+  /** 최근 3일(오늘·어제·그제) 안에 올라온 소식 → 줄 왼쪽에 점 */
+  isNew: boolean;
+};
+
+/** 새 소식 점을 유지하는 날 수(올라온 날 포함) */
+export const NEW_FEED_DAYS = 3;
+
+/** 게시 시각(+09:00)이 오늘 포함 최근 days일 안이면 true. 날짜는 한국 날짜로 비교한다 */
+export function isRecentlyPublished(publishedAt: string, today = new Date(), days = NEW_FEED_DAYS) {
+  const published = publishedAt.slice(0, 10);
+  const oldest = new Date(today.getFullYear(), today.getMonth(), today.getDate() - (days - 1));
+  const oldestIso = `${oldest.getFullYear()}-${String(oldest.getMonth() + 1).padStart(2, '0')}-${String(oldest.getDate()).padStart(2, '0')}`;
+  return published >= oldestIso;
+}
+
+export function toFeedHighlightModel(dto: FeedItemDto, today = new Date()): FeedHighlightModel {
+  const district = dto.regionName?.split(' ').slice(1).join(' ') || dto.regionName;
+  const period = formatPeriod(dto.eventStart, dto.eventEnd);
+  return {
+    id: dto.id,
+    badge: shortTypeLabels[dto.type],
+    accent: dto.type === 'EVENT',
+    title: dto.title,
+    meta: [district, period ?? `게시 ${formatMonthDay(dto.publishedAt)}`].filter(Boolean).join(' · '),
+    sourceUrl: dto.sourceUrl,
+    isNew: isRecentlyPublished(dto.publishedAt, today),
+  };
+}

@@ -48,8 +48,14 @@ public enum ErrorCode {
     // 413 Payload Too Large
     UPLOAD_TOO_LARGE(HttpStatus.PAYLOAD_TOO_LARGE, "UPLOAD_TOO_LARGE", "이미지는 5MB 이하만 올릴 수 있어요."),
 
+    // 429 Too Many Requests
+    RATE_LIMIT_EXCEEDED(HttpStatus.TOO_MANY_REQUESTS, "RATE_LIMIT_EXCEEDED", "요청이 너무 많아요. 잠시 후 다시 시도해 주세요."),
+
     // 500 Internal Server Error
-    COMMON_INTERNAL_SERVER_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "COMMON_INTERNAL_SERVER_ERROR", "서버 내부 오류가 발생했습니다.");
+    COMMON_INTERNAL_SERVER_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "COMMON_INTERNAL_SERVER_ERROR", "서버 내부 오류가 발생했습니다."),
+
+    // 503 Service Unavailable
+    RATE_LIMIT_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "RATE_LIMIT_UNAVAILABLE", "일시적으로 요청을 처리할 수 없어요. 잠시 후 다시 시도해 주세요.");
 
     private final HttpStatus httpStatus;
     private final String code;

@@ -59,12 +59,20 @@ public class GmsClient {
      * 키가 없거나 호출·응답에 문제가 있으면 빈 값을 돌려주고, 판단은 호출한 쪽에서 한다.
      */
     public Optional<String> completeJson(String systemPrompt, String userPrompt, int maxTokens) {
+        return completeJson(model, systemPrompt, userPrompt, maxTokens);
+    }
+
+    /**
+     * 위와 같고 모델만 따로 고른다. 정보 피드 취미 분류처럼 단순한 판단은 싼 모델(gpt-4o-mini)로 토큰 비용을 줄인다.
+     * model이 비어 있으면 기본 모델을 쓴다.
+     */
+    public Optional<String> completeJson(String model, String systemPrompt, String userPrompt, int maxTokens) {
         if (!isConfigured()) {
             return Optional.empty();
         }
         try {
             ChatRequest request = new ChatRequest(
-                    model,
+                    model == null || model.isBlank() ? this.model : model,
                     List.of(new ChatMessage("system", systemPrompt), new ChatMessage("user", userPrompt)),
                     maxTokens,
                     0.0,

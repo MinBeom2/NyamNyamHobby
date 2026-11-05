@@ -97,25 +97,37 @@ public class FeedClassCollectService {
                     stats.rejected++;
                     continue;
                 }
-                Optional<Hobby> hobby = matcher.match(course.title());
-                if (hobby.isEmpty()) {
-                    stats.rejected++;
-                    continue;
-                }
                 String summary = FeedCollectService.joinNonBlank(course.status(), course.fee(), course.place());
                 if (feedWriter.refreshIfExists(FeedOrigin.SEOUL_RESERVATION, course.id(), course.title(),
                         course.imageUrl(), course.start(), course.end(), summary)) {
                     stats.updated++;
                     continue;
                 }
+                Optional<Hobby> hobby = matcher.match(course.title());
+                // 검색어에 안 걸리고 분류부터 취미와 무관한 강좌(역사·진로 등)는 GMS에 보내지 않고 버린다(토큰 절약)
+                if (hobby.isEmpty() && isUnrelatedCategory(course.category())) {
+                    stats.rejected++;
+                    stats.skippedCategory++;
+                    continue;
+                }
                 FeedWriter.Result saved = feedWriter.create(new FeedCandidate(FeedOrigin.SEOUL_RESERVATION, course.id(),
                         FeedType.CLASS, course.title(), summary, SOURCE, course.url(), course.imageUrl(),
                         course.district() == null ? null : regionCodes.get(course.district()),
-                        course.start(), course.end()), hobby.get(), properties.titleSimilarity());
-                if (saved == FeedWriter.Result.CREATED) stats.accepted++;
-                else stats.rejected++;
+                        course.start(), course.end(), course.category()), hobby.orElse(null), properties.titleSimilarity());
+                if (saved == FeedWriter.Result.CREATED) {
+                    stats.accepted++;
+                    if (hobby.isEmpty()) stats.pending++;
+                } else {
+                    stats.rejected++;
+                }
             }
             if (result.items().size() < size || start + size - 1 >= result.totalCount()) break;
         }
+    }
+
+    /** 소분류 이름에 무관 분류(설정값) 중 하나라도 들어 있으면 true */
+    boolean isUnrelatedCategory(String category) {
+        if (category == null) return false;
+        return properties.classSkipCategories().stream().anyMatch(category::contains);
     }
 }

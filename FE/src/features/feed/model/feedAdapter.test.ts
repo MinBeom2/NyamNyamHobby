@@ -31,4 +31,8 @@ describe('toFeedItemModel', () => {
     expect(toFeedItemModel({ ...base, type: 'CLASS', isClosed: true })).toMatchObject({ closed: true, ended: false });
     expect(toFeedItemModel({ ...base, isClosed: true, isEnded: true })).toMatchObject({ closed: false, ended: true });
   });
+
+  it('labels feeds without a hobby as 그 외', () => {
+    expect(toFeedItemModel({ ...base, hobbyId: null, hobbyName: null }).hobbyName).toBe('그 외');
+  });
 });

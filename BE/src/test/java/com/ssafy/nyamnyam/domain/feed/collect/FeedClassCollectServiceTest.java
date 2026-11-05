@@ -32,6 +32,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyDouble;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
@@ -52,7 +53,7 @@ class FeedClassCollectServiceTest {
 
     @BeforeEach void setUp() {
         service = new FeedClassCollectService(seoul, mappings, regions, writer, runs,
-                new FeedCollectProperties(true, "11", "11", 60, 100, 5, 50, 0.8, "서울", "서울특별시", 100, 5, 0, 0, 1000, 5));
+                new FeedCollectProperties(true, "11", "11", 60, 100, 5, 50, 0.8, "서울", "서울특별시", 100, 5, 0, 0, 1000, 5, List.of("역사")));
         yoga = Hobby.builder().name("요가").build();
         ReflectionTestUtils.setField(yoga, "id", 3L);
         given(runs.save(any(BatchRun.class))).willAnswer(call -> call.getArgument(0));
@@ -63,18 +64,24 @@ class FeedClassCollectServiceTest {
     }
 
     private Course course(String id, String title, LocalDate end) {
-        return new Course(id, title, "체육", "접수중", "무료", "종로문화체육센터", "성인",
+        return course(id, title, "체육", end);
+    }
+
+    private Course course(String id, String title, String category, LocalDate end) {
+        return new Course(id, title, category, "접수중", "무료", "종로문화체육센터", "성인",
                 "https://yeyak.seoul.go.kr/web/reservation/selectReservView.do?rsv_svc_id=" + id, "http://img",
                 "종로구", today.minusDays(3), end);
     }
 
-    @Test void savesHobbyClassesWithStatusInSummary() {
+    @Test void savesClassesWithCandidateOrForClassificationAndSkipsUnrelatedCategories() {
         given(seoul.isConfigured()).willReturn(true);
         given(seoul.list(1, 1000)).willReturn(new SeoulReservationClient.CoursePage(List.of(
                 course("S1", "저녁 힐링 요가 교실", today.plusDays(20)),
-                course("S2", "경희궁 역사 탐험대", today.plusDays(20)),
-                course("S3", "아침 요가 (지난 기수)", today.minusDays(1))), 3));
+                course("S2", "경희궁 역사 탐험대", "역사", today.plusDays(20)),
+                course("S3", "아침 요가 (지난 기수)", today.minusDays(1)),
+                course("S4", "코바늘 소품 만들기", "공예", today.plusDays(20))), 4));
         given(writer.create(any(), eq(yoga), anyDouble())).willReturn(FeedWriter.Result.CREATED);
+        given(writer.create(any(), isNull(), anyDouble())).willReturn(FeedWriter.Result.CREATED);
 
         BatchRun run = service.collect();
 
@@ -86,11 +93,17 @@ class FeedClassCollectServiceTest {
             assertThat(c.summary()).isEqualTo("접수중 · 무료 · 종로문화체육센터");
             assertThat(c.sourceUrl()).endsWith("rsv_svc_id=S1");
             assertThat(c.regionCode()).isEqualTo("11110");
+            assertThat(c.sourceCategory()).isEqualTo("체육");
         });
+        // 검색어에 안 걸린 공예 강좌는 분류 대기로, 역사 강좌는 GMS에 보내지 않고 버린다
+        ArgumentCaptor<FeedCandidate> pending = ArgumentCaptor.forClass(FeedCandidate.class);
+        verify(writer).create(pending.capture(), isNull(), eq(0.8));
+        assertThat(pending.getValue().title()).isEqualTo("코바늘 소품 만들기");
         assertThat(run.getJob()).isEqualTo(BatchJob.CLASS_COLLECT);
         assertThat(run.getStatus()).isEqualTo(BatchRunStatus.SUCCESS);
-        assertThat(run.getAccepted()).isEqualTo(1);
-        assertThat(run.getRejected()).isEqualTo(2); // 취미와 무관 1, 운영 끝남 1
+        assertThat(run.getAccepted()).isEqualTo(2);
+        assertThat(run.getRejected()).isEqualTo(2); // 역사 분류 1, 운영 끝남 1
+        assertThat(run.getMessage()).contains("분류 대기 1건").contains("무관 분류 제외 1건");
     }
 
     @Test void existingClassRefreshesStatusSummary() {

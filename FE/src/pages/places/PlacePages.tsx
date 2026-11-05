@@ -5,7 +5,7 @@ import { Link, Navigate } from 'react-router-dom';
 import { getPlaceHobbies, getPlaces, getRegions, getSidos, placeQueryKeys } from '../../features/place/api/placeApi';
 import { KakaoPlaceMap } from '../../features/place/ui/KakaoPlaceMap';
 import type { FeedScope, FeedType } from '../../features/feed/api/feedApi';
-import { feedTypeLabels } from '../../features/feed/model/feedAdapter';
+import { feedTypeLabels, OTHER_HOBBY_LABEL } from '../../features/feed/model/feedAdapter';
 import { dateRangeLabel, regionLabel, type DateRange } from '../../features/feed/model/feedFilters';
 import { useFeedList, useFeedRegions, useScopeHobbies } from '../../features/feed/model/useFeedList';
 import { DateFilterModal, RegionFilterModal } from '../../features/feed/ui/FeedFilterModals';
@@ -106,7 +106,8 @@ const feedScopes: Array<{ label: string; value: FeedScope }> = [
 export function InfoFeedPage() {
   const [type, setType] = useState<FeedType | undefined>();
   const [scope, setScope] = useState<FeedScope>('MY');
-  const [hobbyId, setHobbyId] = useState<number | undefined>();
+  // 숫자 = 그 취미, 'OTHER' = 30종 어디에도 맞지 않는 '그 외', undefined = 전체 취미
+  const [hobbyId, setHobbyId] = useState<number | 'OTHER' | undefined>();
   const [hideEnded, setHideEnded] = useState(true);
   const [keywordInput, setKeywordInput] = useState('');
   const [keyword, setKeyword] = useState('');
@@ -118,8 +119,11 @@ export function InfoFeedPage() {
   const regionOptions = (regionsQuery.data ?? []).map((region) => ({ id: region.id, name: region.sigungu }));
   // 내 취미가 없으면 맞춤 피드 대신 전체 피드를 보여 주고 안내한다
   const fallbackToAll = scope === 'MY' && scopeHobbies.hasNoMyHobbies;
+  // '그 외'는 내 취미·관심 취미에 속할 수 없어 전체 범위에서만 칩으로 보여 준다
+  const showOther = scope === 'ALL' || fallbackToAll;
   const feeds = useFeedList({
-    scope: fallbackToAll ? 'ALL' : scope, hobbyId, type, excludeEnded: hideEnded,
+    scope: fallbackToAll ? 'ALL' : scope, type, excludeEnded: hideEnded,
+    hobbyId: typeof hobbyId === 'number' ? hobbyId : undefined, uncategorized: hobbyId === 'OTHER',
     keyword: keyword || undefined, from: dateRange.from, to: dateRange.to, regionIds,
   });
   const changeScope = (next: FeedScope) => { setScope(next); setHobbyId(undefined); };
@@ -145,9 +149,10 @@ export function InfoFeedPage() {
       </div>
     </div>
     {fallbackToAll && <p className="feed-notice">내 취미를 선택하면 맞춤 소식을 볼 수 있어요. 지금은 전체 취미 소식을 보여 드려요. <Link to="/mypage/interests">내 취미 선택</Link></p>}
-    {scopeHobbies.hobbies.length > 0 && <div className="place-hobbies feed-hobbies">
+    {(scopeHobbies.hobbies.length > 0 || showOther) && <div className="place-hobbies feed-hobbies">
       <button className={hobbyId === undefined ? 'active' : ''} type="button" onClick={() => setHobbyId(undefined)}>전체 취미</button>
       {scopeHobbies.hobbies.map((item) => <button className={hobbyId === item.hobbyId ? 'active' : ''} type="button" onClick={() => setHobbyId(item.hobbyId)} key={item.hobbyId}>{item.name}</button>)}
+      {showOther && <button className={hobbyId === 'OTHER' ? 'active' : ''} type="button" onClick={() => setHobbyId('OTHER')}>{OTHER_HOBBY_LABEL}</button>}
     </div>}
     {feeds.isPending && <section className="empty-state feed-empty"><p>정보 피드를 불러오고 있어요.</p></section>}
     {feeds.isError && <section className="empty-state feed-empty"><h2>정보 피드를 불러오지 못했어요</h2><Button onClick={() => feeds.refetch()}>다시 시도</Button></section>}

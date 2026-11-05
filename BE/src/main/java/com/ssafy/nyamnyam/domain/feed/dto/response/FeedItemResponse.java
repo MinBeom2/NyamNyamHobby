@@ -12,6 +12,7 @@ import java.time.ZoneOffset;
 
 public record FeedItemResponse(
         Long id,
+        /** null이면 30종 어디에도 맞지 않는 '그 외' 피드 */
         Long hobbyId,
         String hobbyName,
         FeedType type,
@@ -31,8 +32,8 @@ public record FeedItemResponse(
     public static FeedItemResponse from(FeedItem item) {
         return new FeedItemResponse(
                 item.getId(),
-                item.getHobby().getId(),
-                item.getHobby().getName(),
+                item.getHobby() == null ? null : item.getHobby().getId(),
+                item.getHobby() == null ? null : item.getHobby().getName(),
                 item.getType(),
                 item.getTitle(),
                 item.getSummary(),

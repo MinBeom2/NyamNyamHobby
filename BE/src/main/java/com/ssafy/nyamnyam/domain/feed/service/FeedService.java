@@ -86,7 +86,9 @@ public class FeedService {
             if (scopeHobbyIds != null) {
                 predicates.add(root.get("hobby").get("id").in(scopeHobbyIds));
             }
-            if (condition.hobbyId() != null) {
+            if (condition.uncategorized()) {
+                predicates.add(cb.isNull(root.get("hobby")));
+            } else if (condition.hobbyId() != null) {
                 predicates.add(cb.equal(root.get("hobby").get("id"), condition.hobbyId()));
             }
             if (condition.type() != null) {

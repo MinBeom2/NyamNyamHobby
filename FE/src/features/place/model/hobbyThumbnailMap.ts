@@ -1,0 +1,36 @@
+/**
+ * 30종 기본 취미 대표 썸네일 매핑 (FE/public/assets/hobbies/*.webp)
+ */
+export const HOBBY_THUMBNAIL_MAP: Record<string, string> = {
+  클라이밍: '/assets/hobbies/climbing.webp',
+  러닝: '/assets/hobbies/running.webp',
+  요가: '/assets/hobbies/yoga.webp',
+  배드민턴: '/assets/hobbies/badminton.webp',
+  수영: '/assets/hobbies/swimming.webp',
+  등산: '/assets/hobbies/hiking.webp',
+  '걷기·산책': '/assets/hobbies/walking.webp',
+  캠핑: '/assets/hobbies/camping.webp',
+  자전거: '/assets/hobbies/cycling.webp',
+  낚시: '/assets/hobbies/fishing.webp',
+  뜨개질: '/assets/hobbies/knitting.webp',
+  도자기: '/assets/hobbies/pottery.webp',
+  목공: '/assets/hobbies/woodworking.webp',
+  프라모델: '/assets/hobbies/plamodel.webp',
+  '캔들·디퓨저': '/assets/hobbies/candle.webp',
+  드로잉: '/assets/hobbies/drawing.webp',
+  캘리그라피: '/assets/hobbies/calligraphy.webp',
+  기타: '/assets/hobbies/guitar.webp',
+  'K-팝 댄스': '/assets/hobbies/kpopdance.webp',
+  '사진 촬영': '/assets/hobbies/photography.webp',
+  베이킹: '/assets/hobbies/baking.webp',
+  홈카페: '/assets/hobbies/homecafe.webp',
+  '집밥 요리': '/assets/hobbies/cooking.webp',
+  반려식물: '/assets/hobbies/plant.webp',
+  테라리움: '/assets/hobbies/terrarium.webp',
+  독서: '/assets/hobbies/reading.webp',
+  글쓰기: '/assets/hobbies/writing.webp',
+  보드게임: '/assets/hobbies/boardgame.webp',
+  퍼즐: '/assets/hobbies/puzzle.webp',
+  '전시 관람': '/assets/hobbies/exhibition.webp',
+};
+

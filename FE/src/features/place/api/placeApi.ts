@@ -22,6 +22,7 @@ export type PlaceDto = {
   feeText: string | null;
   externalUrl: string | null;
   source: string;
+  thumbnailUrl: string | null;
   needsInfoCheck: boolean;
 };
 

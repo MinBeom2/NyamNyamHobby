@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { FeedItemDto } from '../api/feedApi';
-import { toFeedItemModel } from './feedAdapter';
+import { toFeedHighlightModel, toFeedItemModel } from './feedAdapter';
 
 const base: FeedItemDto = {
   id: 1, hobbyId: 3, hobbyName: '클라이밍', type: 'EVENT', title: '클라이밍 페스티벌', summary: '요약',
@@ -34,5 +34,13 @@ describe('toFeedItemModel', () => {
 
   it('labels feeds without a hobby as 그 외', () => {
     expect(toFeedItemModel({ ...base, hobbyId: null, hobbyName: null }).hobbyName).toBe('그 외');
+  });
+});
+
+describe('toFeedHighlightModel', () => {
+  it('shows a short type, the district and the period for the home panel', () => {
+    expect(toFeedHighlightModel(base)).toMatchObject({ badge: '행사', accent: true, meta: '송파구 · 11.01~11.03' });
+    expect(toFeedHighlightModel({ ...base, type: 'CLASS', regionName: null })).toMatchObject({ badge: '클래스', accent: false, meta: '11.01~11.03' });
+    expect(toFeedHighlightModel({ ...base, type: 'GUIDE', regionName: null, eventStart: null, eventEnd: null }).meta).toBe('게시 10.18');
   });
 });

@@ -8,6 +8,8 @@ import { getHobbies, hobbyQueryKeys } from '../../features/hobby/api/hobbyApi';
 import { toHobbyCardModel, type HobbyCardModel } from '../../features/hobby/model/hobbyAdapter';
 import { recommendationKindLabels } from '../../features/recommendation/model/recommendationAdapter';
 import { useLatestRecommendedHobbies } from '../../features/recommendation/model/useRecommendationResult';
+import type { FeedHighlightModel } from '../../features/feed/model/feedAdapter';
+import { useFeedHighlights } from '../../features/feed/model/useFeedList';
 import { deleteUserHobby, getUserHobbies, saveUserHobby, userQueryKeys, type UserHobbyDto } from '../../features/user/api/userApi';
 import { AppHeader } from '../../shared/ui/AppHeader';
 import { Button } from '../../shared/ui/Button';
@@ -136,6 +138,7 @@ export function MemberHomePage() {
   const sliderRef = useRef<HTMLDivElement>(null);
   const recommendedQuery = useLatestRecommendedHobbies(Boolean(user));
   const todoSummaryQuery = useQuery({ queryKey: activityQueryKeys.summary(), queryFn: getTodoSummary });
+  const highlightsQuery = useFeedHighlights(5);
   const activeHobbies = todoSummaryQuery.data?.plans.filter((item) => item.status === 'IN_PROGRESS' || item.status === 'PAUSED').slice(0, 2) ?? [];
   const remainingTodoCount = todoSummaryQuery.data?.remainingThisWeekCount;
 
@@ -192,10 +195,11 @@ export function MemberHomePage() {
           </section>
 
           <section className="dashboard-panel news-panel">
-            <div className="panel-heading"><h2>관심 취미 새 소식</h2><Link to="/info-feed">정보 피드</Link></div>
-            <NewsRow feedId={1} badge="클래스" title="실내 클라이밍 입문 원데이 클래스" meta="마포구 · 10.20~10.26" />
-            <NewsRow feedId={2} badge="행사" title="2026 생활체육 클라이밍 페스티벌" meta="서울 · 10.25(토)" orange />
-            <NewsRow feedId={4} badge="입문 자료" title="처음 암장에 가기 전 알아두면 좋은 볼더링 용어 20" meta="게시 10.08" />
+            <div className="panel-heading"><h2>관심 취미 새 소식</h2><Link to="/info-feed">전체 피드</Link></div>
+            {highlightsQuery.isPending && <p>새 소식을 불러오고 있어요.</p>}
+            {highlightsQuery.isError && <p>새 소식을 불러오지 못했어요.</p>}
+            {highlightsQuery.data?.length === 0 && <p>아직 올라온 소식이 없어요.</p>}
+            {highlightsQuery.data?.map((item) => <NewsRow key={item.id} item={item} />)}
           </section>
         </div>
 
@@ -241,12 +245,12 @@ function TodoRow({ hobby }: { hobby: UserHobbyDto }) {
   );
 }
 
-function NewsRow({ feedId, badge, title, meta, orange = false }: { feedId: number; badge: string; title: string; meta: string; orange?: boolean }) {
+function NewsRow({ item }: { item: FeedHighlightModel }) {
   return (
-    <Link aria-label={`${title} 정보 피드에서 보기`} className="news-row" to={`/info-feed/${feedId}`}>
-      <span className={orange ? 'badge badge--orange' : 'badge'}>{badge}</span>
-      <strong>{title}</strong>
-      <small>{meta}</small>
-    </Link>
+    <a aria-label={`${item.title} 자세히 보기 (새 탭)`} className="news-row" href={item.sourceUrl} target="_blank" rel="noopener noreferrer">
+      <span className={item.accent ? 'badge badge--orange' : 'badge'}>{item.badge}</span>
+      <strong title={item.title}>{item.title}</strong>
+      <small>{item.meta}</small>
+    </a>
   );
 }

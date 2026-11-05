@@ -185,7 +185,9 @@ strong, b { font-weight: 700; }
 .progress-track span { display: block; height: 100%; border-radius: inherit; background: #13b8bd; }
 .news-row { min-height: 44px; display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 12px; border-bottom: 1px solid #f1eadf; font-size: 12px; }
 .news-row:last-child { border-bottom: 0; }
-.news-row small { color: #899699; }
+.news-row small { color: #899699; white-space: nowrap; }
+/* 실제 피드 제목은 길어서 한 줄로 자르고 전체 제목은 title(마우스 오버)로 */
+.news-row strong { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .badge { padding: 5px 8px; border-radius: 999px; color: var(--color-primary); background: var(--color-primary-soft); font-size: 10px; font-weight: 600; }
 .badge--orange { color: #a94b1b; background: #ffd3b8; }
 .support-cta { margin-top: 40px; padding: 24px 28px; border: 1px solid #c9e5e4; border-radius: var(--radius-md); display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 18px; background: #eef9f8; }

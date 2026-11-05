@@ -44,6 +44,7 @@ export type FeedQuery = {
 export const feedQueryKeys = {
   all: ['feeds'] as const,
   list: (query: FeedQuery) => [...feedQueryKeys.all, 'list', query] as const,
+  highlights: (limit: number) => [...feedQueryKeys.all, 'highlights', limit] as const,
 };
 
 export function getFeeds(query: FeedQuery, page = 0, size = 20) {
@@ -61,4 +62,9 @@ export function getFeeds(query: FeedQuery, page = 0, size = 20) {
   if (query.regionIds?.length) params.set('regionIds', query.regionIds.join(','));
   if (query.uncategorized) params.set('uncategorized', 'true');
   return apiRequest<PageDto<FeedItemDto>>(`/feeds?${params}`);
+}
+
+/** 홈 '관심 취미 새 소식': 오늘 새로 올라온 소식을 마감일 순으로 먼저, 모자라면 최신순으로 최대 limit개 */
+export function getFeedHighlights(limit = 5) {
+  return apiRequest<FeedItemDto[]>(`/feeds/highlights?limit=${limit}`);
 }

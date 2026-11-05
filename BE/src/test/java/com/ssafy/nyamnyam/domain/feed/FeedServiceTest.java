@@ -180,4 +180,46 @@ class FeedServiceTest {
         assertThat(open.isReservationClosed()).isFalse();
         assertThat(show.isReservationClosed()).isFalse();
     }
+
+    @Test
+    @DisplayName("홈 새 소식: 오늘 올라온 소식을 마감일 순으로 먼저, 모자라면 최신순으로 채운다")
+    void highlightsPutTodayByDeadlineThenFillWithLatest() {
+        given(interestSelectionRepository.findAllByUserIdWithHobby(7L)).willReturn(List.of());
+        given(userHobbyRepository.findByUserIdAndStatus(any(), any())).willReturn(List.of());
+        LocalDate today = LocalDate.now(KST);
+        FeedItem lateDeadline = feed(1L, today.plusDays(20));
+        FeedItem noDeadline = feed(2L, null);
+        FeedItem soonDeadline = feed(3L, today.plusDays(2));
+        FeedItem older = feed(4L, today.plusDays(1));
+        given(feedItemRepository.findAll(any(Specification.class), any(Pageable.class)))
+                .willReturn(new PageImpl<>(List.of(lateDeadline, noDeadline, soonDeadline)))   // 오늘 올라온 것
+                .willReturn(new PageImpl<>(List.of(lateDeadline, older, noDeadline, soonDeadline))); // 최신순 전체
+
+        List<FeedItemResponse> result = feedService.getHighlights(7L, 5);
+
+        assertThat(result).extracting(FeedItemResponse::id).containsExactly(3L, 1L, 2L, 4L);
+    }
+
+    @Test
+    @DisplayName("홈 새 소식: 오늘 소식이 개수보다 많으면 마감일 순으로 잘라 최신순 조회는 하지 않는다")
+    void highlightsCutTodayAtLimit() {
+        LocalDate today = LocalDate.now(KST);
+        given(feedItemRepository.findAll(any(Specification.class), any(Pageable.class))).willReturn(new PageImpl<>(List.of(
+                feed(1L, today.plusDays(9)), feed(2L, today.plusDays(1)), feed(3L, today.plusDays(5)))));
+
+        List<FeedItemResponse> result = feedService.getHighlights(null, 2);
+
+        assertThat(result).extracting(FeedItemResponse::id).containsExactly(2L, 3L);
+        verify(feedItemRepository, times(1)).findAll(any(Specification.class), any(Pageable.class));
+        verifyNoInteractions(interestSelectionRepository, userHobbyRepository); // 비회원은 전체 취미
+    }
+
+    private FeedItem feed(Long id, LocalDate end) {
+        Hobby hobby = Hobby.builder().name("요가").build();
+        FeedItem item = FeedItem.builder().hobby(hobby).type(FeedType.CLASS).title("피드" + id).sourceName("서울")
+                .sourceUrl("https://x").origin(FeedOrigin.SEOUL_RESERVATION).status(FeedStatus.PUBLISHED)
+                .eventStart(end == null ? null : end.minusDays(3)).eventEnd(end).publishedAt(LocalDateTime.now()).build();
+        ReflectionTestUtils.setField(item, "id", id);
+        return item;
+    }
 }

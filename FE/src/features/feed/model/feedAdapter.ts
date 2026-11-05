@@ -55,3 +55,30 @@ export function toFeedItemModel(dto: FeedItemDto): FeedItemModel {
     closed: !dto.isEnded && dto.isClosed,
   };
 }
+
+/** 홈 새 소식 줄에 쓰는 짧은 유형 이름 */
+const shortTypeLabels: Record<FeedType, string> = { EVENT: '행사', SHOW: '공연·전시', CLASS: '클래스', GUIDE: '입문 자료' };
+
+export type FeedHighlightModel = {
+  id: number;
+  badge: string;
+  /** 축제·행사만 주황 배지(기존 디자인) */
+  accent: boolean;
+  title: string;
+  /** 자치구 · 기간 (지역이 없으면 기간만, 기간도 없으면 게시일) */
+  meta: string;
+  sourceUrl: string;
+};
+
+export function toFeedHighlightModel(dto: FeedItemDto): FeedHighlightModel {
+  const district = dto.regionName?.split(' ').slice(1).join(' ') || dto.regionName;
+  const period = formatPeriod(dto.eventStart, dto.eventEnd);
+  return {
+    id: dto.id,
+    badge: shortTypeLabels[dto.type],
+    accent: dto.type === 'EVENT',
+    title: dto.title,
+    meta: [district, period ?? `게시 ${formatMonthDay(dto.publishedAt)}`].filter(Boolean).join(' · '),
+    sourceUrl: dto.sourceUrl,
+  };
+}

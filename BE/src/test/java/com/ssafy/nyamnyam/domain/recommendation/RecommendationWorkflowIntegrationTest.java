@@ -32,7 +32,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.http.MediaType.APPLICATION_JSON;
 
 @SpringBootTest(properties={"app.short-collect.enabled=false","recommendation.reason-outbox-enabled=false",
-        "spring.rabbitmq.listener.simple.auto-startup=false"})
+        "spring.rabbitmq.listener.simple.auto-startup=false",
+        // CI에는 Redis가 없어 AI 정책(fail-closed)이 503을 낸다. 이 테스트는 추천 흐름만 검증한다.
+        "app.rate-limit.enabled=false"})
 @AutoConfigureMockMvc
 class RecommendationWorkflowIntegrationTest {
     @Autowired RecommendationService service;

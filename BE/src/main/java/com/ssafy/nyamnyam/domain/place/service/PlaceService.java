@@ -1,6 +1,7 @@
 package com.ssafy.nyamnyam.domain.place.service;
 
 import com.ssafy.nyamnyam.domain.hobby.entity.Hobby;
+import com.ssafy.nyamnyam.domain.place.collect.PlaceCollectService;
 import com.ssafy.nyamnyam.domain.place.dto.response.PlaceResponse;
 import com.ssafy.nyamnyam.domain.place.entity.Place;
 import com.ssafy.nyamnyam.domain.place.entity.PlaceCategory;
@@ -24,11 +25,18 @@ import java.util.List;
 public class PlaceService {
 
     private final PlaceRepository placeRepository;
+    private final PlaceCollectService placeCollectService;
 
     /**
-     * 활동 장소 목록 검색 (공개, PUBLISHED 장소만 노출)
+     * 활동 장소 목록 검색 (공개, PUBLISHED 장소만 노출).
+     * 특정 지역과 취미가 선택된 경우, 카카오 실시간 수집을 온디맨드로 수행하여 최신 장소들을 DB에 적재한 뒤 반환한다.
      */
+    @Transactional
     public List<PlaceResponse> searchPlaces(Long regionId, Long hobbyId, PlaceCategory category) {
+        if (regionId != null && hobbyId != null) {
+            placeCollectService.collectOnDemand(regionId, hobbyId);
+        }
+
         Specification<Place> spec = placeSpec(regionId, hobbyId, category);
         Sort sort = Sort.by(Sort.Direction.DESC, "id");
         List<Place> places = placeRepository.findAll(spec, sort);
@@ -63,4 +71,3 @@ public class PlaceService {
         };
     }
 }
-

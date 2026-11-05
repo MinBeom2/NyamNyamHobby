@@ -1,5 +1,6 @@
 package com.ssafy.nyamnyam.domain.place;
 
+import com.ssafy.nyamnyam.domain.place.collect.PlaceCollectService;
 import com.ssafy.nyamnyam.domain.place.dto.response.PlaceResponse;
 import com.ssafy.nyamnyam.domain.place.entity.Place;
 import com.ssafy.nyamnyam.domain.place.entity.PlaceCategory;
@@ -29,6 +30,9 @@ class PlaceServiceTest {
 
     @Mock
     PlaceRepository placeRepository;
+
+    @Mock
+    PlaceCollectService placeCollectService;
 
     @InjectMocks
     PlaceService placeService;
@@ -74,4 +78,3 @@ class PlaceServiceTest {
         assertThat(responses.get(1).needsInfoCheck()).isTrue();
     }
 }
-

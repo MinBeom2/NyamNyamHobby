@@ -67,7 +67,10 @@ public class SecurityConfig {
                                 "/api/v1/hobbies/*/shorts",
                                 "/api/v1/regions",
                                 "/api/v1/places",
+                                "/api/v1/places/**",
                                 "/api/v1/feeds").permitAll()
+                        .requestMatchers(HttpMethod.POST,
+                                "/api/v1/places/collect").permitAll()
                         // 그 외 모든 요청은 인증 필요
                         .anyRequest().authenticated())
                 .oauth2Login(oauth2 -> oauth2

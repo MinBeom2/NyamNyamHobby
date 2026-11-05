@@ -1,7 +1,7 @@
 import { apiRequest } from '../../../shared/api/client';
 
 // 웹 알림 API(명세 3.9-1·2). 모두 로그인 필요, 본인 알림만 다룬다.
-export type NotificationType = 'COMMENT' | 'REPLY' | 'WEEKLY_TODO';
+export type NotificationType = 'COMMENT' | 'REPLY' | 'WEEKLY_TODO' | 'NEW_FEED';
 
 export type NotificationDto = {
   id: number;

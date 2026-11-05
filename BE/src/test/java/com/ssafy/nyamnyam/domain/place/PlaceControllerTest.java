@@ -1,5 +1,6 @@
 package com.ssafy.nyamnyam.domain.place;
 
+import com.ssafy.nyamnyam.domain.place.collect.PlaceCollectService;
 import com.ssafy.nyamnyam.domain.place.controller.PlaceController;
 import com.ssafy.nyamnyam.domain.place.dto.response.PlaceResponse;
 import com.ssafy.nyamnyam.domain.place.entity.PlaceCategory;
@@ -33,6 +34,7 @@ class PlaceControllerTest {
 
     @Autowired MockMvc mvc;
     @MockitoBean PlaceService placeService;
+    @MockitoBean PlaceCollectService placeCollectService;
     @MockitoBean JwtProvider jwtProvider;
     @MockitoBean CustomOAuth2UserService oauthUsers;
     @MockitoBean OAuth2AuthenticationSuccessHandler oauthSuccess;
@@ -70,4 +72,3 @@ class PlaceControllerTest {
                 .andExpect(jsonPath("$.data[0].needsInfoCheck").value(false));
     }
 }
-

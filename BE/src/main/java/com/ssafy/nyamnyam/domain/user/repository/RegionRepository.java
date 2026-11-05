@@ -10,4 +10,6 @@ public interface RegionRepository extends JpaRepository<Region, Long> {
     Optional<Region> findByCode(String code);
 
     List<Region> findBySidoOrderBySigunguAsc(String sido);
+
+    Optional<Region> findBySidoAndSigungu(String sido, String sigungu);
 }

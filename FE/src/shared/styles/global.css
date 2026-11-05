@@ -501,9 +501,16 @@ strong, b { font-weight: 700; }
 .place-hobbies button, .feed-tabs button, .board-tools > div button { min-height: 34px; padding: 0 14px; border: 1px solid var(--color-line); border-radius: 999px; color: var(--color-ink); background: #fff; font-size: 11px; font-weight: 700; cursor: pointer; }
 .place-controls > .place-hobbies button { flex: 0 0 auto; white-space: nowrap; }
 .place-hobbies button.active, .feed-tabs button.active, .board-tools > div button.active { color: #fff; border-color: var(--color-primary); background: var(--color-primary); }
-.place-layout { display: grid; grid-template-columns: 420px 1fr; align-items: start; gap: 20px; }
+.place-layout { display: grid; grid-template-columns: 440px 1fr; align-items: start; gap: 24px; }
+.place-results { display: flex; flex-direction: column; height: calc(100vh - 250px); min-height: 560px; }
+.place-results h2 { flex-shrink: 0; height: 22px; margin: 0 0 12px; font-size: 14px; line-height: 22px; }
+.place-results__list { flex: 1; min-height: 0; overflow-y: auto; padding-right: 6px; display: flex; flex-direction: column; gap: 10px; }
+.place-results__list::-webkit-scrollbar { width: 6px; }
+.place-results__list::-webkit-scrollbar-track { background: transparent; }
+.place-results__list::-webkit-scrollbar-thumb { background: #d9e1e2; border-radius: 999px; }
+.place-results__list::-webkit-scrollbar-thumb:hover { background: var(--color-primary); }
 .place-results h2 { height: 22px; margin: 0 0 12px; font-size: 14px; line-height: 22px; }
-.place-results article { position: relative; min-height: 150px; margin-bottom: 10px; padding: 15px; border: 1px solid var(--color-line); border-radius: 12px; display: grid; grid-template-columns: 70px 1fr; gap: 15px; background: #fff; cursor: pointer; }
+.place-results article { position: relative; min-height: 140px; margin-bottom: 0; padding: 15px; border: 1px solid var(--color-line); border-radius: 12px; display: grid; grid-template-columns: 70px 1fr; gap: 15px; background: #fff; cursor: pointer; transition: border-color .15s ease, background-color .15s ease, box-shadow .15s ease; }
 .place-results article.selected { border-color: var(--color-primary); background: #effafa; }
 .place-thumb { width: 70px; height: 60px; border-radius: 8px; display: grid; place-items: center; align-content: center; color: var(--color-primary); background: var(--color-primary-soft); font-size: 10px; }
 .place-thumb svg { width: 17px; }
@@ -513,7 +520,7 @@ strong, b { font-weight: 700; }
 .place-results article b { color: #a94b1b; font-size: 10px; }
 .place-results article > a { position: absolute; right: 14px; bottom: 14px; display: flex; align-items: center; gap: 4px; color: var(--color-primary); font-size: 10px; font-weight: 700; }
 .place-results article > a svg { width: 11px; }
-.map-placeholder { position: relative; height: 440px; min-height: 440px; margin-top: 34px; overflow: hidden; border-radius: var(--radius-md); background: #e8eee8; }
+.map-placeholder { position: sticky; top: 20px; height: calc(100vh - 250px); min-height: 560px; margin-top: 34px; overflow: hidden; border-radius: var(--radius-md); background: #e8eee8; border: 1px solid var(--color-line); box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05); }
 .kakao-map-canvas { position: absolute; inset: 0; }
 .map-status { position: absolute; inset: 0; display: grid; place-items: center; padding: 24px; color: var(--color-muted); background: rgb(248 250 247 / 92%); font-size: 13px; text-align: center; }
 .map-status--error { color: #8d3e2d; }
@@ -702,7 +709,9 @@ strong, b { font-weight: 700; }
   .hobby-guide-section { height: auto; min-height: 620px; overflow: visible; }
   .plan-sidebar, .board-sidebar { order: 2; }
   .place-layout { gap: 28px; }
-  .map-placeholder { height: 420px; min-height: 420px; margin-top: 0; order: -1; }
+  .place-results { height: auto; min-height: 0; }
+  .place-results__list { max-height: 480px; }
+  .map-placeholder { position: static; height: 420px; min-height: 420px; margin-top: 0; order: -1; }
   .community-layout { gap: 18px; }
   .board-sidebar { display: flex; gap: 5px; overflow-x: auto; }
   .board-sidebar h2 { display: none; }

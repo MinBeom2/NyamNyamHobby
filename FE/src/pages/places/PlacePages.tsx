@@ -63,6 +63,14 @@ export function PlaceSearchPage() {
     setSelectedPlaceId(places[0].id);
   }, [places, selectedPlaceId]);
 
+  useEffect(() => {
+    if (!selectedPlaceId) return;
+    const element = document.getElementById(`place-${selectedPlaceId}`);
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  }, [selectedPlaceId]);
+
   const selectedHobby = hobbies.find((hobby) => hobby.id === hobbyId);
 
   return <div className="site-shell"><AppHeader notificationCount={3} /><main className="page-container places-page"><div className="page-title-row"><div><h1>활동 장소 찾기</h1></div></div>
@@ -76,16 +84,27 @@ export function PlaceSearchPage() {
       <div className="place-hobbies">{hobbies.map((hobby) => <button className={hobbyId === hobby.id ? 'active' : ''} type="button" onClick={() => setHobbyId(hobby.id)} key={hobby.id}>{hobby.name}</button>)}</div>
     </div>
     {sidosQuery.isError || regionsQuery.isError || hobbiesQuery.isError ? <p className="place-query-message" role="alert">장소 검색 조건을 불러오지 못했어요. 잠시 후 다시 시도해 주세요.</p> : null}
-    <div className="place-layout"><section className="place-results"><h2>장소 {placesQuery.isLoading ? '불러오는 중' : `${places.length}곳`} · {selectedHobby?.name ?? ''}</h2>
-      {placesQuery.isError ? <div className="mini-empty"><Search /><b>장소를 불러오지 못했어요</b></div> : null}
-      {placesQuery.isLoading ? <div className="mini-empty" role="status">장소를 불러오고 있어요.</div> : null}
-      {!placesQuery.isLoading && !placesQuery.isError && places.length === 0 ? <div className="mini-empty"><Search /><b>조건에 맞는 장소가 없어요</b></div> : null}
-      {places.map((place) => <article id={`place-${place.id}`} className={selectedPlaceId === place.id ? 'selected' : ''} key={place.id} onClick={() => setSelectedPlaceId(place.id)}>
-        <div className="place-thumb"><Image /><span>{place.source}</span></div><div><h3>{place.name}<span>{place.category}</span></h3><p>{place.address}</p><small>{place.openingHours || '운영 시간 정보 없음'}</small><b>{place.feeText || '비용 정보 없음'}</b>{place.needsInfoCheck && <small className="place-info-check">정보 확인 필요</small>}</div>
-        {place.externalUrl && <a href={place.externalUrl} target="_blank" rel="noreferrer" onClick={(event) => event.stopPropagation()}>지도에서 보기 <ExternalLink /></a>}
-      </article>)}
-    </section>
-    <KakaoPlaceMap places={places} selectedPlace={selectedPlace} regionName={selectedRegion?.sigungu ?? sido} onSelect={setSelectedPlaceId} />
+    <div className="place-layout">
+      <section className="place-results">
+        <h2>장소 {placesQuery.isLoading ? '불러오는 중' : `${places.length}곳`} · {selectedHobby?.name ?? ''}</h2>
+        {placesQuery.isError ? <div className="mini-empty"><Search /><b>장소를 불러오지 못했어요</b></div> : null}
+        {placesQuery.isLoading ? <div className="mini-empty" role="status">장소를 불러오고 있어요.</div> : null}
+        {!placesQuery.isLoading && !placesQuery.isError && places.length === 0 ? <div className="mini-empty"><Search /><b>조건에 맞는 장소가 없어요</b></div> : null}
+        <div className="place-results__list">
+          {places.map((place) => <article id={`place-${place.id}`} className={selectedPlaceId === place.id ? 'selected' : ''} key={place.id} onClick={() => setSelectedPlaceId(place.id)}>
+            <div className="place-thumb"><Image /><span>{place.source}</span></div>
+            <div>
+              <h3>{place.name}<span>{place.category}</span></h3>
+              <p>{place.address}</p>
+              <small>{place.openingHours || '운영 시간 정보 없음'}</small>
+              <b>{place.feeText || '비용 정보 없음'}</b>
+              {place.needsInfoCheck && <small className="place-info-check">정보 확인 필요</small>}
+            </div>
+            {place.externalUrl && <a href={place.externalUrl} target="_blank" rel="noreferrer" onClick={(event) => event.stopPropagation()}>지도에서 보기 <ExternalLink /></a>}
+          </article>)}
+        </div>
+      </section>
+      <KakaoPlaceMap places={places} selectedPlace={selectedPlace} regionName={selectedRegion?.sigungu ?? sido} onSelect={setSelectedPlaceId} />
     </div>
   </main></div>;
 }

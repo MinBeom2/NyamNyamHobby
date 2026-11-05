@@ -17,4 +17,10 @@ public interface HobbySourceMappingRepository extends JpaRepository<HobbySourceM
            "WHERE m.target = :target AND h.status = :hobbyStatus")
     List<HobbySourceMapping> findAllWithHobby(@Param("target") SourceTarget target,
                                               @Param("hobbyStatus") HobbyStatus hobbyStatus);
+
+    @Query("SELECT m FROM HobbySourceMapping m " +
+           "JOIN FETCH m.hobby h " +
+           "WHERE m.hobby.id = :hobbyId AND m.target = :target")
+    List<HobbySourceMapping> findByHobbyIdAndTarget(@Param("hobbyId") Long hobbyId,
+                                                   @Param("target") SourceTarget target);
 }

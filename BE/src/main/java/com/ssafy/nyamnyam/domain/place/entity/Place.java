@@ -99,6 +99,51 @@ public class Place {
     }
 
     /**
+     * 외부 출처(카카오 로컬 등)로부터 장소 최신 정보 갱신
+     */
+    public void updateFromSource(String name, String address, BigDecimal lat, BigDecimal lng,
+                                 String externalUrl, PlaceCategory category, Region region) {
+        if (name != null && !name.isBlank()) {
+            this.name = name;
+        }
+        if (address != null && !address.isBlank()) {
+            this.address = address;
+        }
+        if (lat != null) {
+            this.lat = lat;
+        }
+        if (lng != null) {
+            this.lng = lng;
+        }
+        if (externalUrl != null && !externalUrl.isBlank()) {
+            this.externalUrl = externalUrl;
+        }
+        if (category != null) {
+            this.category = category;
+        }
+        if (region != null) {
+            this.region = region;
+        }
+        this.sourceUpdatedAt = LocalDateTime.now();
+        this.updatedAt = LocalDateTime.now();
+    }
+
+    /**
+     * N:M 취미 연결 (중복 방지)
+     * @return 신규 추가되었으면 true
+     */
+    public boolean addHobbyIfAbsent(Hobby hobby) {
+        if (hobby == null) return false;
+        boolean exists = this.hobbies.stream().anyMatch(h -> h.getId().equals(hobby.getId()));
+        if (!exists) {
+            this.hobbies.add(hobby);
+            this.updatedAt = LocalDateTime.now();
+            return true;
+        }
+        return false;
+    }
+
+    /**
      * '정보 확인 필요' 플래그 계산
      * - 운영 시간이 비어있거나 90일 넘게 갱신 안 됨 (PLACE-B02 스펙)
      */

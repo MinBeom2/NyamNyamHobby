@@ -53,6 +53,7 @@ class PlaceControllerTest {
                 "평일 10:00~23:00 / 주말 10:00~20:00",
                 "1일 이용권 20,000원",
                 "https://place.map.kakao.com/123456",
+                "https://search.kakaocdn.net/thumb.jpg",
                 "KAKAO_LOCAL",
                 false
         );

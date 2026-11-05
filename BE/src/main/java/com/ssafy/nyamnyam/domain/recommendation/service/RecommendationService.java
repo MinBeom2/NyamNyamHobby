@@ -99,12 +99,22 @@ public class RecommendationService {
     private RecommendationResponse.RecommendationItemDto toItemDto(RecommendationItem item) {
         RecommendationResponse.HobbySnapshot hobby = item.getHobbySnapshot() == null
                 ? RecommendationResponse.HobbySnapshot.from(item.getHobby())
-                : mapper.readValue(item.getHobbySnapshot(), RecommendationResponse.HobbySnapshot.class);
+                : withCurrentThumbnail(mapper.readValue(item.getHobbySnapshot(), RecommendationResponse.HobbySnapshot.class), item);
         String fallback = item.getFallbackReason() == null ? hobby.name() + " 취미를 추천해요" : item.getFallbackReason();
         return RecommendationResponse.RecommendationItemDto.builder().itemId(item.getId()).hobby(hobby).type(item.getType())
                 .rank((int) item.getRankNo()).reason(item.getReason())
                 .reasonStatus(item.getReasonStatus() == ReasonStatus.DONE ? ReasonStatus.COMPLETED : item.getReasonStatus())
                 .fallbackReason(fallback).conditionWarning(item.isConditionWarning()).saved(item.isSaved()).build();
+    }
+    /**
+     * 취미 대표 이미지(V14)를 넣기 전에 만든 추천은 사본에 이미지가 비어 있다.
+     * 비어 있을 때만 같은 취미(hobby_id)의 지금 이미지로 채운다. 사본에 이미지가 있으면 그대로 둔다.
+     */
+    private RecommendationResponse.HobbySnapshot withCurrentThumbnail(RecommendationResponse.HobbySnapshot snapshot, RecommendationItem item) {
+        if (snapshot.thumbnailUrl() != null && !snapshot.thumbnailUrl().isBlank()) return snapshot;
+        Hobby hobby = item.getHobby();
+        if (hobby == null || hobby.getThumbnailUrl() == null || hobby.getThumbnailUrl().isBlank()) return snapshot;
+        return snapshot.withThumbnailUrl(hobby.getThumbnailUrl());
     }
     private String tag(Hobby hobby, TagGroup group) {
         return hobby.getHobbyTags().stream().map(HobbyTag::getTag).filter(t -> t.getTagGroup() == group)

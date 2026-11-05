@@ -7,8 +7,9 @@ export type FeedScope = 'MY' | 'SAVED' | 'ALL';
 
 export type FeedItemDto = {
   id: number;
-  hobbyId: number;
-  hobbyName: string;
+  /** null이면 취미 30종 어디에도 맞지 않는 '그 외' 피드 */
+  hobbyId: number | null;
+  hobbyName: string | null;
   type: FeedType;
   title: string;
   summary: string | null;
@@ -36,6 +37,8 @@ export type FeedQuery = {
   from?: string;
   to?: string;
   regionIds?: number[];
+  /** true면 '그 외' 피드만(hobbyId보다 우선) */
+  uncategorized?: boolean;
 };
 
 export const feedQueryKeys = {
@@ -56,5 +59,6 @@ export function getFeeds(query: FeedQuery, page = 0, size = 20) {
   if (query.from) params.set('from', query.from);
   if (query.to) params.set('to', query.to);
   if (query.regionIds?.length) params.set('regionIds', query.regionIds.join(','));
+  if (query.uncategorized) params.set('uncategorized', 'true');
   return apiRequest<PageDto<FeedItemDto>>(`/feeds?${params}`);
 }

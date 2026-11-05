@@ -15,6 +15,7 @@ public class FeedCollectScheduler {
 
     private final FeedCollectService feedCollectService;
     private final FeedClassCollectService feedClassCollectService;
+    private final FeedClassifyService feedClassifyService;
 
     /** 매일 05:00 축제·행사·공연·전시(FR-FEED-02) */
     @Scheduled(cron = "${app.feed-collect.cron:0 0 5 * * *}", zone = "Asia/Seoul")
@@ -26,5 +27,11 @@ public class FeedCollectScheduler {
     @Scheduled(cron = "${app.feed-collect.class-cron:0 30 5 * * *}", zone = "Asia/Seoul")
     public void collectClasses() {
         feedClassCollectService.collect();
+    }
+
+    /** 매일 06:00 GMS 취미 분류(FEED-B04). 05:00·05:30 수집으로 쌓인 항목을 하루 상한만큼 처리한다 */
+    @Scheduled(cron = "${app.feed-classify.cron:0 0 6 * * *}", zone = "Asia/Seoul")
+    public void classify() {
+        feedClassifyService.classify();
     }
 }

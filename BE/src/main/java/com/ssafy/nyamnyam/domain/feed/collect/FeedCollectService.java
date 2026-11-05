@@ -35,8 +35,8 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
- * FEED-B02 행사·공연·전시 수집(매일 05:00). 출처별로 받아 제목을 취미 행사 검색어와 대조하고,
- * 걸린 항목만 feed_items에 저장한다(걸리지 않은 항목의 GMS 분류는 FEED-B04).
+ * FEED-B02 행사·공연·전시 수집(매일 05:00). 출처별로 받아 제목을 취미 행사 검색어와 대조해 후보 취미를 정한다.
+ * 후보가 있으면 바로 공개하고, 없으면 분류 대기(PENDING_REVIEW)로 저장한다. 두 경우 모두 FEED-B04 GMS 분류가 취미를 확정한다.
  * <ul>
  *   <li>TourAPI(축제·행사): 서울에서 진행 중·예정인 행사 목록을 받아 제목으로 취미를 찾는다. 새 항목만 소개·홈페이지를 더 받는다</li>
  *   <li>KOPIS(공연): 취미 검색어로 공연명을 검색한다(장르가 넓어 전체를 받으면 대부분 취미와 무관)</li>
@@ -129,11 +129,6 @@ public class FeedCollectService {
                     stats.rejected++;
                     continue;
                 }
-                Optional<Hobby> hobby = matcher.match(festival.title());
-                if (hobby.isEmpty()) {
-                    stats.rejected++;
-                    continue;
-                }
                 if (feedWriter.refreshIfExists(FeedOrigin.TOUR_API, festival.contentId(), festival.title(),
                         festival.imageUrl(), festival.start(), festival.end())) {
                     stats.updated++;
@@ -144,7 +139,8 @@ public class FeedCollectService {
                         : TOUR_SEARCH_URL + URLEncoder.encode(festival.title(), StandardCharsets.UTF_8);
                 save(new FeedCandidate(FeedOrigin.TOUR_API, festival.contentId(), FeedType.EVENT, festival.title(),
                         detail == null ? null : detail.overview(), TOUR_SOURCE, url, festival.imageUrl(),
-                        festival.regionCode(), festival.start(), festival.end()), hobby.get(), stats);
+                        festival.regionCode(), festival.start(), festival.end(), null),
+                        matcher.match(festival.title()).orElse(null), stats);
             }
             fetched += result.items().size();
             if (result.items().isEmpty() || fetched >= result.totalCount()) break;
@@ -186,9 +182,7 @@ public class FeedCollectService {
             for (KopisClient.Performance show : shows) {
                 if (!seen.add(show.id())) continue; // 다른 검색어로 이미 본 공연
                 stats.processed++;
-                // 공연명 부분 검색이라 검색어가 다른 뜻으로 걸릴 수 있어, 저장 전에 같은 규칙으로 한 번 더 대조한다
-                Optional<Hobby> hobby = matcher.match(show.title());
-                if (show.title() == null || hobby.isEmpty()) {
+                if (show.title() == null) {
                     stats.rejected++;
                     continue;
                 }
@@ -197,10 +191,11 @@ public class FeedCollectService {
                     stats.updated++;
                     continue;
                 }
+                // 공연명 부분 검색이라 검색어가 다른 뜻으로 걸릴 수 있어, 같은 규칙으로 후보만 정하고 GMS가 확인한다
                 String summary = joinNonBlank(show.genre(), show.venue());
                 save(new FeedCandidate(FeedOrigin.KOPIS, show.id(), FeedType.SHOW, show.title(), summary,
                         KOPIS_SOURCE, KopisClient.DETAIL_URL + show.id(), show.posterUrl(), null,
-                        show.start(), show.end()), hobby.get(), stats);
+                        show.start(), show.end(), show.genre()), matcher.match(show.title()).orElse(null), stats);
             }
         }
         if (lastError != null && failedKeywords.size() == keywords.size()) {
@@ -254,11 +249,6 @@ public class FeedCollectService {
                     stats.rejected++;
                     continue;
                 }
-                Optional<Hobby> hobby = matcher.match(event.title()).or(() -> exhibition);
-                if (hobby.isEmpty()) {
-                    stats.rejected++;
-                    continue;
-                }
                 if (feedWriter.refreshIfExists(FeedOrigin.CULTURE_PORTAL, event.seq(), event.title(),
                         event.thumbnailUrl(), event.start(), event.end())) {
                     stats.updated++;
@@ -267,10 +257,12 @@ public class FeedCollectService {
                 CulturePortalClient.EventDetail detail = cultureDetail(event.seq(), stats);
                 String url = detail == null ? null : detail.url() != null ? detail.url() : detail.placeUrl();
                 String summary = detail != null && detail.contents() != null ? detail.contents() : event.place();
+                // 더 구체적인 취미가 없으면 '전시 관람'을 후보로 두고 GMS가 확인한다
                 save(new FeedCandidate(FeedOrigin.CULTURE_PORTAL, event.seq(), FeedType.SHOW, event.title(), summary,
                         CULTURE_SOURCE, url == null ? CULTURE_HOME_URL : url, event.thumbnailUrl(),
                         event.sigungu() == null ? null : regionCodes.get(event.sigungu()),
-                        event.start(), event.end()), hobby.get(), stats);
+                        event.start(), event.end(), event.realmName()),
+                        matcher.match(event.title()).or(() -> exhibition).orElse(null), stats);
             }
             fetched += result.items().size();
             if (result.items().isEmpty() || fetched >= result.totalCount()) break;
@@ -292,10 +284,15 @@ public class FeedCollectService {
         }
     }
 
+    /** 검색어로 찾은 후보 취미가 있으면 바로 공개, 없으면(null) GMS 분류 대기로 저장한다 */
     private void save(FeedCandidate candidate, Hobby hobby, Stats stats) {
         FeedWriter.Result result = feedWriter.create(candidate, hobby, properties.titleSimilarity());
-        if (result == FeedWriter.Result.CREATED) stats.accepted++;
-        else stats.rejected++;
+        if (result == FeedWriter.Result.CREATED) {
+            stats.accepted++;
+            if (hobby == null) stats.pending++;
+        } else {
+            stats.rejected++;
+        }
     }
 
     static String joinNonBlank(String... values) {
@@ -308,7 +305,11 @@ public class FeedCollectService {
         int processed;
         int accepted;
         int updated;
+        /** 저장했지만 후보 취미가 없어 GMS 분류를 기다리는 건수(accepted에 포함) */
+        int pending;
         int rejected;
+        /** 분류명이 취미와 무관해 GMS에 보내지 않고 버린 강좌 수(rejected에 포함) */
+        int skippedCategory;
         int calls;
         int succeeded;
         int failed;
@@ -331,6 +332,8 @@ public class FeedCollectService {
             List<String> parts = new ArrayList<>();
             if (fatal != null) parts.add(fatal);
             parts.add("갱신 " + updated + "건");
+            if (pending > 0) parts.add("분류 대기 " + pending + "건");
+            if (skippedCategory > 0) parts.add("무관 분류 제외 " + skippedCategory + "건");
             parts.addAll(notes);
             return String.join(", ", parts);
         }

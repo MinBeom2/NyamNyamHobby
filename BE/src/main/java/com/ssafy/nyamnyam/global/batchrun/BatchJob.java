@@ -9,5 +9,7 @@ public enum BatchJob {
     PLACE_PUBLIC,
     PLACE_KAKAO,
     FEED_COLLECT,
+    /** 정보 피드 GMS 취미 분류(FEED-B04) */
+    FEED_CLASSIFY,
     CLASS_COLLECT
 }

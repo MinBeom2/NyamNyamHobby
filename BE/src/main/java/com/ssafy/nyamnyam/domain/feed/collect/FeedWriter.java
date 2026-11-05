@@ -58,7 +58,10 @@ public class FeedWriter {
                 .orElse(false);
     }
 
-    /** 새 항목 저장. 다른 출처에 같은 행사(시작일 같고 제목이 비슷)가 있으면 저장하지 않는다 */
+    /**
+     * 새 항목 저장. 다른 출처에 같은 행사(시작일 같고 제목이 비슷)가 있으면 저장하지 않는다.
+     * 후보 취미(hobby)가 있으면 바로 공개하고, 없으면 GMS 분류 대기(PENDING_REVIEW, 화면에 안 보임)로 둔다.
+     */
     @Transactional
     public Result create(FeedCandidate candidate, Hobby hobby, double titleSimilarity) {
         if (candidate.eventStart() != null) {
@@ -68,7 +71,7 @@ public class FeedWriter {
             if (duplicate) return Result.DUPLICATE;
         }
         LocalDateTime now = LocalDateTime.now();
-        feedItemRepository.save(FeedItem.builder()
+        FeedItem item = FeedItem.builder()
                 .hobby(hobby)
                 .type(candidate.type())
                 .title(cut(HtmlText.unescape(candidate.title()), TITLE_MAX))
@@ -82,11 +85,36 @@ public class FeedWriter {
                 .eventStart(candidate.eventStart())
                 .eventEnd(candidate.eventEnd())
                 .origin(candidate.origin())
-                .status(FeedStatus.PUBLISHED)
+                .status(hobby != null ? FeedStatus.PUBLISHED : FeedStatus.PENDING_REVIEW)
                 .createdAt(now)
                 .updatedAt(now)
-                .build());
+                .build();
+        item.prepareClassification(candidate.sourceCategory());
+        feedItemRepository.save(item);
         return Result.CREATED;
+    }
+
+    /**
+     * GMS 분류 결과를 반영한다. hobby가 null이면 '그 외'로 공개한다.
+     * answered가 false(답을 못 받음)면 시도 횟수만 올리고, maxAttempts에 닿으면 후보 취미(없으면 '그 외')로 확정한다.
+     *
+     * @return 이번에 분류를 확정했으면 true
+     */
+    @Transactional
+    public boolean applyClassification(Long feedId, boolean answered, Hobby hobby, int maxAttempts) {
+        return feedItemRepository.findById(feedId).map(item -> {
+            LocalDateTime now = LocalDateTime.now();
+            if (answered) {
+                item.classify(hobby, now);
+                return true;
+            }
+            item.failClassification(now);
+            if (item.getClassifyAttempts() >= maxAttempts) {
+                item.classify(item.getHobby(), now);
+                return true;
+            }
+            return false;
+        }).orElse(false);
     }
 
     /** 두 제목의 글자 2개씩 묶음(바이그램) 겹침 정도(다이스 계수, 0~1). 공백·대소문자는 무시한다 */

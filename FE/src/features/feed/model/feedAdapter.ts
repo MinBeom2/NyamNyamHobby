@@ -7,6 +7,9 @@ export const feedTypeLabels: Record<FeedType, string> = {
   GUIDE: '입문 자료',
 };
 
+/** 취미 30종 어디에도 맞지 않는 피드의 이름. 취미 '기타'(악기)와 헷갈리지 않게 따로 둔다 */
+export const OTHER_HOBBY_LABEL = '그 외';
+
 export type FeedItemModel = {
   id: number;
   hobbyName: string;
@@ -38,7 +41,7 @@ export function toFeedItemModel(dto: FeedItemDto): FeedItemModel {
   const period = formatPeriod(dto.eventStart, dto.eventEnd);
   return {
     id: dto.id,
-    hobbyName: dto.hobbyName,
+    hobbyName: dto.hobbyName ?? OTHER_HOBBY_LABEL,
     typeLabel: feedTypeLabels[dto.type],
     title: dto.title,
     summary: dto.summary ?? '',

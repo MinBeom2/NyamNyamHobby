@@ -52,6 +52,9 @@ public class Place {
     @Column(name = "external_url", length = 500)
     private String externalUrl;
 
+    @Column(name = "thumbnail_url", length = 500)
+    private String thumbnailUrl;
+
     @Column(nullable = false, length = 50)
     private String source;
 
@@ -78,7 +81,7 @@ public class Place {
     @Builder
     public Place(Region region, String name, PlaceCategory category, String address,
             BigDecimal lat, BigDecimal lng, String openingHours, String feeText,
-            String externalUrl, String source, String sourceRef,
+            String externalUrl, String thumbnailUrl, String source, String sourceRef,
             LocalDateTime sourceUpdatedAt, PlaceStatus status,
             LocalDateTime createdAt, LocalDateTime updatedAt) {
         this.region = region;
@@ -90,6 +93,7 @@ public class Place {
         this.openingHours = openingHours;
         this.feeText = feeText;
         this.externalUrl = externalUrl;
+        this.thumbnailUrl = thumbnailUrl;
         this.source = source;
         this.sourceRef = sourceRef;
         this.sourceUpdatedAt = sourceUpdatedAt;
@@ -126,6 +130,16 @@ public class Place {
         }
         this.sourceUpdatedAt = LocalDateTime.now();
         this.updatedAt = LocalDateTime.now();
+    }
+
+    /**
+     * 대표 썸네일 이미지 URL 업데이트
+     */
+    public void updateThumbnailUrl(String thumbnailUrl) {
+        if (thumbnailUrl != null && !thumbnailUrl.isBlank()) {
+            this.thumbnailUrl = thumbnailUrl;
+            this.updatedAt = LocalDateTime.now();
+        }
     }
 
     /**

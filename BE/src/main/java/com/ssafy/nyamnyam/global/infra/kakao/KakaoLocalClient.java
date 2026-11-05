@@ -60,4 +60,40 @@ public class KakaoLocalClient {
             throw new PublicDataApiException("[KAKAO_LOCAL] Kakao search failed: " + e.getMessage(), e);
         }
     }
+
+    /**
+     * 카카오 Daum 이미지 검색 API 호출 (GET /v2/search/image)
+     * 장소명/키워드로 첫 번째 이미지 썸네일 URL을 조회한다.
+     *
+     * @param query 검색 키워드 (예: "마포구 코알라클라이밍짐")
+     * @return 첫 번째 이미지의 thumbnailUrl 또는 imageUrl (실패/미존재 시 null)
+     */
+    public String searchFirstImageUrl(String query) {
+        if (!isConfigured() || query == null || query.isBlank()) {
+            return null;
+        }
+        try {
+            KakaoImageSearchResponse response = restClient.get()
+                    .uri(uriBuilder -> uriBuilder
+                            .path("/v2/search/image")
+                            .queryParam("query", query)
+                            .queryParam("page", 1)
+                            .queryParam("size", 1)
+                            .build())
+                    .header(HttpHeaders.AUTHORIZATION, "KakaoAK " + apiKey)
+                    .retrieve()
+                    .body(KakaoImageSearchResponse.class);
+
+            if (response != null && response.documents() != null && !response.documents().isEmpty()) {
+                KakaoImageSearchResponse.KakaoImageDocument firstDoc = response.documents().get(0);
+                if (firstDoc.thumbnailUrl() != null && !firstDoc.thumbnailUrl().isBlank()) {
+                    return firstDoc.thumbnailUrl();
+                }
+                return firstDoc.imageUrl();
+            }
+        } catch (Exception e) {
+            log.warn("[KAKAO_IMAGE] Failed to fetch image for query '{}': {}", query, e.getMessage());
+        }
+        return null;
+    }
 }

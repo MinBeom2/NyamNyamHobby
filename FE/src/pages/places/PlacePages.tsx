@@ -65,7 +65,7 @@ export function PlaceSearchPage() {
 
   const selectedHobby = hobbies.find((hobby) => hobby.id === hobbyId);
 
-  return <div className="site-shell"><AppHeader notificationCount={3} /><main className="page-container places-page"><div className="page-title-row"><div><h1>활동 장소 찾기</h1></div><Button variant="secondary" to="/info-feed">취미 정보 피드</Button></div>
+  return <div className="site-shell"><AppHeader notificationCount={3} /><main className="page-container places-page"><div className="page-title-row"><div><h1>활동 장소 찾기</h1></div></div>
     <div className="place-controls">
       <label>시·도<select value={sido} onChange={(event) => { setSido(event.target.value); setRegionId(undefined); }} disabled={!sidosQuery.data?.length}>
         {sidosQuery.data?.map((item) => <option disabled={!item.enabled} value={item.sido} key={item.sido}>{item.sido}{item.enabled ? '' : ' (준비 중)'}</option>)}
@@ -130,7 +130,7 @@ export function InfoFeedPage() {
   const filtered = Boolean(keyword || dateLabel || regionIds.length);
   const clearFilters = () => { setKeywordInput(''); setKeyword(''); setDateRange({}); setRegionIds([]); };
 
-  return <div className="site-shell"><AppHeader notificationCount={3} /><main className="page-container feed-page"><div className="page-title-row"><div><h1>취미 정보 피드</h1><p>내 취미의 축제, 강좌, 공연과 입문 자료를 모았어요.</p></div><Button variant="secondary" to="/places">장소 찾기</Button></div>
+  return <div className="site-shell"><AppHeader notificationCount={3} /><main className="page-container feed-page"><div className="page-title-row"><div><h1>취미 정보 피드</h1><p>내 취미의 축제, 강좌, 공연과 입문 자료를 모았어요.</p></div></div>
     <div className="feed-tabs">
       {feedTypeTabs.map((item) => <button className={type === item.value ? 'active' : ''} type="button" onClick={() => setType(item.value)} key={item.label}>{item.label}</button>)}
       <form className="search-bar feed-search" role="search" onSubmit={(event) => { event.preventDefault(); submitSearch(); }}><Search aria-hidden="true" /><input value={keywordInput} onChange={(event) => setKeywordInput(event.target.value)} placeholder="제목이나 장소로 검색 (2자 이상)" aria-label="정보 피드 검색" /><button type="submit">검색</button></form>

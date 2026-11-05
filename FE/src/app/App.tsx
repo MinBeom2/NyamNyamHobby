@@ -78,6 +78,31 @@ function MemberRoute() {
   return <Outlet />;
 }
 
+function PreviewMemberRoute() {
+  const user = useAuthStore((state) => state.user);
+  const initialized = useAuthStore((state) => state.sessionInitialized);
+  const location = useLocation();
+  const signupRequired =
+    typeof location.state === 'object' &&
+    location.state !== null &&
+    'signupRequired' in location.state &&
+    typeof location.state.signupRequired === 'string';
+
+  if (!initialized) return <SessionLoadingPage />;
+  if (user || signupRequired) return <Outlet />;
+
+  return (
+    <Navigate
+      replace
+      to="/"
+      state={{
+        signupRequired: getMemberMenu(location.pathname) ?? '회원 전용 기능',
+        returnTo: '/',
+      }}
+    />
+  );
+}
+
 function ScrollToTop() {
   const { pathname, hash } = useLocation();
 
@@ -120,6 +145,11 @@ export function App() {
         <Route path="/explore" element={<ExplorePage />} />
         <Route path="/notices" element={<NoticeListPage />} />
         <Route path="/notices/:noticeId" element={<NoticeDetailPage />} />
+        <Route element={<PreviewMemberRoute />}>
+          <Route path="/places" element={<PlaceSearchPage />} />
+          <Route path="/info-feed" element={<InfoFeedPage />} />
+          <Route path="/info-feed/:feedId" element={<InfoFeedDetailPage />} />
+        </Route>
         <Route element={<MemberRoute />}>
           <Route path="/home" element={<MemberHomePage />} />
           <Route path="/mypage" element={<MyPage />} />
@@ -140,9 +170,6 @@ export function App() {
           <Route path="/my-hobbies" element={<MyHobbiesPage />} />
           <Route path="/my-hobbies/:hobbyId/plan" element={<HobbyPlanPage />} />
           <Route path="/my-hobbies/:hobbyId/todos" element={<TodoFocusPage />} />
-          <Route path="/places" element={<PlaceSearchPage />} />
-          <Route path="/info-feed" element={<InfoFeedPage />} />
-          <Route path="/info-feed/:feedId" element={<InfoFeedDetailPage />} />
           <Route path="/community" element={<CommunityListPage />} />
           <Route path="/community/new" element={<CommunityWritePage />} />
           <Route path="/community/:postId/edit" element={<CommunityWritePage />} />

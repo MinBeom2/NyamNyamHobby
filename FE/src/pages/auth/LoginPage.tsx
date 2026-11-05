@@ -56,7 +56,7 @@ export function LoginPage() {
     <div className="site-shell auth-page">
       <AppHeader />
       <main className="auth-page__main">
-        <section className="auth-card" aria-labelledby="login-title">
+        <section className="auth-card auth-card--login" aria-labelledby="login-title">
           <img className="auth-card__logo" src={brandAssets.logo} alt="냠냠취미" />
           <h1 id="login-title">로그인</h1>
 
@@ -107,8 +107,6 @@ export function LoginPage() {
 
           <div className="social-login" aria-label="소셜 로그인">
             <a className="social-login__button social-login__button--google" href="/oauth2/authorization/google">Google로 계속하기</a>
-            <button className="social-login__button social-login__button--kakao" type="button" disabled>카카오로 계속하기</button>
-            <button className="social-login__button social-login__button--naver" type="button" disabled>네이버로 계속하기</button>
           </div>
         </section>
       </main>

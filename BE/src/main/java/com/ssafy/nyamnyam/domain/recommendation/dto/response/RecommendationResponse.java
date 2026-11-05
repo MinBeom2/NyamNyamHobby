@@ -55,5 +55,8 @@ public class RecommendationResponse {
                     new Range((int) hobby.getSessionMinMinutes(), (int) hobby.getSessionMaxMinutes()),
                     new Range(hobby.getMonthlyCostMin(), hobby.getMonthlyCostMax()));
         }
+        public HobbySnapshot withThumbnailUrl(String url) {
+            return new HobbySnapshot(id, name, url, difficulty, sessionMinutes, monthlyCost);
+        }
     }
 }

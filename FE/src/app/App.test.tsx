@@ -66,7 +66,7 @@ describe('guest access and session-aware pages', () => {
 
   it('allows guest notices and the guest short exploration', () => {
     expect(renderPage('/notices')).toContain('공지사항');
-    expect(renderPage('/explore?guest=true')).toContain('다음 영상');
+    expect(renderPage('/explore?guest=true')).toContain('아래로 스크롤');
     const shorts = renderPage('/shorts');
     expect(shorts).toContain('모든 취미의 숏폼을 자유롭게 둘러보세요');
     expect(shorts).toContain('href="/shorts"');

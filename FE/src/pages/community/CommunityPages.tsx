@@ -166,8 +166,8 @@ export function CommunityDetailPage() {
         <Link className="back-link" to="/community">커뮤니티 · {post.hobby.name}</Link>
         <article className="post-detail">
           <header>
-            <div><span className="badge">{typeLabel[post.type]}</span><span className="badge badge--soft">{post.hobby.name}</span><h1>{post.title}</h1><p>{post.author.nickname} · {formatDate(post.createdAt)} · 조회 {post.viewCount}</p></div>
-            {post.isMine && <div><button type="button" onClick={() => navigate(`/community/${post.id}/edit`)}>수정</button><button type="button" disabled={deleteMutation.isPending} onClick={() => deleteMutation.mutate()}>삭제</button></div>}
+            <div className="post-detail__heading"><span className="badge">{typeLabel[post.type]}</span><span className="badge badge--soft">{post.hobby.name}</span><h1>{post.title}</h1><p>{post.author.nickname} · {formatDate(post.createdAt)} · 조회 {post.viewCount}</p></div>
+            {post.isMine && <div className="post-detail__controls"><button type="button" onClick={() => navigate(`/community/${post.id}/edit`)}>수정</button><button type="button" disabled={deleteMutation.isPending} onClick={() => deleteMutation.mutate()}>삭제</button></div>}
           </header>
           {post.imageUrls.length > 0 && (
             <div className="post-images">

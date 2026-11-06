@@ -4,6 +4,8 @@ import com.ssafy.nyamnyam.domain.exploration.dto.request.ReactionRequest;
 import com.ssafy.nyamnyam.domain.exploration.dto.response.ReactionResponse;
 import com.ssafy.nyamnyam.domain.exploration.service.ExplorationService;
 import com.ssafy.nyamnyam.domain.shortform.service.ShortSaveService;
+import com.ssafy.nyamnyam.domain.shortform.service.ShortFeedService;
+import com.ssafy.nyamnyam.domain.shortform.dto.response.ShortFeedResponse;
 import com.ssafy.nyamnyam.domain.shortform.dto.response.ShortSaveResponse;
 import com.ssafy.nyamnyam.domain.user.entity.User;
 import com.ssafy.nyamnyam.domain.user.repository.UserRepository;
@@ -25,6 +27,20 @@ public class ShortController {
     private final ExplorationService explorationService;
     private final UserRepository userRepository;
     private final ShortSaveService shortSaveService;
+    private final ShortFeedService shortFeedService;
+
+    /**
+     * 자유 탐색(상단 '숏폼 탐색'). 공개 숏폼 전체를 seed로 섞어 cursor부터 size개. 비회원도 볼 수 있다.
+     * 탐색 세션·시청·반응을 기록하지 않아 맞춤 추천에 영향이 없다.
+     */
+    @GetMapping("/feed")
+    public ApiResponse<ShortFeedResponse> feed(
+            @RequestParam(value = "seed", required = false) Long seed,
+            @RequestParam(value = "cursor", defaultValue = "0") int cursor,
+            @RequestParam(value = "size", defaultValue = "10") int size,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        return ApiResponse.success(shortFeedService.feed(principal == null ? null : principal.getUserId(), seed, cursor, size));
+    }
 
     @PutMapping("/{shortId}/save")
     public ApiResponse<ShortSaveResponse> save(

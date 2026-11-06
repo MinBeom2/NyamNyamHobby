@@ -11,6 +11,7 @@ import { PasswordResetConfirmPage, PasswordResetRequestPage } from '../pages/aut
 import { HobbyInterestPage, UsageConditionPage } from '../pages/onboarding/OnboardingPages';
 import { ExplorePage } from '../pages/explore/ExplorePage';
 import { ExploreResultPage } from '../pages/explore/ExploreResultPage';
+import { FreeShortsPage } from '../pages/explore/FreeShortsPage';
 import { InquiryDetailPage, InquiryListPage, InquiryWritePage } from '../pages/support/InquiryPages';
 import { NotificationsPage } from '../pages/notifications/NotificationsPage';
 import { MyPage } from '../pages/mypage/MyPage';
@@ -144,6 +145,7 @@ export function App() {
         <Route path="/onboarding/interests" element={<HobbyInterestPage />} />
         <Route path="/onboarding/conditions" element={<UsageConditionPage />} />
         <Route path="/explore" element={<ExplorePage />} />
+        <Route path="/shorts" element={<FreeShortsPage />} />
         <Route path="/notices" element={<NoticeListPage />} />
         <Route path="/notices/:noticeId" element={<NoticeDetailPage />} />
         <Route element={<PreviewMemberRoute />}>

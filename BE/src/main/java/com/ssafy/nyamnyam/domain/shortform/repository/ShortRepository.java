@@ -31,6 +31,14 @@ public interface ShortRepository extends JpaRepository<Short, Long> {
 
     List<Short> findByStatus(ShortStatus status);
 
+    /** 자유 탐색: 공개 영상 ID 전체(섞기 전 고정 순서) */
+    @Query("SELECT s.id FROM Short s WHERE s.status = :status ORDER BY s.id")
+    List<Long> findIdsByStatus(@Param("status") ShortStatus status);
+
+    /** 자유 탐색 한 묶음. 취미·분류를 함께 읽어 N+1을 막는다 */
+    @Query("SELECT s FROM Short s LEFT JOIN FETCH s.hobby h LEFT JOIN FETCH h.category WHERE s.id IN :ids")
+    List<Short> findWithHobbyByIdIn(@Param("ids") Collection<Long> ids);
+
     @Query("SELECT s FROM Short s " +
            "LEFT JOIN FETCH s.hobby h " +
            "LEFT JOIN FETCH h.category " +

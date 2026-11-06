@@ -166,7 +166,6 @@ export function App() {
           <Route path="/support/inquiries/:inquiryId" element={<InquiryDetailPage />} />
           <Route path="/hobbies" element={<HobbySearchPage />} />
           <Route path="/hobbies/interests" element={<HobbyInterestSelectPage />} />
-          <Route path="/hobbies/recommendations" element={<HobbySearchPage recommended />} />
           <Route path="/hobbies/:hobbyId/plan-preview" element={<HobbyPlanPreviewPage />} />
           <Route path="/hobbies/:hobbyId" element={<HobbyDetailPage />} />
           <Route path="/my-hobbies" element={<MyHobbiesPage />} />

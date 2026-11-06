@@ -6,7 +6,7 @@ import { useAuthStore } from '../../features/auth/model/authStore';
 import { activityQueryKeys, getTodoSummary } from '../../features/activity/api/activityApi';
 import { getHobbies, hobbyQueryKeys } from '../../features/hobby/api/hobbyApi';
 import { toHobbyCardModel, type HobbyCardModel } from '../../features/hobby/model/hobbyAdapter';
-import { recommendationKindLabels } from '../../features/recommendation/model/recommendationAdapter';
+import { directSelectionKindLabels, recommendationKindLabels } from '../../features/recommendation/model/recommendationAdapter';
 import { useLatestRecommendedHobbies } from '../../features/recommendation/model/useRecommendationResult';
 import type { FeedHighlightModel } from '../../features/feed/model/feedAdapter';
 import { useFeedHighlights } from '../../features/feed/model/useFeedList';
@@ -137,6 +137,8 @@ export function MemberHomePage() {
   const user = useAuthStore((state) => state.user);
   const sliderRef = useRef<HTMLDivElement>(null);
   const recommendedQuery = useLatestRecommendedHobbies(Boolean(user));
+  const latest = recommendedQuery.data;
+  const kindLabels = latest?.direct ? directSelectionKindLabels : recommendationKindLabels;
   const todoSummaryQuery = useQuery({ queryKey: activityQueryKeys.summary(), queryFn: getTodoSummary });
   const highlightsQuery = useFeedHighlights(5);
   const activeHobbies = todoSummaryQuery.data?.plans.filter((item) => item.status === 'IN_PROGRESS' || item.status === 'PAUSED').slice(0, 2) ?? [];
@@ -161,24 +163,25 @@ export function MemberHomePage() {
 
         <section className="section-block recommendations">
           <div className="section-heading">
-            <div className="section-heading__title"><h2>맞춤 추천 취미</h2><p>쇼츠 탐색을 통해 추천받은 취미들이에요</p></div>
-            {recommendedQuery.data && <SliderControls targetRef={sliderRef} />}
+            <div className="section-heading__title"><h2>맞춤 추천 취미</h2><p>{latest?.direct ? '직접 고른 취미를 이용 상황에 맞춰 정리했어요' : '쇼츠 탐색을 통해 추천받은 취미들이에요'}</p></div>
+            {latest && <SliderControls targetRef={sliderRef} />}
           </div>
           {recommendedQuery.isPending && <p>추천 취미를 불러오고 있어요.</p>}
           {recommendedQuery.isError && <p>추천 취미를 불러오지 못했어요.</p>}
           {recommendedQuery.data === null && (
             <div className="recommend-empty">
-              <p>숏폼을 탐색하면 맞춤 취미를 추천해 드려요.</p>
+              <p>숏폼을 탐색하거나 관심사를 직접 고르면 맞춤 취미를 추천해 드려요.</p>
               <Button to="/explore">숏폼 탐색하기</Button>
             </div>
           )}
-          {recommendedQuery.data && (
+          {latest?.summary && <p className="recommend-summary">{latest.summary}</p>}
+          {latest && (
             <div className="hobby-slider" ref={sliderRef} aria-label="맞춤 추천 취미 목록">
-              {recommendedQuery.data.map((hobby) => (
+              {latest.cards.map((hobby) => (
                 <HobbyCard
                   key={hobby.id}
                   hobby={hobby}
-                  badge={{ label: recommendationKindLabels[hobby.kind], related: hobby.kind === 'RELATED' }}
+                  badge={{ label: kindLabels[hobby.kind], related: hobby.kind === 'RELATED' }}
                 />
               ))}
             </div>

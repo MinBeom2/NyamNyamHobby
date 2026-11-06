@@ -24,6 +24,8 @@ export type RecommendedHobbyCardModel = HobbyCardModel & { kind: RecommendationK
 
 const difficultyLabels: Record<string, string> = { EASY: '쉬움', NORMAL: '보통', HARD: '어려움' };
 export const recommendationKindLabels: Record<RecommendationKind, string> = { INTEREST: '추천 취미', RELATED: '유사 취미' };
+/** 직접 선택 추천에서는 INTEREST가 '사용자가 고른 취미'라 이름을 바꿔 보여준다 */
+export const directSelectionKindLabels: Record<RecommendationKind, string> = { INTEREST: '직접 고른 취미', RELATED: '비슷한 취미' };
 
 type RecommendationItemDto = RecommendationResponse['items'][number];
 
@@ -74,4 +76,16 @@ export function toRecommendedHobbyCards(response: RecommendationResponse): Recom
     relation: null,
     kind: toKind(item.type),
   }));
+}
+
+/** 홈 '맞춤 추천 취미' 영역. direct면 직접 선택 추천이고 summary는 고른 취미들의 공통 성향 한 줄이다 */
+export type LatestRecommendationModel = {
+  direct: boolean;
+  summary: string | null;
+  cards: RecommendedHobbyCardModel[];
+};
+
+export function toLatestRecommendation(response: RecommendationResponse): LatestRecommendationModel {
+  const direct = response.basis === 'DIRECT_SELECTION';
+  return { direct, summary: direct ? response.basisText : null, cards: toRecommendedHobbyCards(response) };
 }

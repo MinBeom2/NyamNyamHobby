@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { RecommendationResponse } from '../../exploration/api/explorationApi';
-import { toRecommendationResult, toRecommendedHobbyCards } from './recommendationAdapter';
+import { toLatestRecommendation, toRecommendationResult, toRecommendedHobbyCards } from './recommendationAdapter';
 
 function item(id: number, type: 'INTEREST' | 'RELATED', rank: number, reason: string | null, reasonStatus = 'COMPLETED') {
   return {
@@ -41,5 +41,20 @@ describe('toRecommendedHobbyCards', () => {
     const cards = toRecommendedHobbyCards(response);
     expect(cards.map((card) => [card.id, card.kind])).toEqual([[1, 'INTEREST'], [2, 'INTEREST'], [4, 'RELATED'], [5, 'RELATED']]);
     expect(cards[0]).toMatchObject({ description: 'GPT가 만든 이유', difficulty: '쉬움', relation: null });
+  });
+});
+
+describe('toLatestRecommendation', () => {
+  it('marks direct selection recommendations and keeps their common-tag summary', () => {
+    const direct = toLatestRecommendation({ ...response, basis: 'DIRECT_SELECTION', basisText: '직접 고른 취미 3개에 #실외 성향이 많아요.' });
+    expect(direct.direct).toBe(true);
+    expect(direct.summary).toBe('직접 고른 취미 3개에 #실외 성향이 많아요.');
+    expect(direct.cards.map((card) => card.id)).toEqual([1, 2, 4, 5]);
+  });
+
+  it('shows no summary for exploration recommendations', () => {
+    const explored = toLatestRecommendation({ ...response, basisText: '숏폼 누적 반응 12개를 바탕으로 추천했어요' });
+    expect(explored.direct).toBe(false);
+    expect(explored.summary).toBeNull();
   });
 });

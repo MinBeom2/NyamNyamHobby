@@ -72,4 +72,16 @@ class RecommendationControllerTest {
         }
         verifyNoInteractions(service);
     }
+
+    @Test void createRejectsMissingSelectionOrSessionBeforeCallingService() throws Exception {
+        String elevenIds = String.join(",", java.util.stream.IntStream.rangeClosed(1, 11).mapToObj(String::valueOf).toList());
+        for (String body : List.of("{\"basis\":\"DIRECT_SELECTION\"}", "{\"basis\":\"DIRECT_SELECTION\",\"hobbyIds\":[]}",
+                "{\"basis\":\"DIRECT_SELECTION\",\"hobbyIds\":[" + elevenIds + "]}",
+                "{\"basis\":\"DIRECT_SELECTION\",\"hobbyIds\":[0]}", "{\"basis\":\"EXPLORATION_SESSION\"}")) {
+            mvc.perform(post("/api/v1/recommendations").with(user("1")).contentType(MediaType.APPLICATION_JSON).content(body))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.error.code").value("COMMON_INVALID_INPUT"));
+        }
+        verifyNoInteractions(recommendations);
+    }
 }

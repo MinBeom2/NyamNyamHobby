@@ -1,7 +1,7 @@
 import { CalendarDays, ExternalLink, Image, MapPin, Search } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Link, Navigate } from 'react-router-dom';
+import { Link, Navigate, useSearchParams } from 'react-router-dom';
 import { getPlaceHobbies, getPlaces, getRegions, getSidos, placeQueryKeys } from '../../features/place/api/placeApi';
 import { HOBBY_THUMBNAIL_MAP } from '../../features/place/model/hobbyThumbnailMap';
 import { KakaoPlaceMap } from '../../features/place/ui/KakaoPlaceMap';
@@ -15,9 +15,9 @@ import { AppHeader } from '../../shared/ui/AppHeader';
 import { Button } from '../../shared/ui/Button';
 
 export function PlaceSearchPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [sido, setSido] = useState('');
   const [regionId, setRegionId] = useState<number>();
-  const [hobbyId, setHobbyId] = useState<number>();
   const [selectedPlaceId, setSelectedPlaceId] = useState<number>();
   const sidosQuery = useQuery({ queryKey: placeQueryKeys.regions(), queryFn: getSidos });
   const availableSido = sidosQuery.data?.find((item) => item.enabled)?.sido ?? '';
@@ -27,12 +27,18 @@ export function PlaceSearchPage() {
     enabled: Boolean(sido),
   });
   const hobbiesQuery = useQuery({ queryKey: placeQueryKeys.hobbies, queryFn: getPlaceHobbies });
+  const hobbies = hobbiesQuery.data?.content ?? [];
+  const requestedHobbyId = Number(searchParams.get('hobbyId'));
+  const hobbyId = (
+    hobbies.find((hobby) => hobby.id === requestedHobbyId)
+    ?? hobbies.find((hobby) => hobby.name === '클라이밍')
+    ?? hobbies[0]
+  )?.id;
   const placesQuery = useQuery({
     queryKey: placeQueryKeys.list(regionId, hobbyId),
     queryFn: () => getPlaces(regionId, hobbyId),
     enabled: regionId !== undefined && hobbyId !== undefined,
   });
-  const hobbies = hobbiesQuery.data?.content ?? [];
   const places = placesQuery.data ?? [];
   const selectedPlace = places.find((place) => place.id === selectedPlaceId);
   const selectedRegion = regionsQuery.data?.find((region) => region.id === regionId);
@@ -47,13 +53,6 @@ export function PlaceSearchPage() {
     const defaultRegion = regionsQuery.data.find((region) => region.sigungu === '마포구') ?? regionsQuery.data[0];
     setRegionId(defaultRegion.id);
   }, [regionId, regionsQuery.data]);
-
-  useEffect(() => {
-    if (!hobbies.length) return;
-    if (hobbyId !== undefined && hobbies.some((hobby) => hobby.id === hobbyId)) return;
-    const defaultHobby = hobbies.find((hobby) => hobby.name === '클라이밍') ?? hobbies[0];
-    setHobbyId(defaultHobby.id);
-  }, [hobbyId, hobbies]);
 
   useEffect(() => {
     if (!places.length) {
@@ -86,7 +85,11 @@ export function PlaceSearchPage() {
       <label>시·군·구<select value={regionId ?? ''} onChange={(event) => setRegionId(Number(event.target.value))} disabled={!regionsQuery.data?.length}>
         {regionsQuery.data?.map((region) => <option value={region.id} key={region.id}>{region.sigungu}</option>)}
       </select></label>
-      <div className="place-hobbies">{hobbies.map((hobby) => <button className={hobbyId === hobby.id ? 'active' : ''} type="button" onClick={() => setHobbyId(hobby.id)} key={hobby.id}>{hobby.name}</button>)}</div>
+      <div className="place-hobbies">{hobbies.map((hobby) => <button className={hobbyId === hobby.id ? 'active' : ''} type="button" onClick={() => setSearchParams((current) => {
+        const next = new URLSearchParams(current);
+        next.set('hobbyId', String(hobby.id));
+        return next;
+      })} key={hobby.id}>{hobby.name}</button>)}</div>
     </div>
     {sidosQuery.isError || regionsQuery.isError || hobbiesQuery.isError ? <p className="place-query-message" role="alert">장소 검색 조건을 불러오지 못했어요. 잠시 후 다시 시도해 주세요.</p> : null}
     <div className="place-layout">

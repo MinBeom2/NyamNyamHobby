@@ -101,7 +101,7 @@ describe('my hobby plan place link', () => {
           </MemoryRouter>
         </QueryClientProvider>,
       );
-      expect(html).toMatch(new RegExp(`href="/places\\?hobbyId=${hobbyId}"[^>]*>장소 찾기</a>`));
+      expect(html).toMatch(new RegExp(`href="/places\\?hobbyId=${hobbyId}"[^>]*>[\\s\\S]*?장소 찾기</a>`));
     } finally {
       client.clear();
     }

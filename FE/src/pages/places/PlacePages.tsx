@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link, Navigate, useSearchParams } from 'react-router-dom';
 import { getPlaceHobbies, getPlaces, getRegions, getSidos, placeQueryKeys } from '../../features/place/api/placeApi';
-import { HOBBY_THUMBNAIL_MAP } from '../../features/place/model/hobbyThumbnailMap';
+import { HOBBY_THUMBNAIL_MAP } from '../../shared/assets/hobbyThumbnails';
 import { KakaoPlaceMap } from '../../features/place/ui/KakaoPlaceMap';
 import type { FeedScope, FeedType } from '../../features/feed/api/feedApi';
 import { feedTypeLabels, OTHER_HOBBY_LABEL } from '../../features/feed/model/feedAdapter';

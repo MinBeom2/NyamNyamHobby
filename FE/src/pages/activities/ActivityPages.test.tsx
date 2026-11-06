@@ -85,10 +85,12 @@ function renderPlan(plan: PlanViewDto) {
 }
 
 describe('hobby plan execution guidance', () => {
-  it('shows the next activity with execution details', () => {
+  it('shows activities with execution details and explicit record actions', () => {
     const html = renderPlan(createPlan());
 
-    expect(html).toContain('지금 할 다음 활동');
+    expect(html).toContain('기본 동작 연습하기');
+    expect(html).toContain('건너뛰기');
+    expect(html).not.toContain('<textarea');
     expect(html).toContain('예상 35분');
     expect(html).toContain('준비물 · 편한 옷, 물');
     expect(html).toContain('완료 기준 · 기본 동작을 3번 수행하기');
@@ -102,7 +104,7 @@ describe('hobby plan execution guidance', () => {
       items: [{ ...activity, itemId: 201, weekNo: 2 }],
     }));
 
-    expect(html).toContain('2주차는 미리보기만 가능해요');
+    expect(html).toContain('미리보기 중이에요. 이 주차가 시작되면 활동을 기록할 수 있어요.');
     expect(html).toContain('disabled=""');
   });
 
@@ -111,7 +113,7 @@ describe('hobby plan execution guidance', () => {
     const html = renderPlan(createPlan({ currentWeek: 2, selectedWeek: 2, overdueCount: 1, overdueItems: [overdue] }));
 
     expect(html).toContain('1주차에 남은 활동');
-    expect(html).toContain('이전에 남은 활동 1개');
+    expect(html).toContain('이전 주차에 남은 활동 <b>1개</b>');
     expect(html).toContain('지난주 안전 수칙 확인');
   });
 });

@@ -1,7 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { login } from '../../features/auth/api/authApi';
 import { loginSchema, type LoginFormValues } from '../../features/auth/model/loginSchema';
 import { useAuthStore } from '../../features/auth/model/authStore';
@@ -30,6 +30,9 @@ function getLoginErrorMessage(error: unknown) {
 
 export function LoginPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const requestedReturn = searchParams.get('returnTo');
+  const returnTo = requestedReturn && /^\/my-hobbies(?:[/?]|$)/.test(requestedReturn) ? requestedReturn : '/home';
   const setSession = useAuthStore((state) => state.setSession);
   const {
     register,
@@ -44,7 +47,7 @@ export function LoginPage() {
     mutationFn: login,
     onSuccess: (data) => {
       setSession(data);
-      navigate(data.user.onboarded ? '/home' : '/onboarding/interests', { replace: true });
+      navigate(data.user.onboarded ? returnTo : '/onboarding/interests', { replace: true });
     },
   });
 

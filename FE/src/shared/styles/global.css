@@ -907,6 +907,8 @@ strong, b { font-weight: 700; }
 .explore-restart-modal p, .hobby-start-error-modal p { margin: 0; color: var(--color-muted); font-size: 13px; line-height: 21px; }
 .explore-restart-modal > div, .hobby-start-error-modal > div { margin-top: 24px; display: flex; justify-content: flex-end; gap: 10px; }
 .explore-restart-modal .button, .hobby-start-error-modal .button { min-height: 40px; padding: 0 16px; }
+.direct-select-notice ul { margin: 14px 0 0; padding: 12px 14px 12px 30px; border-radius: var(--radius-sm); color: var(--color-ink); background: var(--color-primary-soft); font-size: 13px; line-height: 21px; }
+.direct-select-notice li + li { margin-top: 4px; }
 .hobby-start-error-modal { max-width: calc(100% - 48px); color: var(--color-ink); }
 .hobby-start-error-modal::backdrop { background: rgb(18 36 42 / 42%); backdrop-filter: blur(2px); -webkit-backdrop-filter: blur(2px); }
 

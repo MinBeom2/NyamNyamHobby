@@ -5,6 +5,8 @@
 > **작성자**: 김재현  
 > **단일 진실 공급원(SSOT)**: 런타임 상세 스펙은 Spring Boot 서버의 Swagger UI (`/swagger-ui/index.html`)를 기준으로 하며, 본 문서는 프론트엔드-백엔드 간 계약 및 기능 구현을 위한 표준 상세 명세서입니다.
 
+> **11/06 변경 (자유 탐색)**: 상단 '숏폼 탐색' 메뉴를 추천과 무관한 자유 탐색 화면(`/shorts`)으로 바꾸고 `GET /shorts/feed`를 추가했다(3.3절 7-B). 맞춤 추천용 탐색(`/explore`)은 홈의 '숏폼 추천 다시받기'로 들어간다.
+
 > **11/06 변경 (추천)**: 관심사 직접 선택 추천(`POST /recommendations`의 `basis: DIRECT_SELECTION`, FR-SHORT-05)을 `[P1]`로 구현했다. 3.4절 5-1)을 따른다. 홈용 `GET /recommendations/latest`를 3.4절 6-1)에 추가했다. 취미 찾기의 '맞춤 추천 보기' 화면(`/hobbies/recommendations`)은 삭제했다(API 변경 없음).
 
 > **10/30 화면 기준 변경**: 01-6A·01-6B 온보딩과 02-1 숏폼 보관·해제는 현재 Figma v2에 맞춰 구현했다. 이 두 기능은 아래의 과거 우선순위 설명보다 [프론트 연동용 변경 문서](./api-changes-2026-10-30-onboarding-short-save.md)를 우선한다. 보관함 목록 등 다른 P2 기능은 범위에 추가하지 않는다.
@@ -712,6 +714,45 @@
       { "id": 3, "name": "클라이밍", "count": 2 },
       { "id": null, "name": null, "count": 1 }
     ]
+  },
+  "error": null
+}
+```
+
+#### 7-B) 자유 탐색 숏폼 목록 (상단 '숏폼 탐색') `[P1]`
+> 추천 알고리즘·탐색 세션 없이 공개 숏폼 전체를 섞어서 끝없이 넘겨 보는 화면(`/shorts`)용이다. 진행 표시(n/N)·탐색 기준 패널이 없고 추천을 만들지 않는다.
+
+- **Endpoint**: `GET /api/v1/shorts/feed?seed=123456&cursor=10&size=10`
+- **Permission**: `공개` (로그인하면 `isSaved`에 내 보관 여부가 들어간다. 비회원은 모두 `false`)
+- **Query Parameters**:
+  - `seed`: 섞는 순서 값(선택). 생략하면 서버가 1~2,147,483,646 사이에서 새로 만든다. 응답의 `seed`를 다음 요청에 그대로 보내면 같은 순서로 이어진다.
+  - `cursor`: 이미 받은 영상 수. 기본 0, 0 이상.
+  - `size`: 한 번에 받을 수. 기본 10, 1~20.
+  - 범위를 벗어나면 `400 COMMON_INVALID_INPUT`.
+- **동작**:
+  - 대상은 상태가 `ACTIVE`인 숏폼 전체(취미 무관)다.
+  - 같은 `seed`면 항상 같은 순서다.
+  - 한 바퀴를 다 받으면 `nextCursor: null`이다. 화면은 `seed` 없이 `cursor=0`으로 다시 요청해 새로 섞은 순서로 끝없이 이어 본다.
+- **기록하지 않음**: 탐색 세션·시청 기록·반응을 남기지 않아 맞춤 추천 점수에 영향이 없다. 이 화면에서는 좋아요·별로예요를 받지 않고, 회원은 보관(6)만 할 수 있다.
+- **Response (200 OK)**: `items`의 각 항목은 탐색 영상 응답과 같은 구조(`myReaction`은 항상 `null`)다.
+```json
+{
+  "success": true,
+  "data": {
+    "items": [
+      {
+        "shortId": 512,
+        "youtubeVideoId": "abcdefghijk",
+        "title": "초보 러너가 많이 놓치는 자세",
+        "duration": 32,
+        "hobby": { "id": 2, "name": "러닝", "category": "운동" },
+        "myReaction": null,
+        "isSaved": false
+      }
+    ],
+    "seed": 123456,
+    "nextCursor": 20,
+    "total": 340
   },
   "error": null
 }

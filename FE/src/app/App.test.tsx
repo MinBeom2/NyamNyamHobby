@@ -67,12 +67,16 @@ describe('guest access and session-aware pages', () => {
   it('allows guest notices and the guest short exploration', () => {
     expect(renderPage('/notices')).toContain('공지사항');
     expect(renderPage('/explore?guest=true')).toContain('다음 영상');
+    const shorts = renderPage('/shorts');
+    expect(shorts).toContain('모든 취미의 숏폼을 자유롭게 둘러보세요');
+    expect(shorts).toContain('href="/shorts"');
+    expect(shorts).not.toContain('나의 탐색 기준');
     expect(useAuthStore.getState().user).toBeNull();
   });
 
   it('keeps the member header and session across public, member and home pages', () => {
     useAuthStore.getState().setSession({ user, accessToken: 'test-token', expiresIn: 1800 });
-    for (const path of ['/notices', '/explore', '/hobbies', '/', '/home']) {
+    for (const path of ['/notices', '/explore', '/shorts', '/hobbies', '/', '/home']) {
       const html = renderPage(path);
       expect(html).toContain('로그아웃');
       expect(html).toContain('aria-label="냠냠취미 홈"');

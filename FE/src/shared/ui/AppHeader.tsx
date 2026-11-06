@@ -12,7 +12,7 @@ type AppHeaderProps = {
 };
 
 const navigation = [
-  { label: '숏폼 탐색', to: '/explore' },
+  { label: '숏폼 탐색', to: '/shorts' }, // 자유 탐색. 맞춤 추천용 탐색(/explore)은 홈 버튼으로 들어간다
   { label: '취미 찾기', to: '/hobbies', requiresAuth: true },
   { label: '장소 찾기', to: '/places', requiresAuth: true },
   { label: '취미 정보', to: '/info-feed', requiresAuth: true },

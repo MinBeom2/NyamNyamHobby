@@ -46,6 +46,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @Import({SecurityConfig.class, JwtAuthenticationEntryPoint.class, JwtAccessDeniedHandler.class})
 class ExplorationControllerTest {
     @MockitoBean ShortSaveService saves;
+    @MockitoBean com.ssafy.nyamnyam.domain.shortform.service.ShortFeedService feeds;
     @Autowired MockMvc mvc;
     @MockitoBean ExplorationService explorations;
     @MockitoBean RecommendationService recommendations;
@@ -57,6 +58,19 @@ class ExplorationControllerTest {
 
     private final UserPrincipal principal = new UserPrincipal(1L, "mvc@example.com", "USER");
     private User member;
+
+    @Test void freeBrowseFeedIsPublicAndPassesLoginUserWhenPresent() throws Exception {
+        given(feeds.feed(null, 7L, 10, 10)).willReturn(new com.ssafy.nyamnyam.domain.shortform.dto.response.ShortFeedResponse(java.util.List.of(), 7L, null, 10));
+        mvc.perform(get("/api/v1/shorts/feed").param("seed", "7").param("cursor", "10"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.seed").value(7))
+                .andExpect(jsonPath("$.data.nextCursor").doesNotExist());
+        given(feeds.feed(1L, null, 0, 5)).willReturn(new com.ssafy.nyamnyam.domain.shortform.dto.response.ShortFeedResponse(java.util.List.of(), 3L, 5, 10));
+        mvc.perform(get("/api/v1/shorts/feed").param("size", "5").with(user(principal)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.nextCursor").value(5));
+        verifyNoInteractions(explorations);
+    }
 
     @Test void savesShortWithoutReactionOrSession() throws Exception {
         given(saves.save(1L, 100L)).willReturn(new ShortSaveResponse(100L, true));

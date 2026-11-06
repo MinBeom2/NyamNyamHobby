@@ -34,6 +34,18 @@ public class ShortSaveRepository {
                 Boolean.class, userId, shortId));
     }
 
+    /** 주어진 영상 중 이 사용자가 보관한 것 */
+    public java.util.Set<Long> findSavedShortIds(Long userId, java.util.Collection<Long> shortIds) {
+        if (shortIds.isEmpty()) return java.util.Set.of();
+        String marks = String.join(",", java.util.Collections.nCopies(shortIds.size(), "?"));
+        java.util.List<Object> args = new java.util.ArrayList<>();
+        args.add(userId);
+        args.addAll(shortIds);
+        return new java.util.HashSet<>(jdbc.queryForList(
+                "SELECT short_id FROM short_saves WHERE user_id = ? AND short_id IN (" + marks + ")",
+                Long.class, args.toArray()));
+    }
+
     public long countByUserId(Long userId) {
         Long count = jdbc.queryForObject(
                 "SELECT count(*) FROM short_saves WHERE user_id = ?",

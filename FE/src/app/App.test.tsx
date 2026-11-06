@@ -66,7 +66,7 @@ describe('guest access and session-aware pages', () => {
 
   it('allows guest notices and the guest short exploration', () => {
     expect(renderPage('/notices')).toContain('공지사항');
-    expect(renderPage('/explore?guest=true')).toContain('다음 영상');
+    expect(renderPage('/explore?guest=true')).toContain('아래로 스크롤');
     expect(useAuthStore.getState().user).toBeNull();
   });
 

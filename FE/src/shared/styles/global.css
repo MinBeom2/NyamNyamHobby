@@ -606,15 +606,17 @@ strong, b { font-weight: 700; }
 .mini-empty { min-height: 160px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; color: var(--color-muted); }
 
 /* community */
-.community-layout { display: grid; grid-template-columns: 180px 1fr; gap: 28px; }
+.community-layout { display: grid; grid-template-columns: minmax(0, 180px) minmax(0, 1fr); gap: 28px; }
+.board-main { min-width: 0; }
 .board-sidebar { align-self: start; padding: 18px; border: 1px solid var(--color-line); border-radius: 12px; background: #fff; }
 .board-sidebar h2 { margin: 0 0 14px; font-family: var(--font-title); font-weight: 400; }
 .board-sidebar button { width: 100%; min-height: 37px; padding: 0 8px; border: 0; border-radius: 7px; display: flex; justify-content: space-between; align-items: center; color: #667579; background: transparent; font-size: 12px; cursor: pointer; }
 .board-sidebar button.active { color: var(--color-primary); background: var(--color-primary-soft); font-weight: 700; }
 .board-sidebar small { color: #9aa5a7; }
-.board-tools { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
-.board-tools > div { display: flex; gap: 6px; }
-.board-tools label { width: 260px; height: 38px; padding: 0 11px; border: 1px solid var(--color-line); border-radius: 8px; display: flex; align-items: center; gap: 7px; background: #fff; }
+.board-tools { display: flex; flex-direction: column; align-items: stretch; gap: 10px; margin-bottom: 14px; }
+.board-tools > div { min-width: 0; width: 100%; display: flex; gap: 6px; overflow-x: auto; }
+.board-tools > div button { flex: 0 0 auto; white-space: nowrap; }
+.board-tools label { align-self: flex-end; width: min(320px, 100%); height: 38px; padding: 0 11px; border: 1px solid var(--color-line); border-radius: 8px; display: flex; align-items: center; gap: 7px; background: #fff; }
 .board-tools label svg { width: 15px; color: var(--color-muted); }
 .board-tools input { width: 100%; border: 0; outline: 0; }
 .board-table { overflow: hidden; border: 1px solid var(--color-line); border-radius: 12px; background: #fff; }
@@ -718,7 +720,8 @@ strong, b { font-weight: 700; }
   .hobby-guide__nav b { display: none; }
   .hobby-guide__nav button { min-width: max-content; min-height: 38px; border-left: 0; border-bottom: 3px solid transparent; }
   .hobby-guide-section { height: auto; min-height: 620px; overflow: visible; }
-  .plan-sidebar, .board-sidebar { order: 2; }
+  .plan-sidebar { order: 2; }
+  .board-sidebar { order: -1; }
   .place-layout { gap: 18px; }
   .place-results { height: auto; min-height: 0; }
   .place-results h2 { margin: 6px 0 12px; }

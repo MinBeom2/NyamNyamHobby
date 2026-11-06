@@ -1227,6 +1227,8 @@ itemId는 사용자 사본 ID, status는 `TODO|DONE|SKIPPED`. 정렬은 weekNo·
     "content": [
       {
         "id": 120,
+        "hobbyId": 1,
+        "hobbyName": "클라이밍",
         "type": "REVIEW",
         "title": "클라이밍 입문 한 달 차의 솔직한 후기",
         "contentSummary": "처음에는 악력도 약하고 힘들었지만 V1을 처음 깼을 때의 쾌감이 대단합니다...",
@@ -1294,6 +1296,12 @@ itemId는 사용자 사본 ID, status는 `TODO|DONE|SKIPPED`. 정렬은 weekNo·
 - **Endpoint**: `PUT /api/v1/comments/{commentId}/like` / `DELETE /api/v1/comments/{commentId}/like`
 - **Permission**: `회원 (USER)`
 - **Response (200 OK)**: 변경된 총 좋아요 수 반환
+
+#### 8) 전체 취미 게시글 목록 조회 (커뮤니티 '전체')
+- **Endpoint**: `GET /api/v1/posts?type={type}&keyword={keyword}&sort={sort}&page=0&size=20`
+- **Permission**: `공개`
+- **Query Parameter**: 취미별 게시글 목록과 동일한 `type`, `keyword`, `sort`, `page`, `size`를 사용한다.
+- **Response (200 OK)**: 취미별 게시글 목록과 같은 응답 형식으로, 모든 공개 취미의 활성 게시글을 최신순으로 페이징해 반환한다. 각 항목에는 게시판 구분을 위한 `hobbyId`, `hobbyName`을 포함한다.
 
 ---
 

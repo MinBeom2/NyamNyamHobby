@@ -66,6 +66,7 @@ public class SecurityConfig {
                                 "/api/v1/hobbies/*",
                                 "/api/v1/hobbies/*/plan-preview",
                                 "/api/v1/hobbies/*/posts",
+                                "/api/v1/posts",
                                 "/api/v1/posts/*",
                                 "/api/v1/posts/*/comments",
                                 "/api/v1/uploads/images/**",

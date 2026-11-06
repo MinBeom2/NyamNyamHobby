@@ -305,6 +305,31 @@ class PostServiceTest {
         assertThat(page.page().totalElements()).isEqualTo(2);
     }
 
+        @Test
+        @DisplayName("전체 게시판 목록: 취미 제한 없이 최신순 페이징하고 썸네일을 포함")
+        @SuppressWarnings("unchecked")
+        void getAllPosts() {
+                Post post = post(1L, writer);
+                given(postRepository.findAll(any(Specification.class), any(Pageable.class)))
+                                .willAnswer(inv -> new PageImpl<>(List.of(post), inv.getArgument(1), 1));
+                given(postImageRepository.findThumbnails(List.of(1L)))
+                                .willReturn(List.<Object[]>of(new Object[]{1L, IMG + "thumb.jpg"}));
+
+                PageResponse<PostSummaryResponse> page = service.getAllPosts(null, null, PostSort.LATEST, 0, 20);
+
+                ArgumentCaptor<Pageable> pageable = ArgumentCaptor.forClass(Pageable.class);
+                verify(postRepository).findAll(any(Specification.class), pageable.capture());
+                verify(hobbyRepository, never()).findById(anyLong());
+                assertThat(pageable.getValue().getPageSize()).isEqualTo(20);
+                assertThat(pageable.getValue().getSort().toString()).isEqualTo("createdAt: DESC,id: DESC");
+                assertThat(page.content()).singleElement().satisfies(item -> {
+                        assertThat(item.hobbyId()).isEqualTo(1L);
+                        assertThat(item.hobbyName()).isEqualTo("클라이밍");
+                        assertThat(item.thumbnailUrl()).isEqualTo(IMG + "thumb.jpg");
+                        assertThat(item.id()).isEqualTo(1L);
+                });
+        }
+
     @Test
     @DisplayName("정렬·검색어 처리")
     void helpers() {

@@ -8,6 +8,8 @@ import java.time.LocalDateTime;
 /** 게시판 목록 한 줄 */
 public record PostSummaryResponse(
         Long id,
+    Long hobbyId,
+    String hobbyName,
         PostType type,
         String title,
         String contentSummary,
@@ -23,6 +25,8 @@ public record PostSummaryResponse(
     public static PostSummaryResponse of(Post post, String thumbnailUrl) {
         return new PostSummaryResponse(
                 post.getId(),
+            post.getHobby().getId(),
+            post.getHobby().getName(),
                 post.getType(),
                 post.getTitle(),
                 summarize(post.getContent()),

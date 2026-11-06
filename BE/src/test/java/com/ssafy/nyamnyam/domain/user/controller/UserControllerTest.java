@@ -240,7 +240,7 @@ class UserControllerTest {
     @DisplayName("GET /api/v1/users/me/posts 내 글 목록 조회 성공")
     void getMyPosts_success() throws Exception {
         PostSummaryResponse postSummary = new PostSummaryResponse(
-                100L, PostType.QUESTION, "테스트 제목", "테스트 내용 요약",
+                100L, 1L, "클라이밍", PostType.QUESTION, "테스트 제목", "테스트 내용 요약",
                 new AuthorResponse(1L, "테스트유저", null), null,
                 10, 5, 2, LocalDateTime.now()
         );

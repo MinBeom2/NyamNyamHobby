@@ -2,6 +2,9 @@ import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { communityQueryKeys, getMyPosts, type PostType } from '../../features/community/api/communityApi';
 import { AppHeader } from '../../shared/ui/AppHeader';
+import { Button } from '../../shared/ui/Button';
+import { Pagination } from '../../shared/ui/Pagination';
+import { usePageBounds, usePageSearchParams } from '../../shared/hooks/usePageSearchParams';
 
 const typeLabels: Record<PostType, string> = {
   QUESTION: '질문',
@@ -11,10 +14,12 @@ const typeLabels: Record<PostType, string> = {
 };
 
 export function MyPostsPage() {
+  const { page, changePage } = usePageSearchParams();
   const postsQuery = useQuery({
-    queryKey: communityQueryKeys.myPosts(0),
-    queryFn: () => getMyPosts({ page: 0, size: 20 }),
+    queryKey: communityQueryKeys.myPosts(page),
+    queryFn: () => getMyPosts({ page, size: 20 }),
   });
+  usePageBounds(page, postsQuery.data?.page.totalPages, changePage);
   const posts = postsQuery.data?.content ?? [];
 
   return <div className="site-shell">
@@ -22,7 +27,7 @@ export function MyPostsPage() {
     <main className="page-container community-page">
       <header className="community-page__heading"><div><h1>내가 쓴 글</h1></div></header>
       {postsQuery.isLoading && <p role="status">작성한 글을 불러오고 있어요.</p>}
-      {postsQuery.isError && <p role="alert">작성한 글을 불러오지 못했어요. 잠시 후 다시 시도해 주세요.</p>}
+      {postsQuery.isError && <p role="alert">작성한 글을 불러오지 못했어요. <Button variant="text" onClick={() => postsQuery.refetch()}>다시 시도</Button></p>}
       {!postsQuery.isLoading && !postsQuery.isError && posts.length === 0 && <div className="empty-state"><h2>아직 작성한 글이 없어요.</h2></div>}
       {posts.length > 0 && <div className="board-table">
         <div className="board-table__head"><span>분류</span><span>제목</span><span>작성자</span><span>작성일</span><span>댓글</span><span>조회</span></div>
@@ -35,6 +40,7 @@ export function MyPostsPage() {
           <span>{post.viewCount}</span>
         </Link>)}
       </div>}
+      <Pagination page={page} totalPages={postsQuery.data?.page.totalPages ?? 0} disabled={postsQuery.isFetching} onPageChange={(nextPage) => changePage(nextPage)} />
     </main>
   </div>;
 }

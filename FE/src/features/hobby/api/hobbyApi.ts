@@ -76,9 +76,12 @@ export type HobbySearchResponse = {
   page: { number: number; size: number; totalElements: number; totalPages: number; hasNext: boolean };
 };
 
+export type HobbyCatalogParams = Omit<HobbySearchParams, 'page' | 'size'>;
+
 export const hobbyQueryKeys = {
   all: ['hobbies'] as const,
   list: (params: HobbySearchParams) => [...hobbyQueryKeys.all, 'list', params] as const,
+  catalog: (params: HobbyCatalogParams) => [...hobbyQueryKeys.all, 'catalog', params] as const,
   detail: (hobbyId: number) => [...hobbyQueryKeys.all, 'detail', hobbyId] as const,
   planPreview: (hobbyId: number, skillLevel = 'BEGINNER') => [...hobbyQueryKeys.all, hobbyId, 'plan-preview', skillLevel] as const,
   shorts: (hobbyId: number, limit: number) => ['hobbies', hobbyId, 'shorts', limit] as const,
@@ -92,9 +95,21 @@ function toQuery(params: HobbySearchParams) {
   return query.toString();
 }
 
-export function getHobbies(params: HobbySearchParams = {}) {
+export function getHobbies(params: HobbySearchParams = {}, signal?: AbortSignal) {
   const query = toQuery(params);
-  return apiRequest<HobbySearchResponse>(`/hobbies${query ? `?${query}` : ''}`);
+  return apiRequest<HobbySearchResponse>(`/hobbies${query ? `?${query}` : ''}`, { signal });
+}
+
+/** 검색·선택 화면의 로컬 필터가 전체 취미에 적용되도록 모든 페이지를 읽는다. */
+export async function getHobbyCatalog(params: HobbyCatalogParams = {}, signal?: AbortSignal): Promise<HobbyListItemDto[]> {
+  const hobbies: HobbyListItemDto[] = [];
+  let page = 0;
+  while (true) {
+    const response = await getHobbies({ ...params, page, size: 100 }, signal);
+    hobbies.push(...response.content);
+    if (!response.page.hasNext) return hobbies;
+    page += 1;
+  }
 }
 
 export function getHobbyDetail(hobbyId: number) {

@@ -76,6 +76,9 @@ function MemberRoute() {
   const initialized = useAuthStore((state) => state.sessionInitialized);
   const location = useLocation();
   if (!initialized) return <SessionLoadingPage />;
+  if (!user && location.pathname.startsWith('/my-hobbies')) {
+    return <Navigate replace to={`/login?returnTo=${encodeURIComponent(`${location.pathname}${location.search}`)}`} />;
+  }
   if (!user) return <Navigate replace to="/" state={{ signupRequired: getMemberMenu(location.pathname) ?? '회원 전용 기능', returnTo: '/' }} />;
   return <Outlet />;
 }

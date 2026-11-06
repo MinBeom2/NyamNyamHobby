@@ -1,5 +1,6 @@
 /**
- * 30종 기본 취미 대표 썸네일 매핑 (FE/public/assets/hobbies/*.webp)
+ * 장소 찾기와 내 취미 관리에서 재사용하는 기존 30종 대표 썸네일.
+ * 경로는 FE/public/assets/hobbies/*.webp의 원본 에셋을 가리킨다.
  */
 export const HOBBY_THUMBNAIL_MAP: Record<string, string> = {
   클라이밍: '/assets/hobbies/climbing.webp',

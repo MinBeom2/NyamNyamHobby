@@ -71,6 +71,19 @@ public class PostService {
         PageRequest pageable = PageRequest.of(Math.max(page, 0), clampSize(size), toSort(sort));
         Page<Post> posts = postRepository.findAll(boardSpec(hobbyId, type, keyword), pageable);
 
+        return toSummaryPage(posts);
+    }
+
+    /** 전체 취미 게시판 목록. 숨김·삭제 글은 빠진다 */
+    public PageResponse<PostSummaryResponse> getAllPosts(PostType type, String keyword,
+                                                         PostSort sort, int page, int size) {
+        PageRequest pageable = PageRequest.of(Math.max(page, 0), clampSize(size), toSort(sort));
+        Page<Post> posts = postRepository.findAll(boardSpec(null, type, keyword), pageable);
+
+        return toSummaryPage(posts);
+    }
+
+    private PageResponse<PostSummaryResponse> toSummaryPage(Page<Post> posts) {
         Map<Long, String> thumbnails = new HashMap<>();
         List<Long> postIds = posts.getContent().stream().map(Post::getId).toList();
         if (!postIds.isEmpty()) {
@@ -256,12 +269,14 @@ public class PostService {
         return latest;
     }
 
-    /** 게시판 조건: 해당 취미 · ACTIVE · (유형) · (제목 또는 내용에 검색어, 대소문자 무시) */
+    /** 게시판 조건: (선택 취미) · ACTIVE · (유형) · (제목 또는 내용에 검색어, 대소문자 무시) */
     static Specification<Post> boardSpec(Long hobbyId, PostType type, String keyword) {
         String trimmedKeyword = keyword == null ? null : keyword.strip();
         return (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
-            predicates.add(cb.equal(root.get("hobby").get("id"), hobbyId));
+            if (hobbyId != null) {
+                predicates.add(cb.equal(root.get("hobby").get("id"), hobbyId));
+            }
             predicates.add(cb.equal(root.get("status"), PostStatus.ACTIVE));
             if (type != null) {
                 predicates.add(cb.equal(root.get("type"), type));

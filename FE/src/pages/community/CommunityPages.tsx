@@ -37,11 +37,9 @@ export function CommunityListPage() {
   const [keyword, setKeyword] = useState('');
   const [hobbyId, setHobbyId] = useState<number | null>(null);
   const optionsQuery = useQuery({ queryKey: userQueryKeys.onboardingOptions(), queryFn: getOnboardingOptions });
-  useEffect(() => { if (hobbyId === null && optionsQuery.data?.hobbies[0]) setHobbyId(optionsQuery.data.hobbies[0].hobbyId); }, [hobbyId, optionsQuery.data]);
   const postsQuery = useQuery({
-    queryKey: communityQueryKeys.posts(hobbyId ?? 0, categoryType[category], keyword),
-    queryFn: () => getPosts(hobbyId as number, { type: categoryType[category], keyword }),
-    enabled: hobbyId !== null,
+    queryKey: communityQueryKeys.posts(hobbyId, categoryType[category], keyword),
+    queryFn: () => getPosts(hobbyId, { type: categoryType[category], keyword }),
   });
   const posts = postsQuery.data?.content ?? [];
   const hobby = optionsQuery.data?.hobbies.find((item) => item.hobbyId === hobbyId);
@@ -63,18 +61,21 @@ export function CommunityListPage() {
 
           <section className="board-main">
             <div className="page-title-row">
-              <div><h1>{hobby ? `${hobby.name} 게시판` : '취미 게시판'}</h1><p>취미 경험과 질문, 유용한 정보를 나눠 보세요.</p></div>
+              <div><h1>{hobby ? `${hobby.name} 게시판` : '전체 게시판'}</h1><p>취미 경험과 질문, 유용한 정보를 나눠 보세요.</p></div>
               <Button to="/community/new">글쓰기</Button>
             </div>
             <div className="board-tools">
-              <div>{(optionsQuery.data?.hobbies ?? []).slice(0, 6).map((item) => <button className={hobbyId === item.hobbyId ? 'active' : ''} onClick={() => setHobbyId(item.hobbyId)} type="button" key={item.hobbyId}>{item.name}</button>)}</div>
+              <div>
+                <button aria-pressed={hobbyId === null} className={hobbyId === null ? 'active' : ''} onClick={() => setHobbyId(null)} type="button">전체</button>
+                {(optionsQuery.data?.hobbies ?? []).map((item) => <button aria-pressed={hobbyId === item.hobbyId} className={hobbyId === item.hobbyId ? 'active' : ''} onClick={() => setHobbyId(item.hobbyId)} type="button" key={item.hobbyId}>{item.name}</button>)}
+              </div>
               <label><Search /><input value={keyword} onChange={(event) => setKeyword(event.target.value)} placeholder="제목 검색" /></label>
             </div>
             <div className="board-table">
               <div className="board-table__head"><span>분류</span><span>제목</span><span>작성자</span><span>작성일</span><span>댓글</span><span>조회</span></div>
               {posts.length ? posts.map((post) => (
                 <Link className="board-row" to={`/community/${post.id}`} key={post.id}>
-                  <span><b className="badge">{typeLabel[post.type]}</b></span>
+                  <span><b className="badge">{typeLabel[post.type]}</b>{hobbyId === null && <b className="badge badge--soft">{post.hobbyName}</b>}</span>
                   <strong>{post.title} <em>[{post.commentCount}]</em></strong>
                   <span>{post.author.nickname}</span><span>{formatDate(post.createdAt)}</span><span>{post.commentCount}</span><span>{post.viewCount}</span>
                 </Link>

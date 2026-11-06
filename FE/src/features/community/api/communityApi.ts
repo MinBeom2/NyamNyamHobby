@@ -4,7 +4,7 @@ import { decodeComment, decodePage, decodePostDetail, decodePostSummary } from '
 export type PostType = 'QUESTION' | 'INFO' | 'REVIEW' | 'SHARE';
 export type PostAuthorDto = { id: number; nickname: string; profileImageUrl: string | null };
 export type PostSummaryDto = {
-  id: number; type: PostType; title: string; contentSummary: string;
+  id: number; hobbyId: number; hobbyName: string; type: PostType; title: string; contentSummary: string;
   author: PostAuthorDto; thumbnailUrl: string | null; viewCount: number;
   likeCount: number; commentCount: number; createdAt: string;
 };
@@ -46,17 +46,18 @@ export type ImageUploadResponse = { url: string; width: number | null; height: n
 
 export const communityQueryKeys = {
   all: ['community'] as const,
-  posts: (hobbyId: number, type?: PostType, keyword?: string, page = 0) => ['community', 'posts', hobbyId, type ?? 'ALL', keyword ?? '', page] as const,
+  posts: (hobbyId: number | null, type?: PostType, keyword?: string, page = 0) => ['community', 'posts', hobbyId ?? 'ALL_HOBBIES', type ?? 'ALL', keyword ?? '', page] as const,
   post: (postId: number) => ['community', 'post', postId] as const,
   comments: (postId: number, page = 0) => ['community', 'post', postId, 'comments', page] as const,
   myPosts: (page = 0) => ['community', 'my-posts', page] as const,
 };
 
-export function getPosts(hobbyId: number, options: { type?: PostType; keyword?: string; page?: number; size?: number } = {}) {
+export function getPosts(hobbyId: number | null, options: { type?: PostType; keyword?: string; page?: number; size?: number } = {}) {
   const params = new URLSearchParams({ sort: 'LATEST', page: String(options.page ?? 0), size: String(options.size ?? 20) });
   if (options.type) params.set('type', options.type);
   if (options.keyword?.trim()) params.set('keyword', options.keyword.trim());
-  return apiRequest<PageDto<PostSummaryDto>>(`/hobbies/${hobbyId}/posts?${params}`).then((page) => decodePage(page, decodePostSummary));
+  const path = hobbyId === null ? '/posts' : `/hobbies/${hobbyId}/posts`;
+  return apiRequest<PageDto<PostSummaryDto>>(`${path}?${params}`).then((page) => decodePage(page, decodePostSummary));
 }
 export function getMyPosts(options: { page?: number; size?: number } = {}) {
   const params = new URLSearchParams({ page: String(options.page ?? 0), size: String(options.size ?? 20) });

@@ -10,6 +10,7 @@ import com.ssafy.nyamnyam.domain.post.service.PostService;
 import com.ssafy.nyamnyam.domain.post.service.PostService.PostSort;
 import com.ssafy.nyamnyam.global.common.ApiResponse;
 import com.ssafy.nyamnyam.global.common.PageResponse;
+import com.ssafy.nyamnyam.global.common.PageResponse;
 import com.ssafy.nyamnyam.global.error.CustomException;
 import com.ssafy.nyamnyam.global.error.ErrorCode;
 import com.ssafy.nyamnyam.global.security.UserPrincipal;
@@ -30,6 +31,18 @@ import org.springframework.web.bind.annotation.*;
 public class PostController {
 
     private final PostService postService;
+
+    /** 전체 취미 게시글 목록 */
+    @GetMapping("/posts")
+    public ResponseEntity<ApiResponse<PageResponse<PostSummaryResponse>>> getAllPosts(
+            @RequestParam(value = "type", required = false) PostType type,
+            @RequestParam(value = "keyword", required = false) String keyword,
+            @RequestParam(value = "sort", defaultValue = "LATEST") PostSort sort,
+            @RequestParam(value = "page", defaultValue = "0") int page,
+            @RequestParam(value = "size", defaultValue = "20") int size
+    ) {
+        return ResponseEntity.ok(ApiResponse.success(postService.getAllPosts(type, keyword, sort, page, size)));
+    }
 
     /** 취미별 게시글 목록 */
     @GetMapping("/hobbies/{hobbyId}/posts")

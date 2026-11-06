@@ -21,6 +21,7 @@ export type PlaceDto = {
   openingHours: string | null;
   feeText: string | null;
   externalUrl: string | null;
+  thumbnailUrl: string | null;
   source: string;
   needsInfoCheck: boolean;
 };

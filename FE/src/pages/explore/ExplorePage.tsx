@@ -4,6 +4,7 @@ import { Link, Navigate, useSearchParams } from 'react-router-dom';
 import { useAuthStore } from '../../features/auth/model/authStore';
 import { useOnboardingStore } from '../../features/onboarding/model/onboardingStore';
 import { characterAssets } from '../../shared/assets/assets';
+import { useWheelStepNavigation } from '../../shared/hooks/useWheelStepNavigation';
 import { AppHeader } from '../../shared/ui/AppHeader';
 import { getExploreShorts } from './exploreFixtures';
 import { MemberExplorePage } from './MemberExplorePage';
@@ -26,17 +27,26 @@ export function ExplorePage() {
   const activeUser = user;
   const guestMode = guestRequested && !activeUser;
 
+  useWheelStepNavigation({
+    enabled: sessionInitialized && guestMode && !completed,
+    onNext: () => {
+      setIndex((value) => {
+        if (value >= shorts.length - 1) {
+          setCompleted(true);
+          return value;
+        }
+        return value + 1;
+      });
+    },
+    onPrevious: () => setIndex((value) => Math.max(0, value - 1)),
+  });
+
   if (activeUser && !guestMode) return <MemberExplorePage user={activeUser} />;
   if (!sessionInitialized) return <ExploreSessionStatus />;
   if (!activeUser && !guestMode) return <Navigate replace to="/onboarding/interests?mode=guest" />;
 
   const current = shorts[index];
-  const isLast = index === shorts.length - 1;
   const react = (reaction: Reaction) => setReactions((state) => ({ ...state, [current.id]: reaction }));
-  const next = () => {
-    if (isLast) setCompleted(true);
-    else setIndex((value) => value + 1);
-  };
   const restart = () => {
     setIndex(0);
     setCompleted(false);
@@ -85,7 +95,7 @@ export function ExplorePage() {
                 <ActionButton active={reactions[current.id] === 'LIKE'} label="좋아요" onClick={() => react('LIKE')}><Heart fill={reactions[current.id] === 'LIKE' ? 'currentColor' : 'none'} /></ActionButton>
                 <ActionButton active={reactions[current.id] === 'DISLIKE'} label="별로예요" onClick={() => react('DISLIKE')}><ThumbsDown fill={reactions[current.id] === 'DISLIKE' ? 'currentColor' : 'none'} /></ActionButton>
                 <ActionButton active={savedIds.includes(current.id)} label="임시 보관" onClick={() => setSavedIds((ids) => ids.includes(current.id) ? ids.filter((id) => id !== current.id) : [...ids, current.id])}><Bookmark fill={savedIds.includes(current.id) ? 'currentColor' : 'none'} /></ActionButton>
-                <button className="short-actions__next" type="button" onClick={next}><ChevronDown />{isLast ? '결과 보기' : '다음 영상'}</button>
+              <div className="short-actions__scroll-hint" aria-hidden="true"><ChevronDown />아래로 스크롤</div>
               </aside>
             </div>
           </>

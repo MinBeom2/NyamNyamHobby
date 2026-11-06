@@ -6,11 +6,18 @@ import { useMemberExploration } from '../../features/exploration/hooks/useMember
 import { useRecommendationResult } from '../../features/recommendation/model/useRecommendationResult';
 import { ApiError } from '../../shared/api/client';
 import { characterAssets } from '../../shared/assets/assets';
+import { useWheelStepNavigation } from '../../shared/hooks/useWheelStepNavigation';
 import { AppHeader } from '../../shared/ui/AppHeader';
 import { RestartExploreControl } from './RestartExploreControl';
 
 export function MemberExplorePage({ user }: { user: AuthUser }) {
   const exploration = useMemberExploration();
+
+  useWheelStepNavigation({
+    enabled: Boolean(exploration.current) && !exploration.recommendation && !exploration.isAdvancePending,
+    onNext: () => exploration.advance(),
+  });
+
   return <div className="site-shell">
     <AppHeader />
     <main className="page-container explore-page">
@@ -26,7 +33,7 @@ export function MemberExplorePage({ user }: { user: AuthUser }) {
               <ReactionButton active={exploration.current.reaction === 'LIKE'} disabled={exploration.isReactionPending || exploration.isAdvancePending} label="좋아요" onClick={() => exploration.react('LIKE')}><Heart fill={exploration.current.reaction === 'LIKE' ? 'currentColor' : 'none'} /></ReactionButton>
               <ReactionButton active={exploration.current.reaction === 'DISLIKE'} disabled={exploration.isReactionPending || exploration.isAdvancePending} label="별로예요" onClick={() => exploration.react('DISLIKE')}><ThumbsDown fill={exploration.current.reaction === 'DISLIKE' ? 'currentColor' : 'none'} /></ReactionButton>
               <ReactionButton active={exploration.current.isSaved} disabled={exploration.isSavePending || exploration.isAdvancePending} label={exploration.isSavePending ? '처리 중…' : exploration.current.isSaved ? '보관 해제' : '보관'} onClick={() => exploration.toggleSave()}><Bookmark fill={exploration.current.isSaved ? 'currentColor' : 'none'} /></ReactionButton>
-              <button className="short-actions__next" type="button" disabled={exploration.isAdvancePending} onClick={() => exploration.advance()}><ChevronDown />{exploration.isAdvancePending ? '처리 중…' : exploration.viewedCount >= exploration.maxCount ? '결과 보기' : '다음 영상'}</button>
+              <div className="short-actions__scroll-hint" aria-hidden="true"><ChevronDown />아래로 스크롤</div>
             </aside>
           </div>
           {exploration.error && <p className="explore-api-error" role="alert">{getApiErrorMessage(exploration.error)}</p>}

@@ -38,7 +38,7 @@ export function toFeedItemModel(dto: FeedItemDto): FeedItemModel {
   const period = formatPeriod(dto.eventStart, dto.eventEnd);
   return {
     id: dto.id,
-    hobbyName: dto.hobbyName,
+    hobbyName: dto.hobbyName ?? '그 외',
     typeLabel: feedTypeLabels[dto.type],
     title: dto.title,
     summary: dto.summary ?? '',

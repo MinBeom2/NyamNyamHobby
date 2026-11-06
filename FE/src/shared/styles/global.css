@@ -438,6 +438,8 @@ strong, b { font-weight: 700; }
 .hobby-guide__shorts article svg { width: 26px; opacity: .6; }
 .hobby-guide__shorts article b { display: block; margin-top: 9px; font-size: 12px; }
 /* 실제 숏폼 썸네일: 128px 카드 안에 맞춰 자르고, 원본 크기로 넘쳐 겹치지 않게 한다 */
+.hobby-guide__shorts { align-items: start; } /* 제목 줄 수가 달라도 썸네일 윗선을 맞춘다 */
+.hobby-guide__shorts > .button { align-self: start; margin-top: 43px; } /* (썸네일 128px - 버튼 42px) / 2: 썸네일 세로 가운데 */
 .hobby-guide__shorts article { min-width: 0; }
 .hobby-guide__shorts article > div { overflow: hidden; }
 .hobby-guide__shorts article > div img { display: block; width: 100%; height: 100%; object-fit: cover; }

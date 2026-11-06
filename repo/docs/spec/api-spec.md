@@ -1,9 +1,11 @@
 # 냠냠취미 REST API 상세 명세서 (v0.4)
 
 > **기준 문서**: 프로젝트 명세서 v0.4 ([project-spec-v0.3.md](./project-spec-v0.3.md), 파일 이름 유지) · 기능 요구사항 CSV(10/21) 반영 ([feature-requirements.csv](./feature-requirements.csv)) · DB 스키마 (PostgreSQL 17 + pgvector, 이미지 `pgvector/pgvector:pg17`; 확장·임베딩 스키마는 후속 마이그레이션, [V1__init.sql](../db/V1__init.sql))
-> **최종 수정일**: 2026-10-30
+> **최종 수정일**: 2026-11-06
 > **작성자**: 김재현  
 > **단일 진실 공급원(SSOT)**: 런타임 상세 스펙은 Spring Boot 서버의 Swagger UI (`/swagger-ui/index.html`)를 기준으로 하며, 본 문서는 프론트엔드-백엔드 간 계약 및 기능 구현을 위한 표준 상세 명세서입니다.
+
+> **11/06 변경 (추천)**: 관심사 직접 선택 추천(`POST /recommendations`의 `basis: DIRECT_SELECTION`, FR-SHORT-05)을 `[P1]`로 구현했다. 3.4절 5-1)을 따른다. 홈용 `GET /recommendations/latest`를 3.4절 6-1)에 추가했다. 취미 찾기의 '맞춤 추천 보기' 화면(`/hobbies/recommendations`)은 삭제했다(API 변경 없음).
 
 > **10/30 화면 기준 변경**: 01-6A·01-6B 온보딩과 02-1 숏폼 보관·해제는 현재 Figma v2에 맞춰 구현했다. 이 두 기능은 아래의 과거 우선순위 설명보다 [프론트 연동용 변경 문서](./api-changes-2026-10-30-onboarding-short-save.md)를 우선한다. 보관함 목록 등 다른 P2 기능은 범위에 추가하지 않는다.
 
@@ -861,6 +863,8 @@
 - **Response (200 OK)**: 1~2주차 활동 예시 데이터
 
 #### 5) 추천 생성 (탐색 세션 기반)
+> 같은 엔드포인트로 직접 선택 추천도 만든다. `basis`에 따라 필수 값이 다르다: `EXPLORATION_SESSION`은 `sessionId`, `DIRECT_SELECTION`은 `hobbyIds`(아래 5-1)).
+
 - **Endpoint**: `POST /api/v1/recommendations`
 - **Permission**: `회원 (USER)` (비회원 `GUEST` 체험은 `[P2·MVP 제외]`)
 - **Request Body**:
@@ -870,7 +874,7 @@
   "sessionId": 301
 }
 ```
-`basis`와 양수 `sessionId`는 필수다. `DIRECT_SELECTION`(관심사 직접 선택, FR-SHORT-05)은 `[P2·MVP 제외]`이며 MVP에서는 `400 COMMON_INVALID_INPUT`. `hobbyIds`는 생략·`null`·빈 배열만 허용한다.
+`basis`는 필수다. `EXPLORATION_SESSION`이면 양수 `sessionId`가 필수이며 누락 시 `400 COMMON_INVALID_INPUT`. 이때 `hobbyIds`는 무시한다. `DIRECT_SELECTION`은 5-1)을 따른다.
 
 - `POST /explorations/{sessionId}/finish`와 동일한 생성 처리를 사용한다. 최초 생성은 `201 Created`, 같은 세션의 재요청은 `200 OK`로 저장된 결과를 반환한다. 포기한 세션은 `409 SHORT_SESSION_ENDED`, 타인·없는 세션은 `404 COMMON_NOT_FOUND`.
 - **누적 집계**: 본인의 모든 세션 기록에서 영상별 가장 최근 시청 기록(`viewed_at DESC, id DESC`) 하나와 현재 반응 하나를 사용한다. 반복 시청·반응 변경을 중복 가산하지 않는다. 반응 취소 시 시청 점수는 유지한다. 관심사 초기화 시각이 이미 저장되어 있으면 그 이후 기록만 사용하며, 초기화 API 자체는 P2다.
@@ -933,6 +937,89 @@
 }
 ```
 
+#### 5-1) 추천 생성 (관심사 직접 선택 기반) `[P1]`
+> 숏폼을 보지 않고 사용자가 고른 취미로 추천을 만든다(FR-SHORT-05). 숏폼 추천이 '모르는 취미 발견'이라면, 직접 선택 추천은 **고른 취미 중 지금 이용 상황으로 시작하기 좋은 것**을 정리해 주고 비슷한 취미로 넓혀 준다. '내 취미'(`PUT /users/me/interests`, 최대 5개)와는 별개이며 이를 바꾸지 않는다.
+
+- **Endpoint**: `POST /api/v1/recommendations`
+- **Permission**: `회원 (USER)`
+- **Request Body**:
+```json
+{
+  "basis": "DIRECT_SELECTION",
+  "hobbyIds": [6, 2, 11]
+}
+```
+- **Validation**:
+  - `hobbyIds`는 1~10개의 양수 ID다. 누락·빈 배열·11개 이상·0 이하 값은 `400 COMMON_INVALID_INPUT`.
+  - 중복 ID는 한 번만 센다. 공개(`PUBLISHED`)가 아니거나 없는 취미가 하나라도 있으면 `400 COMMON_INVALID_INPUT`.
+  - `sessionId`는 무시한다.
+- **구성 (최대 6개)**:
+  - `INTEREST` 최대 3개: 고른 취미만 대상으로 한다. 기본 점수 1에 5)의 **이용 상황** 가중치(예산·시간 초과 `0.8`과 `conditionWarning: true`, 장소·참여 형태 일치 `1.1`)를 적용해 높은 순으로 고른다. 동점이면 **사용자가 고른 순서**를 따른다. 사용자가 직접 골랐으므로 추천 제외(별로예요)·진행 중 취미도 제외하지 않는다.
+  - `RELATED` 최대 3개: 고르지 않은 공개 취미 중 추천 제외·진행 중 취미를 뺀 후보를 대상으로 한다. `고른 취미 전체와의 기존 유사도 평균 × 0.5 + 가장 가까운 고른 취미와의 유사도 × 0.5`에 이용 상황 가중치를 적용한다. 0점(태그가 하나도 겹치지 않음)은 제외하고 높은 순(동점은 취미 ID 오름차순)으로 고른다.
+- **`basisText`**: 고른 취미들에 2개 이상 겹치는 태그를 많은 순으로 최대 3개 넣은 한 줄 요약이다.
+  - 예: `"직접 고른 취미 5개에 #실외 #혼자 성향이 많아요. 이용 상황에 맞춰 시작하기 좋은 순서로 정리했어요"`
+  - 겹치는 태그가 없으면 `"직접 고른 취미 N개를 바탕으로 …"`로 시작한다.
+  - 이용 상황이 없으면 `"시작하기 좋은 순서로 정리했어요"`로 끝난다.
+- **`fallbackReason`**: 이용 상황으로 만든 문장이다.
+  - `INTEREST` 예: `"월 예산 5만 원 안에서 시작할 수 있어요 · 실외 선호와 맞아요"`, `"월 예산보다 비용이 들 수 있어요 (월 8만 원부터)"`, `"한 번에 120분 이상 필요해 주당 시간보다 길어요"`. 이용 상황이 없으면 `"직접 고른 취미예요"`.
+  - `RELATED` 예: `"직접 고른 러닝와(과) 성향이 비슷한 취미예요"`.
+- **AI 이유 없음**: GMS를 호출하지 않는다. 모든 항목이 생성 즉시 `reason: null`, `reasonStatus: "FALLBACK"`이므로 폴링이 필요 없다.
+- **저장**: DB `basis`는 `SELECTION`, 응답 `basis`는 `DIRECT_SELECTION`이다. `session_id`는 비어 있고 `reactionCount`는 0, `isExploratory`는 `false`다. 스냅샷 규칙은 5)와 같다.
+- 같은 선택으로 다시 요청해도 매번 새 추천을 만든다. 홈은 가장 최근 추천만 보여주므로(6-1) 숏폼 탐색 추천과 번갈아 덮인다.
+- **Response (201 Created)**:
+```json
+{
+  "success": true,
+  "data": {
+    "recommendationId": 95,
+    "basis": "DIRECT_SELECTION",
+    "isExploratory": false,
+    "reactionCount": 0,
+    "basisText": "직접 고른 취미 3개에 #실외 #체력·건강 성향이 많아요. 이용 상황에 맞춰 시작하기 좋은 순서로 정리했어요",
+    "items": [
+      {
+        "itemId": 301,
+        "type": "INTEREST",
+        "rank": 1,
+        "hobby": {
+          "id": 2,
+          "name": "러닝",
+          "thumbnailUrl": "/assets/hobbies/running.webp",
+          "difficulty": "EASY",
+          "sessionMinutes": { "min": 30, "max": 60 },
+          "monthlyCost": { "min": 0, "max": 30000 }
+        },
+        "reason": null,
+        "reasonStatus": "FALLBACK",
+        "fallbackReason": "월 예산 5만 원 안에서 시작할 수 있어요 · 실외 선호와 맞아요",
+        "conditionWarning": false,
+        "saved": false
+      },
+      {
+        "itemId": 304,
+        "type": "RELATED",
+        "rank": 4,
+        "hobby": {
+          "id": 7,
+          "name": "걷기·산책",
+          "thumbnailUrl": "/assets/hobbies/walking.webp",
+          "difficulty": "EASY",
+          "sessionMinutes": { "min": 30, "max": 90 },
+          "monthlyCost": { "min": 0, "max": 10000 }
+        },
+        "reason": null,
+        "reasonStatus": "FALLBACK",
+        "fallbackReason": "직접 고른 러닝와(과) 성향이 비슷한 취미예요",
+        "conditionWarning": false,
+        "saved": false
+      }
+    ]
+  },
+  "error": null
+}
+```
+*(예시는 일부 항목만 표시. 실제로는 `INTEREST` 최대 3개 + `RELATED` 최대 3개)*
+
 #### 6) 추천 상세 조회 (비동기 사유 폴링용) — 비동기 AI 추천 이유는 `[P1]`
 - **Endpoint**: `GET /api/v1/recommendations/{id}`
 - **Permission**: `회원 (USER)` (비회원 `GUEST` 체험은 `[P2·MVP 제외]`)
@@ -940,6 +1027,16 @@
 - **상태 흐름**: 생성 직후 `reasonStatus: "PENDING"`, `reason: null`. RabbitMQ 소비자가 GMS 이유 생성을 마치면 `COMPLETED`와 60자 이내 한 문장으로 응답한다. GMS 설정 없음·오류·빈 결과는 `FALLBACK`, `reason: null`이며 `fallbackReason`을 유지한다. 모든 항목이 `COMPLETED` 또는 `FALLBACK`이면 폴링을 종료한다. 기존 DB의 `DONE`도 응답에서는 `COMPLETED`로 변환한다.
 - **발행 보장**: 추천과 이유 발행 요청(outbox)을 같은 DB 트랜잭션에 저장한다. 별도 작업자가 5초 주기로 커밋된 요청을 읽어 RabbitMQ 발행 확인 후 제거한다. 실패 시 10·20·40·80초 간격으로 재시도하며 5번째 실패 시 남은 `PENDING` 항목을 `FALLBACK`으로 전환한다. 중복 메시지는 완료된 항목의 이유를 재생성하지 않는다.
 - **운영 설정**: `RECOMMENDATION_REASON_OUTBOX_ENABLED`는 기본 `true`. `false`이면 발행 작업만 중지하고 요청은 DB에 보존한다. 재활성화 전까지 해당 추천의 이유는 `PENDING`일 수 있다. 로컬·서버 `.env.example`에 예시를 함께 관리한다.
+
+#### 6-1) 내 최근 추천 조회 (홈 '맞춤 추천 취미')
+- **Endpoint**: `GET /api/v1/recommendations/latest`
+- **Permission**: `회원 (USER)`
+- **Response (200 OK)**:
+  - 내 추천 중 가장 최근 1건을 추천 생성과 같은 구조로 준다. 숏폼 탐색(`EXPLORATION_SESSION`) 추천과 직접 선택(`DIRECT_SELECTION`) 추천을 구분하지 않는다.
+  - 둘 다 한 번도 하지 않았으면 `data: null`이다.
+- **화면 표시**:
+  - 홈은 `basis`로 배지와 부제를 바꾼다. `EXPLORATION_SESSION`은 '추천 취미/유사 취미', `DIRECT_SELECTION`은 '직접 고른 취미/비슷한 취미'다.
+  - `DIRECT_SELECTION`이면 `basisText`를 요약 한 줄로 보여준다.
 
 #### 7) 취미 별로예요 (추천 제외) 등록 / 취소
 - **Endpoint**: `PUT /api/v1/hobbies/{hobbyId}/dislike`

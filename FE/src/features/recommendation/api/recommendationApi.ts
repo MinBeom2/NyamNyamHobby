@@ -51,11 +51,19 @@ export function createRecommendation(sessionId: number) {
   });
 }
 
+/** 직접 선택 추천: 고른 취미 1~10개로 '시작하기 좋은 순' 3개 + 비슷한 취미 3개를 만든다. 홈의 최근 추천이 이걸로 바뀐다. */
+export function createSelectionRecommendation(hobbyIds: number[]) {
+  return apiRequest<RecommendationResponse>('/recommendations', {
+    method: 'POST',
+    body: JSON.stringify({ basis: 'DIRECT_SELECTION', hobbyIds }),
+  });
+}
+
 export function getRecommendation(recommendationId: number) {
   return apiRequest<RecommendationResponse>(`/recommendations/${recommendationId}`);
 }
 
-/** 내 가장 최근 추천. 숏폼 탐색을 한 번도 끝내지 않았으면 null. */
+/** 내 가장 최근 추천(숏폼 탐색 또는 직접 선택). 둘 다 한 적이 없으면 null. */
 export function getLatestRecommendation() {
   return apiRequest<RecommendationResponse | null>('/recommendations/latest');
 }

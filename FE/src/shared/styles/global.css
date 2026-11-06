@@ -149,6 +149,8 @@ strong, b { font-weight: 700; }
 .slider-controls svg { width: 18px; height: 18px; }
 .recommend-empty { padding: 36px 24px; border: 1px dashed var(--color-line); border-radius: var(--radius-md); display: flex; flex-direction: column; align-items: center; gap: 14px; color: var(--color-muted); background: #fff; text-align: center; }
 .recommend-empty p { margin: 0; font-size: 14px; }
+/* 직접 선택 추천: 고른 취미들의 공통 성향 한 줄 */
+.recommend-summary { margin: -6px 0 14px; padding: 10px 14px; border-radius: var(--radius-sm); color: var(--color-primary); background: var(--color-primary-soft); font-size: 13px; font-weight: 600; }
 .hobby-card__relation { position: absolute; z-index: 1; top: 14px; left: 14px; padding: 5px 8px; border-radius: 999px; color: var(--color-primary); background: #fff; font-size: 11px; font-weight: 600; }
 .hobby-card__body { padding: 17px 16px 14px; }
 .hobby-card h3 { margin: 0 0 7px; font-family: var(--font-ui); font-size: var(--type-title-s); font-weight: 700; line-height: var(--type-title-s-line); }

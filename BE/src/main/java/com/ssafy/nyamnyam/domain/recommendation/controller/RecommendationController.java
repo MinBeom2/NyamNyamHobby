@@ -28,8 +28,14 @@ public class RecommendationController {
     @PostMapping
     public ResponseEntity<ApiResponse<RecommendationResponse>> create(@Valid @RequestBody CreateRecommendationRequest request,
             @AuthenticationPrincipal UserPrincipal principal) {
-        if (request.basis() != CreateRecommendationRequest.Basis.EXPLORATION_SESSION)
-            throw new CustomException(ErrorCode.COMMON_INVALID_INPUT, "직접 선택 기반 추천은 MVP에서 지원하지 않습니다.");
+        if (request.basis() == CreateRecommendationRequest.Basis.DIRECT_SELECTION) {
+            if (request.hobbyIds() == null || request.hobbyIds().isEmpty())
+                throw new CustomException(ErrorCode.COMMON_INVALID_INPUT, "직접 선택한 취미를 1개 이상 보내 주세요.");
+            return ResponseEntity.status(201).body(ApiResponse.success(
+                    recommendations.createFromSelection(request.hobbyIds(), user(principal))));
+        }
+        if (request.sessionId() == null)
+            throw new CustomException(ErrorCode.COMMON_INVALID_INPUT, "탐색 세션 ID가 필요합니다.");
         var result = recommendations.finishExploration(request.sessionId(), user(principal));
         return ResponseEntity.status(result.created() ? 201 : 200).body(ApiResponse.success(result.response()));
     }

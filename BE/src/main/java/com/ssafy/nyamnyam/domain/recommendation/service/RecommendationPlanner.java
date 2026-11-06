@@ -55,6 +55,61 @@ public class RecommendationPlanner {
         return new Plan(false, result);
     }
 
+    /**
+     * 직접 선택 추천. 고른 취미는 이미 관심이 확인됐으니 '취향'이 아니라 '지금 이용 상황으로 시작하기 좋은지'로 순서를 매겨 3개,
+     * 고른 취미 전체와 태그가 많이 겹치는(고르지 않은) 취미 3개를 붙인다. 동점이면 먼저 고른 취미가 앞선다.
+     *
+     * @param selected 사용자가 고른 순서 그대로의 공개 취미
+     * @param excluded 유사 취미 후보에서 뺄 취미(싫어요·진행 중). 사용자가 직접 고른 취미에는 적용하지 않는다
+     */
+    public Plan planSelection(List<Hobby> selected, List<Hobby> hobbies, Set<Long> excluded, UserCondition condition) {
+        Map<Long, Integer> pickOrder = new HashMap<>();
+        for (int i = 0; i < selected.size(); i++) pickOrder.putIfAbsent(selected.get(i).getId(), i);
+        List<Choice> interests = selected.stream()
+                .map(h -> choice(h, RecoItemType.INTEREST, 1.0, condition, fitReason(h, condition)))
+                .sorted(Comparator.comparingDouble(Choice::score).reversed()
+                        .thenComparing(c -> pickOrder.get(c.hobby().getId())))
+                .limit(3).toList();
+        Set<Long> selectedIds = pickOrder.keySet();
+        List<Choice> related = hobbies.stream()
+                .filter(h -> !selectedIds.contains(h.getId()) && !excluded.contains(h.getId()))
+                .map(h -> {
+                    Hobby closest = selected.stream().max(Comparator.comparingDouble(s -> calculateTagSimilarity(s, h))).orElseThrow();
+                    double similarity = selected.stream().mapToDouble(s -> calculateTagSimilarity(s, h)).average().orElse(0) * 0.5
+                            + calculateTagSimilarity(closest, h) * 0.5;
+                    return choice(h, RecoItemType.RELATED, similarity, condition,
+                            "직접 고른 " + closest.getName() + "와(과) 성향이 비슷한 취미예요");
+                })
+                .filter(c -> c.score() > 0)
+                .sorted(order()).limit(3).toList();
+        List<Choice> result = new ArrayList<>(interests);
+        result.addAll(related);
+        return new Plan(false, result);
+    }
+
+    /** 직접 고른 취미가 이용 상황과 맞는지 한 문장으로. 예산·시간을 넘으면 그 사실을 먼저 알린다 */
+    static String fitReason(Hobby h, UserCondition c) {
+        if (c == null) return "직접 고른 취미예요";
+        List<String> fits = new ArrayList<>();
+        if (c.getMonthlyBudget() != null) {
+            if (h.getMonthlyCostMin() > c.getMonthlyBudget())
+                return "월 예산보다 비용이 들 수 있어요 (월 " + won(h.getMonthlyCostMin()) + "부터)";
+            fits.add("월 예산 " + won(c.getMonthlyBudget()) + " 안에서 시작할 수 있어요");
+        }
+        if (c.getWeeklyHours() != null) {
+            if (h.getSessionMinMinutes() > c.getWeeklyHours() * 60)
+                return "한 번에 " + h.getSessionMinMinutes() + "분 이상 필요해 주당 시간보다 길어요";
+            if (fits.isEmpty()) fits.add("주 " + c.getWeeklyHours() + "시간 안에서 즐길 수 있어요");
+        }
+        if (c.getPlacePref() != null && !"ANY".equals(c.getPlacePref())
+                && (c.getPlacePref().equals(h.getPlaceType().name()) || h.getPlaceType() == PlaceType.BOTH))
+            fits.add(("INDOOR".equals(c.getPlacePref()) ? "실내" : "실외") + " 선호와 맞아요");
+        return fits.isEmpty() ? "직접 고른 취미예요" : String.join(" · ", fits.subList(0, Math.min(2, fits.size())));
+    }
+    private static String won(int amount) {
+        return amount % 10000 == 0 ? (amount / 10000) + "만 원" : String.format("%,d원", amount);
+    }
+
     private Comparator<Choice> order() {
         return Comparator.comparingDouble(Choice::score).reversed().thenComparing(c -> c.hobby().getId());
     }

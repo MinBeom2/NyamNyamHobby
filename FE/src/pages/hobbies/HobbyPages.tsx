@@ -7,6 +7,7 @@ import { toHobbyCardModel, toHobbyDetailModel, type HobbyCardModel } from '../..
 import { HobbyStartErrorModal } from '../../features/hobby/ui/HobbyStartErrorModal';
 import { useAuthStore } from '../../features/auth/model/authStore';
 import { deleteUserHobby, getMyInterests, getUserHobbies, saveUserHobby, userQueryKeys } from '../../features/user/api/userApi';
+import { createSelectionRecommendation, recommendationQueryKeys } from '../../features/recommendation/api/recommendationApi';
 import { AppHeader } from '../../shared/ui/AppHeader';
 import { Button } from '../../shared/ui/Button';
 import { scrollToElement, scrollToTop, setWheelInterceptor } from '../../shared/scroll/smoothScroll';
@@ -37,7 +38,17 @@ export function HobbyInterestSelectPage() {
     return [...grouped.entries()].map(([title, items]) => ({ title, items }));
   }, [allHobbies, normalizedKeyword]);
   const toggle = (id: number) => setSelected((current) => current.includes(id) ? current.filter((item) => item !== id) : current.length >= 10 ? current : [...current, id]);
-  const submit = () => { const query = new URLSearchParams(); if (selected.length) query.set('interests', selected.join(',')); navigate(`/hobbies/recommendations${query.size ? `?${query}` : ''}`); };
+  const queryClient = useQueryClient();
+  // 고른 취미로 직접 선택 추천을 만들고 홈 '맞춤 추천 취미'에서 보여준다('내 취미'와는 별개)
+  const selectionMutation = useMutation({
+    mutationFn: () => createSelectionRecommendation(selected),
+    onSuccess: (response) => {
+      queryClient.setQueryData(recommendationQueryKeys.latest(), response);
+      queryClient.setQueryData(recommendationQueryKeys.detail(response.recommendationId), response);
+      navigate('/home');
+    },
+  });
+  const submit = () => { if (selected.length && !selectionMutation.isPending) selectionMutation.mutate(); };
   return <div className="site-shell"><AppHeader /><main className="page-container direct-interest-page">
     <header className="direct-interest-heading"><h1>관심사를 직접 골라 주세요</h1><p>영상을 보지 않아도 추천을 받을 수 있어요. 최대 10개까지 고를 수 있어요.</p></header>
     <label className="direct-interest-search"><span>취미 검색</span><div><Search aria-hidden="true" /><input value={keyword} onChange={(event) => setKeyword(event.target.value)} placeholder="취미명이나 태그로 찾기" /></div></label>
@@ -45,7 +56,7 @@ export function HobbyInterestSelectPage() {
     {hobbiesQuery.isError && <section className="direct-interest-empty"><p>취미 목록을 불러오지 못했어요.</p></section>}
     {groups.length > 0 && <section className="direct-interest-groups" aria-label="관심사 목록">{groups.map((group) => <article className="direct-interest-group" key={group.title}><h2>{group.title}</h2><div>{group.items.map((hobby) => { const active = selected.includes(hobby.id); return <button className={active ? 'selected' : ''} type="button" key={hobby.id} aria-pressed={active} disabled={!active && selected.length >= 10} onClick={() => toggle(hobby.id)}>{active && <Check aria-hidden="true" />}{hobby.name}</button>; })}</div></article>)}</section>}
     {!hobbiesQuery.isLoading && !hobbiesQuery.isError && groups.length === 0 && <section className="direct-interest-empty"><Search aria-hidden="true" /><p>검색한 취미가 없어요.</p></section>}
-    <section className="direct-interest-summary" aria-label="선택한 관심사"><div className="direct-interest-summary__selection"><strong>선택한 관심사 {selected.length}개</strong><div>{selected.map((id) => { const hobby = allHobbies.find((item) => item.id === id); return hobby ? <button type="button" key={id} onClick={() => toggle(id)}><Check aria-hidden="true" />{hobby.name}</button> : null; })}</div></div><div className="direct-interest-summary__actions"><button type="button" onClick={() => setSelected([])}>선택 초기화</button><Button onClick={submit}>추천 결과 보기</Button></div></section>
+    <section className="direct-interest-summary" aria-label="선택한 관심사"><div className="direct-interest-summary__selection"><strong>선택한 관심사 {selected.length}개</strong><div>{selected.map((id) => { const hobby = allHobbies.find((item) => item.id === id); return hobby ? <button type="button" key={id} onClick={() => toggle(id)}><Check aria-hidden="true" />{hobby.name}</button> : null; })}</div></div><div className="direct-interest-summary__actions"><button type="button" onClick={() => setSelected([])}>선택 초기화</button><Button disabled={!selected.length || selectionMutation.isPending} onClick={submit}>{selectionMutation.isPending ? '추천을 만드는 중...' : '추천 결과 보기'}</Button></div>{selectionMutation.isError && <p className="form-message form-message--error" role="alert">추천을 만들지 못했어요. 잠시 후 다시 시도해 주세요.</p>}</section>
   </main></div>;
 }
 
@@ -58,7 +69,7 @@ const mineFilters: Array<{ value: Exclude<MineFilter, null>; label: string }> = 
   { value: 'INTERESTS', label: '내 취미' },
 ];
 
-export function HobbySearchPage({ recommended = false }: { recommended?: boolean }) {
+export function HobbySearchPage() {
   const [keyword, setKeyword] = useState('');
   const [submittedKeyword, setSubmittedKeyword] = useState('');
   const [category, setCategory] = useState('전체');
@@ -73,7 +84,7 @@ export function HobbySearchPage({ recommended = false }: { recommended?: boolean
     if (mine === 'INTERESTS') return new Set(interestsQuery.data?.map((item) => item.hobbyId));
     return null;
   }, [mine, savedQuery.data, interestsQuery.data]);
-  const params = { keyword: submittedKeyword.length >= 2 ? submittedKeyword : undefined, difficulty: difficultyValues[difficulty], place: placeValues[place], sort: recommended ? 'RECOMMEND' as const : undefined, size: 100 };
+  const params = { keyword: submittedKeyword.length >= 2 ? submittedKeyword : undefined, difficulty: difficultyValues[difficulty], place: placeValues[place], size: 100 };
   const hobbiesQuery = useQuery({ queryKey: hobbyQueryKeys.list(params), queryFn: () => getHobbies(params) });
   const allHobbies = useMemo(() => (hobbiesQuery.data?.content ?? []).map(toHobbyCardModel), [hobbiesQuery.data]);
   const categories = useMemo(() => ['전체', ...new Set(allHobbies.map((hobby) => hobby.category))], [allHobbies]);
@@ -81,7 +92,7 @@ export function HobbySearchPage({ recommended = false }: { recommended?: boolean
   const reset = () => { setKeyword(''); setSubmittedKeyword(''); setCategory('전체'); setDifficulty('전체'); setPlace('전체'); setMine(null); };
   const search = () => { const value = keyword.trim(); if (!value || value.length >= 2) setSubmittedKeyword(value); };
   return <div className="site-shell"><AppHeader /><main className="page-container discovery-page">
-    <div className="discovery-title"><div><h1>{recommended ? '맞춤 취미 추천' : '취미 찾기'}</h1><p>{recommended ? '관심사와 이용 상황을 바탕으로 잘 맞는 취미를 모았어요.' : '취미명이나 태그로 찾고, 시간·비용·난이도로 좁혀 보세요.'}</p></div>{!recommended && <Button to="/hobbies/recommendations">맞춤 추천 보기</Button>}</div>
+    <div className="discovery-title"><div><h1>취미 찾기</h1><p>취미명이나 태그로 찾고, 시간·비용·난이도로 좁혀 보세요.</p></div></div>
     <form className="search-bar" onSubmit={(event) => { event.preventDefault(); search(); }}><Search aria-hidden="true" /><input value={keyword} onChange={(event) => setKeyword(event.target.value)} placeholder="취미명이나 태그로 검색 (2자 이상)" /><button type="submit">검색</button></form>
     <div className="filter-row" aria-label="취미 필터"><select value={category} onChange={(event) => setCategory(event.target.value)}>{categories.map((item) => <option key={item}>{item}</option>)}</select><select value={difficulty} onChange={(event) => setDifficulty(event.target.value)}>{Object.keys(difficultyValues).map((item) => <option key={item}>{item}</option>)}</select><select value={place} onChange={(event) => setPlace(event.target.value)}>{Object.keys(placeValues).map((item) => <option key={item}>{item}</option>)}</select><button className="filter-reset" type="button" onClick={reset}>초기화</button>{user && <div className="filter-row__mine">{mineFilters.map((item) => <button className={mine === item.value ? 'active' : ''} type="button" key={item.value} aria-pressed={mine === item.value} onClick={() => setMine(mine === item.value ? null : item.value)}>{item.label}</button>)}</div>}</div>
     {keyword.trim().length === 1 && <p className="form-message form-message--error">검색어는 2자 이상 입력해 주세요.</p>}

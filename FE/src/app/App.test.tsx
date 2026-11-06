@@ -30,7 +30,7 @@ beforeEach(() => {
 afterEach(() => { clients.splice(0).forEach((client) => client.clear()); vi.restoreAllMocks(); });
 
 describe('guest access and session-aware pages', () => {
-  it.each(['/hobbies', '/hobbies/1', '/hobbies/recommendations', '/places', '/info-feed', '/info-feed/1', '/community', '/community/1', '/mypage', '/my-hobbies'])('does not render member content at %s for a guest', (path) => {
+  it.each(['/hobbies', '/hobbies/1', '/places', '/info-feed', '/info-feed/1', '/community', '/community/1', '/mypage', '/my-hobbies'])('does not render member content at %s for a guest', (path) => {
     expect(renderPage(path)).toBe('');
   });
 

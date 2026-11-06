@@ -19,6 +19,7 @@ import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.json.JsonMapper;
 import java.math.BigDecimal;
 import java.util.*;
+import java.util.stream.LongStream;
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
@@ -130,6 +131,34 @@ class RecommendationServiceTest {
         assertThat(items.get(0).getHobby().name()).isEqualTo("캠핑");
         assertThat(items.get(0).getHobby().thumbnailUrl()).isEqualTo("/assets/hobbies/camping.webp");
         assertThat(items.get(1).getHobby().thumbnailUrl()).isEqualTo("/assets/hobbies/pottery.webp");
+    }
+    @Test void selectionCreatesSelectionRecommendationWithoutGptAndSummarizesCommonTags() {
+        com.ssafy.nyamnyam.domain.hobby.entity.Tag outdoor = com.ssafy.nyamnyam.domain.hobby.entity.Tag.builder().name("실외").tagGroup(TagGroup.PLACE).build();
+        Hobby a = Hobby.builder().name("러닝").placeType(PlaceType.OUTDOOR).socialType(SocialType.ALONE).difficulty(Difficulty.EASY)
+                .sessionMinMinutes((short)30).sessionMaxMinutes((short)60).monthlyCostMin(0).monthlyCostMax(10000).build();
+        Hobby b = Hobby.builder().name("등산").placeType(PlaceType.OUTDOOR).socialType(SocialType.BOTH).difficulty(Difficulty.HARD)
+                .sessionMinMinutes((short)120).sessionMaxMinutes((short)300).monthlyCostMin(0).monthlyCostMax(50000).build();
+        ReflectionTestUtils.setField(a,"id",2L); ReflectionTestUtils.setField(b,"id",6L);
+        a.getHobbyTags().add(new HobbyTag(a,outdoor)); b.getHobbyTags().add(new HobbyTag(b,outdoor));
+        when(hobbyRepository.findAllWithTagsByStatus(HobbyStatus.PUBLISHED)).thenReturn(List.of(a,b));
+        when(recommendationRepository.save(any())).thenAnswer(call -> { Recommendation r = call.getArgument(0); ReflectionTestUtils.setField(r,"id",90L); return r; });
+        List<RecommendationItem> stored = new ArrayList<>();
+        when(itemRepository.save(any())).thenAnswer(call -> { RecommendationItem i = call.getArgument(0); stored.add(i); return i; });
+        when(itemRepository.findByRecommendationOrderByRankNoAsc(any())).thenReturn(stored);
+
+        var response = service.createFromSelection(List.of(6L,2L,6L),user);
+
+        assertThat(response.getBasis()).isEqualTo("DIRECT_SELECTION");
+        assertThat(response.getBasisText()).isEqualTo("직접 고른 취미 2개에 #실외 성향이 많아요. 시작하기 좋은 순서로 정리했어요");
+        assertThat(response.getItems()).extracting(RecommendationResponse.RecommendationItemDto::getHobbyName).containsExactly("등산","러닝");
+        assertThat(response.getItems()).allSatisfy(i -> assertThat(i.getReasonStatus()).isEqualTo(ReasonStatus.FALLBACK));
+        verifyNoInteractions(outbox,sessionRepository,profiles);
+    }
+    @Test void selectionRejectsUnknownOrTooManyHobbies() {
+        when(hobbyRepository.findAllWithTagsByStatus(HobbyStatus.PUBLISHED)).thenReturn(List.of());
+        assertError(() -> service.createFromSelection(List.of(99L),user),ErrorCode.COMMON_INVALID_INPUT);
+        assertError(() -> service.createFromSelection(LongStream.rangeClosed(1,11).boxed().toList(),user),ErrorCode.COMMON_INVALID_INPUT);
+        verifyNoInteractions(recommendationRepository);
     }
     private void assertError(Runnable r,ErrorCode code) {
         assertThatThrownBy(r::run).isInstanceOfSatisfying(CustomException.class,e -> assertThat(e.getErrorCode()).isEqualTo(code));

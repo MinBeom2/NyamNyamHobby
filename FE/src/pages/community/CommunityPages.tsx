@@ -166,10 +166,18 @@ export function CommunityDetailPage() {
         <Link className="back-link" to="/community">커뮤니티 · {post.hobby.name}</Link>
         <article className="post-detail">
           <header>
-            <div><span className="badge">{typeLabel[post.type]}</span><span className="badge badge--soft">{post.hobby.name}</span><h1>{post.title}</h1><p>{post.author.nickname} · {formatDate(post.createdAt)} · 조회 {post.viewCount}</p></div>
-            {post.isMine && <div><button type="button" onClick={() => navigate(`/community/${post.id}/edit`)}>수정</button><button type="button" disabled={deleteMutation.isPending} onClick={() => deleteMutation.mutate()}>삭제</button></div>}
+            <div className="post-detail__heading"><span className="badge">{typeLabel[post.type]}</span><span className="badge badge--soft">{post.hobby.name}</span><h1>{post.title}</h1><p>{post.author.nickname} · {formatDate(post.createdAt)} · 조회 {post.viewCount}</p></div>
+            {post.isMine && <div className="post-detail__controls"><button type="button" onClick={() => navigate(`/community/${post.id}/edit`)}>수정</button><button type="button" disabled={deleteMutation.isPending} onClick={() => deleteMutation.mutate()}>삭제</button></div>}
           </header>
-          {post.imageUrls.length > 0 && <div className="post-image"><img src={post.imageUrls[0]} alt="게시글 첨부 이미지" /><span>첨부 이미지 1/{post.imageUrls.length}</span></div>}
+          {post.imageUrls.length > 0 && (
+            <div className="post-images">
+              {post.imageUrls.map((url, index) => (
+                <div className="post-image" key={`${index}-${url}`}>
+                  <img src={url} alt={`게시글 첨부 이미지 ${index + 1}/${post.imageUrls.length}`} loading={index === 0 ? 'eager' : 'lazy'} />
+                </div>
+              ))}
+            </div>
+          )}
           <p className="post-content">{post.content}</p>
           <footer className="post-actions">
             <div>

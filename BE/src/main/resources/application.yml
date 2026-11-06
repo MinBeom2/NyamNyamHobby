@@ -123,7 +123,25 @@ app:
     kopis-retry-delay-millis: 2000 # 실패 시 쉬고 한 번 다시 시도
     lookahead-days: 60     # KOPIS: 오늘부터 60일 안에 열리는 공연
     title-similarity: 0.8  # 출처가 다른 같은 행사 판단(시작일 같고 제목 유사도 이상)
-  # 공공·문화 데이터 인증키(공공데이터포털은 Decoding 키)
+    # 검색어에 안 걸린 강좌 중 소분류에 이 단어가 있으면 GMS에 보내지 않고 버림(토큰 절약)
+    class-skip-categories: 역사, 진로, 자격, 정보통신, 어학, 과학
+  # 정보 피드 GMS 취미 분류(FEED-B04): 후보 취미를 확인해 맞으면 그대로, 틀리면 다른 취미나 '그 외'로. 요약은 만들지 않음
+  # 켜고 끄는 것은 feed-collect.enabled를 따름
+  feed-classify:
+    cron: "0 0 6 * * *"    # 매일 06:00 (수집이 끝난 뒤)
+    daily-limit: 200       # 하루 최대 분류 건수(20건씩 GMS 10번, gpt-4o-mini로 약 35크레딧). 남은 건 다음 날
+    chunk-size: 20
+    model: gpt-4o-mini     # 30종 중 하나를 고르는 단순 판단이라 싼 모델 사용
+    max-attempts: 3        # 답을 못 받은 횟수가 이만큼이면 후보(없으면 '그 외')로 확정
+  # 장소 자동 수집(PLACE-B01): 서울 자치구 x 취미별 카카오 키워드로 검색하여 장소 저장
+  # 로컬·테스트에서 외부 API를 부르지 않도록 기본은 꺼 두고, 서버 .env에서 PLACE_COLLECT_ENABLED=true로 켠다.
+  place-collect:
+    enabled: ${PLACE_COLLECT_ENABLED:false}
+    cron: "0 0 3 * * SUN"  # 매주 일 03:00 (Asia/Seoul)
+    max-pages: 2
+    interval-millis: 200
+    target-sido: "서울특별시"
+  # 공공·문화 데이터 및 외부 로컬 인증키(공공데이터포털은 Decoding 키)
   public-data:
     tour-api:
       key: ${TOUR_API_KEY:}
@@ -133,6 +151,13 @@ app:
       key: ${CULTURE_PORTAL_API_KEY:}
     seoul-open-api:
       key: ${SEOUL_OPEN_API_KEY:}
+    kakao-local:
+      base-url: ${KAKAO_LOCAL_BASE_URL:https://dapi.kakao.com}
+      key: ${KAKAO_LOCAL_API_KEY:${KAKAO_REST_API_KEY:}}
+  # 레이트 리밋(Redis + Bucket4j 토큰 버킷). 정책별 한도는 global/ratelimit/RateLimitPolicy
+  rate-limit:
+    enabled: ${RATE_LIMIT_ENABLED:true}   # 로컬 부하 테스트·시연 때 false로 끌 수 있다
+    client-ip-header: X-Real-IP           # 서버 Nginx가 $remote_addr로 덮어쓰는 헤더
 
 management:
   endpoints:

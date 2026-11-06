@@ -4,6 +4,7 @@ import type { PlaceDto } from '../api/placeApi';
 type KakaoLatLng = object;
 type KakaoMap = {
   setCenter: (position: KakaoLatLng) => void;
+  relayout?: () => void;
 };
 type KakaoMarker = {
   setMap: (map: KakaoMap | null) => void;
@@ -71,6 +72,15 @@ export function KakaoPlaceMap({ places, selectedPlace, regionName, onSelect }: K
   const mapKey = import.meta.env.VITE_KAKAO_MAP_KEY;
 
   useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const preventPageScroll = (event: WheelEvent) => event.preventDefault();
+    container.addEventListener('wheel', preventPageScroll, { passive: false });
+    return () => container.removeEventListener('wheel', preventPageScroll);
+  }, []);
+
+  useEffect(() => {
     if (!mapKey) {
       setMapStatus('missing-key');
       return;
@@ -97,6 +107,19 @@ export function KakaoPlaceMap({ places, selectedPlace, regionName, onSelect }: K
       sdkRef.current = null;
     };
   }, [mapKey]);
+
+  useEffect(() => {
+    const handleResize = () => {
+      if (mapRef.current?.relayout) {
+        mapRef.current.relayout();
+        if (selectedPlace?.lat && selectedPlace?.lng && sdkRef.current) {
+          mapRef.current.setCenter(new sdkRef.current.maps.LatLng(selectedPlace.lat, selectedPlace.lng));
+        }
+      }
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [selectedPlace?.lat, selectedPlace?.lng]);
 
   useEffect(() => {
     const map = mapRef.current;

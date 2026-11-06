@@ -100,7 +100,7 @@ class FeedServiceTest {
                 .willReturn(pageResult);
 
         // 비회원은 scope와 상관없이 전체 취미 기준
-        PageResponse<FeedItemResponse> response = feedService.getFeeds(null, new FeedSearchCondition(FeedScope.MY, 1L, FeedType.EVENT, false, null, null, null, null), 0, 20);
+        PageResponse<FeedItemResponse> response = feedService.getFeeds(null, new FeedSearchCondition(FeedScope.MY, 1L, FeedType.EVENT, false, null, null, null, null, false), 0, 20);
 
         assertThat(response.content()).hasSize(2);
         assertThat(response.content().get(0).isEnded()).isFalse();
@@ -115,7 +115,7 @@ class FeedServiceTest {
         given(interestSelectionRepository.findAllByUserIdWithHobby(7L)).willReturn(List.of());
         given(userHobbyRepository.findByUserIdAndStatus(any(), any())).willReturn(List.of());
 
-        PageResponse<FeedItemResponse> response = feedService.getFeeds(7L, new FeedSearchCondition(null, null, null, true, null, null, null, null), 0, 20);
+        PageResponse<FeedItemResponse> response = feedService.getFeeds(7L, new FeedSearchCondition(null, null, null, true, null, null, null, null, false), 0, 20);
 
         assertThat(response.content()).isEmpty();
         verifyNoInteractions(feedItemRepository);
@@ -136,10 +136,10 @@ class FeedServiceTest {
                 .willReturn(List.of(UserHobby.builder().user(user).hobby(saved).build()));
         given(feedItemRepository.findAll(any(Specification.class), any(Pageable.class))).willReturn(new PageImpl<>(List.of()));
 
-        feedService.getFeeds(7L, new FeedSearchCondition(FeedScope.MY, null, null, true, null, null, null, null), 0, 20);
+        feedService.getFeeds(7L, new FeedSearchCondition(FeedScope.MY, null, null, true, null, null, null, null, false), 0, 20);
         verify(userHobbyRepository, never()).findByUserIdAndStatus(7L, UserHobbyStatus.SAVED);
 
-        feedService.getFeeds(7L, new FeedSearchCondition(FeedScope.SAVED, null, null, true, null, null, null, null), 0, 20);
+        feedService.getFeeds(7L, new FeedSearchCondition(FeedScope.SAVED, null, null, true, null, null, null, null, false), 0, 20);
         verify(userHobbyRepository).findByUserIdAndStatus(7L, UserHobbyStatus.SAVED);
         verify(feedItemRepository, times(2)).findAll(any(Specification.class), any(Pageable.class));
     }
@@ -148,7 +148,7 @@ class FeedServiceTest {
     @DisplayName("ALL은 내 취미를 조회하지 않는다")
     void allScopeDoesNotReadMyHobbies() {
         given(feedItemRepository.findAll(any(Specification.class), any(Pageable.class))).willReturn(new PageImpl<>(List.of()));
-        feedService.getFeeds(7L, new FeedSearchCondition(FeedScope.ALL, null, null, true, null, null, null, null), 0, 20);
+        feedService.getFeeds(7L, new FeedSearchCondition(FeedScope.ALL, null, null, true, null, null, null, null, false), 0, 20);
         verifyNoInteractions(interestSelectionRepository, userHobbyRepository);
     }
 
@@ -161,8 +161,8 @@ class FeedServiceTest {
     @Test
     @DisplayName("검색어는 2자 이상만 쓰고 %, _ 는 글자 그대로 찾는다")
     void keywordIsTrimmedAndEscaped() {
-        assertThat(new FeedSearchCondition(null, null, null, true, " 요", null, null, null).keyword()).isNull();
-        assertThat(new FeedSearchCondition(null, null, null, true, " 요가 ", null, null, null).keyword()).isEqualTo("요가");
+        assertThat(new FeedSearchCondition(null, null, null, true, " 요", null, null, null, false).keyword()).isNull();
+        assertThat(new FeedSearchCondition(null, null, null, true, " 요가 ", null, null, null, false).keyword()).isEqualTo("요가");
         assertThat(FeedService.escapeLike("100%_달성")).isEqualTo("100\\%\\_달성");
     }
 
@@ -179,5 +179,47 @@ class FeedServiceTest {
         assertThat(closed.isReservationClosed()).isTrue();
         assertThat(open.isReservationClosed()).isFalse();
         assertThat(show.isReservationClosed()).isFalse();
+    }
+
+    @Test
+    @DisplayName("홈 새 소식: 오늘 올라온 소식을 마감일 순으로 먼저, 모자라면 최신순으로 채운다")
+    void highlightsPutTodayByDeadlineThenFillWithLatest() {
+        given(interestSelectionRepository.findAllByUserIdWithHobby(7L)).willReturn(List.of());
+        given(userHobbyRepository.findByUserIdAndStatus(any(), any())).willReturn(List.of());
+        LocalDate today = LocalDate.now(KST);
+        FeedItem lateDeadline = feed(1L, today.plusDays(20));
+        FeedItem noDeadline = feed(2L, null);
+        FeedItem soonDeadline = feed(3L, today.plusDays(2));
+        FeedItem older = feed(4L, today.plusDays(1));
+        given(feedItemRepository.findAll(any(Specification.class), any(Pageable.class)))
+                .willReturn(new PageImpl<>(List.of(lateDeadline, noDeadline, soonDeadline)))   // 오늘 올라온 것
+                .willReturn(new PageImpl<>(List.of(lateDeadline, older, noDeadline, soonDeadline))); // 최신순 전체
+
+        List<FeedItemResponse> result = feedService.getHighlights(7L, 5);
+
+        assertThat(result).extracting(FeedItemResponse::id).containsExactly(3L, 1L, 2L, 4L);
+    }
+
+    @Test
+    @DisplayName("홈 새 소식: 오늘 소식이 개수보다 많으면 마감일 순으로 잘라 최신순 조회는 하지 않는다")
+    void highlightsCutTodayAtLimit() {
+        LocalDate today = LocalDate.now(KST);
+        given(feedItemRepository.findAll(any(Specification.class), any(Pageable.class))).willReturn(new PageImpl<>(List.of(
+                feed(1L, today.plusDays(9)), feed(2L, today.plusDays(1)), feed(3L, today.plusDays(5)))));
+
+        List<FeedItemResponse> result = feedService.getHighlights(null, 2);
+
+        assertThat(result).extracting(FeedItemResponse::id).containsExactly(2L, 3L);
+        verify(feedItemRepository, times(1)).findAll(any(Specification.class), any(Pageable.class));
+        verifyNoInteractions(interestSelectionRepository, userHobbyRepository); // 비회원은 전체 취미
+    }
+
+    private FeedItem feed(Long id, LocalDate end) {
+        Hobby hobby = Hobby.builder().name("요가").build();
+        FeedItem item = FeedItem.builder().hobby(hobby).type(FeedType.CLASS).title("피드" + id).sourceName("서울")
+                .sourceUrl("https://x").origin(FeedOrigin.SEOUL_RESERVATION).status(FeedStatus.PUBLISHED)
+                .eventStart(end == null ? null : end.minusDays(3)).eventEnd(end).publishedAt(LocalDateTime.now()).build();
+        ReflectionTestUtils.setField(item, "id", id);
+        return item;
     }
 }

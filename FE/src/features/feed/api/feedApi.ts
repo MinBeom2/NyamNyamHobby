@@ -7,6 +7,7 @@ export type FeedScope = 'MY' | 'SAVED' | 'ALL';
 
 export type FeedItemDto = {
   id: number;
+  /** null이면 취미 30종 어디에도 맞지 않는 '그 외' 피드 */
   hobbyId: number | null;
   hobbyName: string | null;
   type: FeedType;
@@ -36,7 +37,7 @@ export type FeedQuery = {
   from?: string;
   to?: string;
   regionIds?: number[];
-  /** 30개 취미 어디에도 분류되지 않은 피드만 조회 */
+  /** true면 '그 외' 피드만(hobbyId보다 우선) */
   uncategorized?: boolean;
 };
 
@@ -63,7 +64,7 @@ export function getFeeds(query: FeedQuery, page = 0, size = 20) {
   return apiRequest<PageDto<FeedItemDto>>(`/feeds?${params}`);
 }
 
+/** 홈 '관심 취미 새 소식': 오늘 새로 올라온 소식을 마감일 순으로 먼저, 모자라면 최신순으로 최대 limit개 */
 export function getFeedHighlights(limit = 5) {
-  const params = new URLSearchParams({ limit: String(limit) });
-  return apiRequest<FeedItemDto[]>(`/feeds/highlights?${params}`);
+  return apiRequest<FeedItemDto[]>(`/feeds/highlights?limit=${limit}`);
 }

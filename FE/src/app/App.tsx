@@ -10,6 +10,7 @@ import { EmailSentPage, LinkExpiredPage, VerifyEmailPage } from '../pages/auth/E
 import { PasswordResetConfirmPage, PasswordResetRequestPage } from '../pages/auth/PasswordResetPages';
 import { HobbyInterestPage, UsageConditionPage } from '../pages/onboarding/OnboardingPages';
 import { ExplorePage } from '../pages/explore/ExplorePage';
+import { ExploreResultPage } from '../pages/explore/ExploreResultPage';
 import { InquiryDetailPage, InquiryListPage, InquiryWritePage } from '../pages/support/InquiryPages';
 import { NotificationsPage } from '../pages/notifications/NotificationsPage';
 import { MyPage } from '../pages/mypage/MyPage';
@@ -152,6 +153,7 @@ export function App() {
         </Route>
         <Route element={<MemberRoute />}>
           <Route path="/home" element={<MemberHomePage />} />
+          <Route path="/explore/result/:recommendationId" element={<ExploreResultPage />} />
           <Route path="/mypage" element={<MyPage />} />
           <Route path="/mypage/profile" element={<MyPage profileEditorOpen />} />
           <Route path="/mypage/edit" element={<PersonalInfoEditPage />} />

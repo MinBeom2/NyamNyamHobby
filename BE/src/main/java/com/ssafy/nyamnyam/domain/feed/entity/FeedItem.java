@@ -22,8 +22,9 @@ public class FeedItem {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    /** null이면 30종 어디에도 맞지 않는 '그 외' 피드. 분류 전에는 검색어로 찾은 후보 취미 */
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "hobby_id", nullable = false)
+    @JoinColumn(name = "hobby_id")
     private Hobby hobby;
 
     @Enumerated(EnumType.STRING)
@@ -75,6 +76,17 @@ public class FeedItem {
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
 
+    /** 출처가 준 분류명(서울 예약 소분류, KOPIS 장르, 문화포털 분야). GMS 취미 분류 단서 */
+    @Column(name = "source_category", length = 50)
+    private String sourceCategory;
+
+    /** GMS 취미 분류를 마친 시각. null이면 분류 대기 */
+    @Column(name = "classified_at")
+    private LocalDateTime classifiedAt;
+
+    @Column(name = "classify_attempts", nullable = false)
+    private short classifyAttempts;
+
     @Builder
     public FeedItem(Hobby hobby, FeedType type, String title, String summary,
                     String sourceName, String sourceUrl, String sourceRef,
@@ -109,6 +121,26 @@ public class FeedItem {
         this.updatedAt = LocalDateTime.now();
     }
 
+    /** 수집 때 출처 분류명을 남긴다(GMS 분류 단서). 관리자가 직접 쓴 항목은 분류하지 않으므로 바로 분류 완료로 둔다 */
+    public void prepareClassification(String sourceCategory) {
+        this.sourceCategory = sourceCategory == null || sourceCategory.length() <= 50 ? sourceCategory : sourceCategory.substring(0, 50);
+        if (origin == FeedOrigin.ADMIN) this.classifiedAt = LocalDateTime.now();
+    }
+
+    /** GMS 분류 결과로 취미를 확정하고 공개한다. hobby가 null이면 '그 외' */
+    public void classify(Hobby hobby, LocalDateTime now) {
+        this.hobby = hobby;
+        this.classifiedAt = now;
+        this.status = FeedStatus.PUBLISHED;
+        this.updatedAt = now;
+    }
+
+    /** GMS가 답을 주지 못함. 다음 실행에서 다시 시도한다 */
+    public void failClassification(LocalDateTime now) {
+        this.classifyAttempts++;
+        this.updatedAt = now;
+    }
+
     /** 강좌처럼 요약에 접수 상태가 들어가 매일 바뀌는 항목만 쓴다 */
     public void refreshSummary(String summary) {
         this.summary = summary;
@@ -116,7 +148,7 @@ public class FeedItem {
     }
 
     /** 서울 공공서비스예약의 접수가 끝난 상태. 요약 맨 앞에 접수 상태를 넣어 두므로 그걸로 본다(FeedClassCollectService) */
-    private static final List<String> CLOSED_STATUSES = List.of("접수종료", "예약마감", "예약일시중지", "마감");
+    public static final List<String> CLOSED_STATUSES = List.of("접수종료", "예약마감", "예약일시중지", "마감");
 
     public boolean isReservationClosed() {
         return origin == FeedOrigin.SEOUL_RESERVATION && summary != null

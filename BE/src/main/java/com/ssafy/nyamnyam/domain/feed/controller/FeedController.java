@@ -30,6 +30,7 @@ public class FeedController {
     /**
      * 취미 정보 피드 목록 조회 [공개]. 회원은 기본으로 내 취미(MY) 기준, scope로 SAVED·ALL 전환.
      * keyword(2자 이상, 제목·요약), from·to(yyyy-MM-dd, 진행 기간이 겹치는 항목), regionIds(시군구, 쉼표 구분)로 더 좁힌다.
+     * uncategorized=true면 30종 어디에도 맞지 않는 '그 외' 피드만 본다.
      */
     @GetMapping
     public ResponseEntity<ApiResponse<PageResponse<FeedItemResponse>>> getFeeds(
@@ -41,14 +42,28 @@ public class FeedController {
             @RequestParam(value = "from", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
             @RequestParam(value = "to", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
             @RequestParam(value = "regionIds", required = false) List<Long> regionIds,
+            @RequestParam(value = "uncategorized", defaultValue = "false") boolean uncategorized,
             @RequestParam(value = "page", defaultValue = "0") int page,
             @RequestParam(value = "size", defaultValue = "20") int size,
             @AuthenticationPrincipal UserPrincipal principal
     ) {
         Long userId = principal == null ? null : principal.getUserId();
         FeedSearchCondition condition = new FeedSearchCondition(scope, hobbyId, type,
-                !Boolean.FALSE.equals(excludeEnded), keyword, from, to, regionIds);
+                !Boolean.FALSE.equals(excludeEnded), keyword, from, to, regionIds, uncategorized);
         PageResponse<FeedItemResponse> response = feedService.getFeeds(userId, condition, page, size);
         return ResponseEntity.ok(ApiResponse.success(response));
+    }
+
+    /**
+     * 홈 '관심 취미 새 소식'(회원). 내 취미 기준(없으면 전체), 오늘 새로 올라온 소식을 마감일 순으로 먼저,
+     * 모자라면 최신순으로 채워 최대 limit개(최대 10)를 준다.
+     */
+    @GetMapping("/highlights")
+    public ResponseEntity<ApiResponse<List<FeedItemResponse>>> getHighlights(
+            @RequestParam(value = "limit", defaultValue = "5") int limit,
+            @AuthenticationPrincipal UserPrincipal principal
+    ) {
+        Long userId = principal == null ? null : principal.getUserId();
+        return ResponseEntity.ok(ApiResponse.success(feedService.getHighlights(userId, limit)));
     }
 }

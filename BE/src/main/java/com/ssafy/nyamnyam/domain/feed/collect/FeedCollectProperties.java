@@ -3,6 +3,8 @@ package com.ssafy.nyamnyam.domain.feed.collect;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.bind.DefaultValue;
 
+import java.util.List;
+
 /**
  * 정보 피드 수집 설정(app.feed-collect.*). 실행 시각(cron)은 스케줄러가 직접 읽는다.
  * MVP는 서울 [기본안]만 받는다. 지역을 넓히려면 코드 값만 바꾸면 된다.
@@ -23,6 +25,7 @@ import org.springframework.boot.context.properties.bind.DefaultValue;
  * @param kopisRetryDelayMillis KOPIS가 실패하면 이만큼 쉬고 한 번만 다시 시도한다
  * @param classPageSize    서울 공공서비스예약 한 번에 받을 강좌 수(최대 1,000)
  * @param classMaxPages    서울 공공서비스예약 최대 호출 수(교육 강좌는 보통 수백 건)
+ * @param classSkipCategories 검색어에 안 걸린 강좌 중 소분류에 이 단어가 들어 있으면 GMS에 보내지 않고 버린다(토큰 절약)
  */
 @ConfigurationProperties(prefix = "app.feed-collect")
 public record FeedCollectProperties(
@@ -41,6 +44,7 @@ public record FeedCollectProperties(
         @DefaultValue("500") long kopisIntervalMillis,
         @DefaultValue("2000") long kopisRetryDelayMillis,
         @DefaultValue("1000") int classPageSize,
-        @DefaultValue("5") int classMaxPages
+        @DefaultValue("5") int classMaxPages,
+        @DefaultValue({"역사", "진로", "자격", "정보통신", "어학", "과학"}) List<String> classSkipCategories
 ) {
 }

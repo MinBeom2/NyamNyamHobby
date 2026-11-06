@@ -107,6 +107,30 @@ class RecommendationServiceTest {
         when(itemRepository.findByRecommendationOrderByRankNoAsc(latest)).thenReturn(List.of());
         assertThat(service.getLatestRecommendation(user)).hasValueSatisfying(r -> assertThat(r.getRecommendationId()).isEqualTo(99L));
     }
+    @Test void emptySnapshotThumbnailIsFilledFromSameHobby() {
+        Recommendation latest = Recommendation.builder().user(user).session(session).basis(RecoBasis.REACTION).build();
+        ReflectionTestUtils.setField(latest,"id",99L);
+        Hobby camping = Hobby.builder().name("캠핑").thumbnailUrl("/assets/hobbies/camping.webp")
+                .sessionMinMinutes((short)60).sessionMaxMinutes((short)120).build();
+        ReflectionTestUtils.setField(camping,"id",5L);
+        Hobby pottery = Hobby.builder().name("도자기").thumbnailUrl("/assets/hobbies/pottery-new.webp")
+                .sessionMinMinutes((short)60).sessionMaxMinutes((short)120).build();
+        ReflectionTestUtils.setField(pottery,"id",12L);
+        RecommendationItem old = RecommendationItem.builder().recommendation(latest).hobby(camping).type(RecoItemType.INTEREST)
+                .rankNo((short)1).score(BigDecimal.ONE).build();
+        old.initializeSnapshot("{\"id\":5,\"name\":\"캠핑\",\"thumbnailUrl\":null}", null, false);
+        RecommendationItem kept = RecommendationItem.builder().recommendation(latest).hobby(pottery).type(RecoItemType.RELATED)
+                .rankNo((short)2).score(BigDecimal.ONE).build();
+        kept.initializeSnapshot("{\"id\":12,\"name\":\"도자기\",\"thumbnailUrl\":\"/assets/hobbies/pottery.webp\"}", null, false);
+        when(recommendationRepository.findTopByUserIdOrderByIdDesc(1L)).thenReturn(Optional.of(latest));
+        when(itemRepository.findByRecommendationOrderByRankNoAsc(latest)).thenReturn(List.of(old, kept));
+
+        var items = service.getLatestRecommendation(user).orElseThrow().getItems();
+
+        assertThat(items.get(0).getHobby().name()).isEqualTo("캠핑");
+        assertThat(items.get(0).getHobby().thumbnailUrl()).isEqualTo("/assets/hobbies/camping.webp");
+        assertThat(items.get(1).getHobby().thumbnailUrl()).isEqualTo("/assets/hobbies/pottery.webp");
+    }
     private void assertError(Runnable r,ErrorCode code) {
         assertThatThrownBy(r::run).isInstanceOfSatisfying(CustomException.class,e -> assertThat(e.getErrorCode()).isEqualTo(code));
     }

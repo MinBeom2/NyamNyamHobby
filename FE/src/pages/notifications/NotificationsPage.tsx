@@ -16,10 +16,7 @@ import { AppHeader } from '../../shared/ui/AppHeader';
 import { Button } from '../../shared/ui/Button';
 
 const notificationIcons: Record<NotificationType, React.ReactNode> = {
-  COMMENT: <MessageSquareText />,
-  REPLY: <MessageSquareText />,
-  WEEKLY_TODO: <CalendarDays />,
-  NEW_FEED: <Newspaper />,
+  COMMENT: <MessageSquareText />, REPLY: <MessageSquareText />, WEEKLY_TODO: <CalendarDays />, NEW_FEED: <Newspaper />,
 };
 
 // 09-1 알림: 전체·안 읽음 탭, 최신순 20개씩 더 보기, 누르면 읽음 처리 후 대상 화면으로 이동, 모두 읽음

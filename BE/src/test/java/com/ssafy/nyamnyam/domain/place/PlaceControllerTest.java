@@ -1,5 +1,6 @@
 package com.ssafy.nyamnyam.domain.place;
 
+import com.ssafy.nyamnyam.domain.place.collect.PlaceCollectService;
 import com.ssafy.nyamnyam.domain.place.controller.PlaceController;
 import com.ssafy.nyamnyam.domain.place.dto.response.PlaceResponse;
 import com.ssafy.nyamnyam.domain.place.entity.PlaceCategory;
@@ -33,6 +34,7 @@ class PlaceControllerTest {
 
     @Autowired MockMvc mvc;
     @MockitoBean PlaceService placeService;
+    @MockitoBean PlaceCollectService placeCollectService;
     @MockitoBean JwtProvider jwtProvider;
     @MockitoBean CustomOAuth2UserService oauthUsers;
     @MockitoBean OAuth2AuthenticationSuccessHandler oauthSuccess;
@@ -51,6 +53,7 @@ class PlaceControllerTest {
                 "평일 10:00~23:00 / 주말 10:00~20:00",
                 "1일 이용권 20,000원",
                 "https://place.map.kakao.com/123456",
+                "https://search.kakaocdn.net/thumb.jpg",
                 "KAKAO_LOCAL",
                 false
         );
@@ -70,4 +73,3 @@ class PlaceControllerTest {
                 .andExpect(jsonPath("$.data[0].needsInfoCheck").value(false));
     }
 }
-

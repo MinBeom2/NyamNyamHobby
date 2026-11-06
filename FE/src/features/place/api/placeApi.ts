@@ -26,7 +26,11 @@ export type PlaceDto = {
   needsInfoCheck: boolean;
 };
 
-export type PlaceHobbyDto = { id: number; name: string };
+export type PlaceHobbyDto = {
+  id: number;
+  name: string;
+  thumbnailUrl?: string | null;
+};
 
 export const placeQueryKeys = {
   all: ['places'] as const,

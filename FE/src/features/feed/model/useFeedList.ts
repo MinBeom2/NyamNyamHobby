@@ -1,7 +1,7 @@
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { getMyInterests, getUserHobbies, userQueryKeys } from '../../user/api/userApi';
 import { feedQueryKeys, getFeedHighlights, getFeeds, type FeedQuery, type FeedScope } from '../api/feedApi';
-import { toFeedItemModel } from './feedAdapter';
+import { toFeedHighlightModel, toFeedItemModel } from './feedAdapter';
 import { getRegions, placeQueryKeys } from '../../place/api/placeApi';
 
 const PAGE_SIZE = 20;
@@ -15,13 +15,6 @@ export function useFeedList(query: FeedQuery) {
   });
   const items = list.data?.pages.flatMap((page) => page.content.map(toFeedItemModel)) ?? [];
   return { ...list, items };
-}
-
-export function useFeedHighlights(limit = 5) {
-  return useQuery({
-    queryKey: feedQueryKeys.highlights(limit),
-    queryFn: async () => (await getFeedHighlights(limit)).map(toFeedItemModel),
-  });
 }
 
 export type ScopeHobby = { hobbyId: number; name: string };
@@ -62,5 +55,14 @@ export function useFeedRegions(enabled: boolean) {
     queryFn: () => getRegions(FEED_SIDO),
     enabled,
     staleTime: Infinity,
+  });
+}
+
+/** 홈 '관심 취미 새 소식' 5개 */
+export function useFeedHighlights(limit = 5) {
+  return useQuery({
+    queryKey: feedQueryKeys.highlights(limit),
+    queryFn: () => getFeedHighlights(limit),
+    select: (items) => items.map((item) => toFeedHighlightModel(item)),
   });
 }

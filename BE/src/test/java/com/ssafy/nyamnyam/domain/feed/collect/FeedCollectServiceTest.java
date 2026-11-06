@@ -34,6 +34,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyDouble;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
@@ -56,7 +57,7 @@ class FeedCollectServiceTest {
 
     @BeforeEach void setUp() {
         service = new FeedCollectService(tour, kopis, culture, regions, mappings, writer, runs,
-                new FeedCollectProperties(true, "11", "11", 60, 100, 5, 50, 0.8, "서울", "서울특별시", 100, 5, 0, 0, 1000, 5));
+                new FeedCollectProperties(true, "11", "11", 60, 100, 5, 50, 0.8, "서울", "서울특별시", 100, 5, 0, 0, 1000, 5, List.of("역사")));
         climbing = Hobby.builder().name("클라이밍").build();
         ReflectionTestUtils.setField(climbing, "id", 1L);
         given(runs.save(any(BatchRun.class))).willAnswer(call -> call.getArgument(0));
@@ -64,13 +65,14 @@ class FeedCollectServiceTest {
                 HobbySourceMapping.builder().hobby(climbing).target(SourceTarget.EVENT_KEYWORD).keyword("클라이밍").build()));
     }
 
-    @Test void savesOnlyHobbyRelatedFestivalsWithDetail() {
+    @Test void savesMatchedFestivalWithCandidateAndKeepsUnmatchedForClassification() {
         given(tour.isConfigured()).willReturn(true);
         given(tour.searchFestivals("11", today, 1, 100)).willReturn(new TourApiClient.FestivalPage(List.of(
                 new TourApiClient.Festival("1", "서울 클라이밍 페스티벌", today, today.plusDays(2), "http://img", "11710"),
                 new TourApiClient.Festival("2", "가락 옥토버페스트", today, today.plusDays(2), null, "11710")), 2));
         given(tour.detail("1")).willReturn(Optional.of(new TourApiClient.FestivalDetail("볼더링 체험", "https://fest.example.com")));
         given(writer.create(any(), eq(climbing), anyDouble())).willReturn(FeedWriter.Result.CREATED);
+        given(writer.create(any(), isNull(), anyDouble())).willReturn(FeedWriter.Result.CREATED);
 
         BatchRun run = service.collect();
 
@@ -83,11 +85,13 @@ class FeedCollectServiceTest {
             assertThat(c.sourceUrl()).isEqualTo("https://fest.example.com");
             assertThat(c.regionCode()).isEqualTo("11710");
         });
-        verify(tour, never()).detail("2"); // 취미와 무관한 행사는 상세를 부르지 않는다
+        // 검색어에 안 걸린 행사도 버리지 않고 후보 없이(분류 대기) 저장한다
+        ArgumentCaptor<FeedCandidate> pending = ArgumentCaptor.forClass(FeedCandidate.class);
+        verify(writer).create(pending.capture(), isNull(), eq(0.8));
+        assertThat(pending.getValue().title()).isEqualTo("가락 옥토버페스트");
         assertThat(run.getStatus()).isEqualTo(BatchRunStatus.SUCCESS);
-        assertThat(run.getAccepted()).isEqualTo(1);
-        assertThat(run.getRejected()).isEqualTo(1);
-        assertThat(run.getMessage()).contains("kopis 키 없음");
+        assertThat(run.getAccepted()).isEqualTo(2);
+        assertThat(run.getMessage()).contains("분류 대기 1건").contains("kopis 키 없음");
     }
 
     @Test void alreadyCollectedFestivalIsRefreshedWithoutDetailCall() {

@@ -3,9 +3,10 @@ import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link, Navigate } from 'react-router-dom';
 import { getPlaceHobbies, getPlaces, getRegions, getSidos, placeQueryKeys } from '../../features/place/api/placeApi';
+import { HOBBY_THUMBNAIL_MAP } from '../../features/place/model/hobbyThumbnailMap';
 import { KakaoPlaceMap } from '../../features/place/ui/KakaoPlaceMap';
 import type { FeedScope, FeedType } from '../../features/feed/api/feedApi';
-import { feedTypeLabels } from '../../features/feed/model/feedAdapter';
+import { feedTypeLabels, OTHER_HOBBY_LABEL } from '../../features/feed/model/feedAdapter';
 import { dateRangeLabel, regionLabel, type DateRange } from '../../features/feed/model/feedFilters';
 import { useFeedList, useFeedRegions, useScopeHobbies } from '../../features/feed/model/useFeedList';
 import { DateFilterModal, RegionFilterModal } from '../../features/feed/ui/FeedFilterModals';
@@ -63,7 +64,19 @@ export function PlaceSearchPage() {
     setSelectedPlaceId(places[0].id);
   }, [places, selectedPlaceId]);
 
+  useEffect(() => {
+    if (!selectedPlaceId) return;
+    const element = document.getElementById(`place-${selectedPlaceId}`);
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  }, [selectedPlaceId]);
+
   const selectedHobby = hobbies.find((hobby) => hobby.id === hobbyId);
+  const currentHobbyThumbnail =
+    (selectedHobby?.name && HOBBY_THUMBNAIL_MAP[selectedHobby.name]) ||
+    selectedHobby?.thumbnailUrl ||
+    characterAssets.searching;
 
   return <div className="site-shell"><AppHeader notificationCount={3} /><main className="page-container places-page"><div className="page-title-row"><div><h1>활동 장소 찾기</h1></div></div>
     <div className="place-controls">
@@ -76,22 +89,41 @@ export function PlaceSearchPage() {
       <div className="place-hobbies">{hobbies.map((hobby) => <button className={hobbyId === hobby.id ? 'active' : ''} type="button" onClick={() => setHobbyId(hobby.id)} key={hobby.id}>{hobby.name}</button>)}</div>
     </div>
     {sidosQuery.isError || regionsQuery.isError || hobbiesQuery.isError ? <p className="place-query-message" role="alert">장소 검색 조건을 불러오지 못했어요. 잠시 후 다시 시도해 주세요.</p> : null}
-    <div className="place-layout"><section className="place-results"><h2>장소 {placesQuery.isLoading ? '불러오는 중' : `${places.length}곳`} · {selectedHobby?.name ?? ''}</h2>
-      {placesQuery.isError ? <div className="mini-empty"><Search /><b>장소를 불러오지 못했어요</b></div> : null}
-      {placesQuery.isLoading ? <div className="mini-empty" role="status">장소를 불러오고 있어요.</div> : null}
-      {!placesQuery.isLoading && !placesQuery.isError && places.length === 0 ? <div className="mini-empty"><Search /><b>조건에 맞는 장소가 없어요</b></div> : null}
-      {places.map((place) => <article id={`place-${place.id}`} className={selectedPlaceId === place.id ? 'selected' : ''} key={place.id} onClick={() => setSelectedPlaceId(place.id)}>
+    <div className="place-layout">
+      <section className="place-results">
+        <h2>장소 {placesQuery.isLoading ? '불러오는 중' : `${places.length}곳`} · {selectedHobby?.name ?? ''}</h2>
+        {placesQuery.isError ? <div className="mini-empty"><Search /><b>장소를 불러오지 못했어요</b></div> : null}
+        {placesQuery.isLoading ? <div className="mini-empty" role="status">장소를 불러오고 있어요.</div> : null}
+        {!placesQuery.isLoading && !placesQuery.isError && places.length === 0 ? <div className="mini-empty"><Search /><b>조건에 맞는 장소가 없어요</b></div> : null}
+        <div className="place-results__list">
+          {places.map((place) => <article id={`place-${place.id}`} className={selectedPlaceId === place.id ? 'selected' : ''} key={place.id} onClick={() => setSelectedPlaceId(place.id)}>
             <div className="place-thumb">
-              {place.thumbnailUrl ? (
-                <img src={place.thumbnailUrl} alt={`${place.name} 장소`} />
-              ) : (
-                <><Image /><span>{place.source}</span></>
-              )}
-            </div><div><h3>{place.name}<span>{place.category}</span></h3><p>{place.address}</p><small>{place.openingHours || '운영 시간 정보 없음'}</small><b>{place.feeText || '비용 정보 없음'}</b>{place.needsInfoCheck && <small className="place-info-check">정보 확인 필요</small>}</div>
-        {place.externalUrl && <a href={place.externalUrl} target="_blank" rel="noreferrer" onClick={(event) => event.stopPropagation()}>지도에서 보기 <ExternalLink /></a>}
-      </article>)}
-    </section>
-    <KakaoPlaceMap places={places} selectedPlace={selectedPlace} regionName={selectedRegion?.sigungu ?? sido} onSelect={setSelectedPlaceId} />
+              <img
+                src={place.thumbnailUrl || currentHobbyThumbnail}
+                alt={place.name}
+                loading="lazy"
+                onError={(event) => {
+                  const target = event.currentTarget as HTMLImageElement;
+                  if (place.thumbnailUrl && target.src === place.thumbnailUrl && currentHobbyThumbnail) {
+                    target.src = currentHobbyThumbnail;
+                  } else {
+                    target.src = characterAssets.searching;
+                  }
+                }}
+              />
+            </div>
+            <div>
+              <h3>{place.name}<span>{place.category}</span></h3>
+              <p>{place.address}</p>
+              <small>{place.openingHours || '운영 시간 정보 없음'}</small>
+              <b>{place.feeText || '비용 정보 없음'}</b>
+              {place.needsInfoCheck && <small className="place-info-check">정보 확인 필요</small>}
+            </div>
+            {place.externalUrl && <a href={place.externalUrl} target="_blank" rel="noreferrer" onClick={(event) => event.stopPropagation()}>지도에서 보기 <ExternalLink /></a>}
+          </article>)}
+        </div>
+      </section>
+      <KakaoPlaceMap places={places} selectedPlace={selectedPlace} regionName={selectedRegion?.sigungu ?? sido} onSelect={setSelectedPlaceId} />
     </div>
   </main></div>;
 }
@@ -112,7 +144,8 @@ const feedScopes: Array<{ label: string; value: FeedScope }> = [
 export function InfoFeedPage() {
   const [type, setType] = useState<FeedType | undefined>();
   const [scope, setScope] = useState<FeedScope>('MY');
-  const [hobbyId, setHobbyId] = useState<number | undefined>();
+  // 숫자 = 그 취미, 'OTHER' = 30종 어디에도 맞지 않는 '그 외', undefined = 전체 취미
+  const [hobbyId, setHobbyId] = useState<number | 'OTHER' | undefined>();
   const [hideEnded, setHideEnded] = useState(true);
   const [keywordInput, setKeywordInput] = useState('');
   const [keyword, setKeyword] = useState('');
@@ -124,8 +157,11 @@ export function InfoFeedPage() {
   const regionOptions = (regionsQuery.data ?? []).map((region) => ({ id: region.id, name: region.sigungu }));
   // 내 취미가 없으면 맞춤 피드 대신 전체 피드를 보여 주고 안내한다
   const fallbackToAll = scope === 'MY' && scopeHobbies.hasNoMyHobbies;
+  // '그 외'는 내 취미·관심 취미에 속할 수 없어 전체 범위에서만 칩으로 보여 준다
+  const showOther = scope === 'ALL' || fallbackToAll;
   const feeds = useFeedList({
-    scope: fallbackToAll ? 'ALL' : scope, hobbyId, type, excludeEnded: hideEnded,
+    scope: fallbackToAll ? 'ALL' : scope, type, excludeEnded: hideEnded,
+    hobbyId: typeof hobbyId === 'number' ? hobbyId : undefined, uncategorized: hobbyId === 'OTHER',
     keyword: keyword || undefined, from: dateRange.from, to: dateRange.to, regionIds,
   });
   const changeScope = (next: FeedScope) => { setScope(next); setHobbyId(undefined); };
@@ -140,7 +176,7 @@ export function InfoFeedPage() {
     <div className="feed-tabs">
       {feedTypeTabs.map((item) => <button className={type === item.value ? 'active' : ''} type="button" onClick={() => setType(item.value)} key={item.label}>{item.label}</button>)}
       <form className="search-bar feed-search" role="search" onSubmit={(event) => { event.preventDefault(); submitSearch(); }}><Search aria-hidden="true" /><input value={keywordInput} onChange={(event) => setKeywordInput(event.target.value)} placeholder="제목이나 장소로 검색 (2자 이상)" aria-label="정보 피드 검색" /><button type="submit">검색</button></form>
-      <label><input checked={hideEnded} onChange={(event) => setHideEnded(event.target.checked)} type="checkbox" /> 종료된 행사 숨기기</label>
+      <label><input checked={hideEnded} onChange={(event) => setHideEnded(event.target.checked)} type="checkbox" /> 마감·종료된 행사 숨기기</label>
     </div>
     {keywordInput.trim().length === 1 && <p className="form-message form-message--error">검색어는 2자 이상 입력해 주세요.</p>}
     <div className="feed-toolbar">
@@ -151,9 +187,10 @@ export function InfoFeedPage() {
       </div>
     </div>
     {fallbackToAll && <p className="feed-notice">내 취미를 선택하면 맞춤 소식을 볼 수 있어요. 지금은 전체 취미 소식을 보여 드려요. <Link to="/mypage/interests">내 취미 선택</Link></p>}
-    {scopeHobbies.hobbies.length > 0 && <div className="place-hobbies feed-hobbies">
+    {(scopeHobbies.hobbies.length > 0 || showOther) && <div className="place-hobbies feed-hobbies">
       <button className={hobbyId === undefined ? 'active' : ''} type="button" onClick={() => setHobbyId(undefined)}>전체 취미</button>
       {scopeHobbies.hobbies.map((item) => <button className={hobbyId === item.hobbyId ? 'active' : ''} type="button" onClick={() => setHobbyId(item.hobbyId)} key={item.hobbyId}>{item.name}</button>)}
+      {showOther && <button className={hobbyId === 'OTHER' ? 'active' : ''} type="button" onClick={() => setHobbyId('OTHER')}>{OTHER_HOBBY_LABEL}</button>}
     </div>}
     {feeds.isPending && <section className="empty-state feed-empty"><p>정보 피드를 불러오고 있어요.</p></section>}
     {feeds.isError && <section className="empty-state feed-empty"><h2>정보 피드를 불러오지 못했어요</h2><Button onClick={() => feeds.refetch()}>다시 시도</Button></section>}

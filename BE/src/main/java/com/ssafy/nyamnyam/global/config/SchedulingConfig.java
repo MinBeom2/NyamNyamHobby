@@ -1,7 +1,9 @@
 package com.ssafy.nyamnyam.global.config;
 
-import com.ssafy.nyamnyam.domain.shortform.service.ShortCollectProperties;
+import com.ssafy.nyamnyam.domain.feed.collect.FeedClassifyProperties;
 import com.ssafy.nyamnyam.domain.feed.collect.FeedCollectProperties;
+import com.ssafy.nyamnyam.domain.place.collect.PlaceCollectProperties;
+import com.ssafy.nyamnyam.domain.shortform.service.ShortCollectProperties;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.scheduling.annotation.EnableScheduling;
@@ -12,6 +14,11 @@ import org.springframework.scheduling.annotation.EnableScheduling;
  */
 @Configuration
 @EnableScheduling
-@EnableConfigurationProperties({ShortCollectProperties.class, FeedCollectProperties.class})
+@EnableConfigurationProperties({
+        ShortCollectProperties.class,
+        FeedCollectProperties.class,
+        FeedClassifyProperties.class,
+        PlaceCollectProperties.class
+})
 public class SchedulingConfig {
 }

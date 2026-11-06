@@ -437,6 +437,11 @@ strong, b { font-weight: 700; }
 .hobby-guide__shorts article > div { height: 128px; border-radius: 10px; display: grid; place-items: center; align-content: center; gap: 5px; color: var(--color-primary); background: var(--color-primary-soft); font-size: 10px; }
 .hobby-guide__shorts article svg { width: 26px; opacity: .6; }
 .hobby-guide__shorts article b { display: block; margin-top: 9px; font-size: 12px; }
+/* 실제 숏폼 썸네일: 128px 카드 안에 맞춰 자르고, 원본 크기로 넘쳐 겹치지 않게 한다 */
+.hobby-guide__shorts article { min-width: 0; }
+.hobby-guide__shorts article > div { overflow: hidden; }
+.hobby-guide__shorts article > div img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.hobby-guide__shorts article b { display: -webkit-box; overflow: hidden; -webkit-line-clamp: 2; -webkit-box-orient: vertical; line-height: 1.4; }
 .hobby-guide__columns--footer section > div { display: flex; gap: 10px; }
 .hobby-guide__materials li { min-height: 42px; display: flex; align-items: center; gap: 12px; font-size: 12px; }
 .hobby-guide__materials span { padding: 5px 9px; border-radius: 999px; color: var(--color-primary); background: var(--color-primary-soft); font-size: 10px; font-weight: 700; }

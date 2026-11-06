@@ -6,7 +6,6 @@ import '@fontsource/noto-sans-kr/korean-400.css';
 import '@fontsource/noto-sans-kr/korean-500.css';
 import '@fontsource/noto-sans-kr/korean-600.css';
 import '@fontsource/noto-sans-kr/korean-700.css';
-import '@fontsource/jua/korean-400.css';
 import { App } from './app/App';
 import './shared/styles/global.css';
 

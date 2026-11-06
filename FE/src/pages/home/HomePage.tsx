@@ -15,7 +15,7 @@ import { AppHeader } from '../../shared/ui/AppHeader';
 import { Button } from '../../shared/ui/Button';
 import { MediaPlaceholder } from '../../shared/ui/MediaPlaceholder';
 import { characterAssets, heroAssets } from '../../shared/assets/assets';
-import { DirectSelectButton } from './DirectSelectNotice';
+import { DirectSelectButton, ExploreAgainButton } from './DirectSelectNotice';
 
 function PageShell({
   variant,
@@ -153,7 +153,7 @@ export function MemberHomePage() {
           <div className="member-hero__copy">
             <h1>안녕하세요, {user?.nickname ?? '취미찾는사람'}님!</h1>
             <p>숏폼으로 관심사를 찾고, 맞춤 취미를 추천받아 보세요. {remainingTodoCount === undefined ? '이번 주 TODO를 확인해 보세요.' : `이번 주 TODO는 ${remainingTodoCount}개 남았어요.`}</p>
-            <div><Button to="/explore">{latest ? '숏폼 추천 다시받기' : '숏폼 탐색 시작하기'}</Button><DirectSelectButton hasRecommendation={Boolean(latest)} /></div>
+            <div><ExploreAgainButton hasRecommendation={Boolean(latest)} /><DirectSelectButton hasRecommendation={Boolean(latest)} /></div>
           </div>
           <div className="member-hero__media">
             <img src={characterAssets.greeting} alt="인사하는 냠냠취미 캐릭터" />

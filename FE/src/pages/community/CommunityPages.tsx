@@ -73,9 +73,9 @@ export function CommunityListPage() {
               <label><Search /><input value={keyword} onChange={(event) => setKeyword(event.target.value)} placeholder="제목 검색" /></label>
             </div>
             <div className="board-table">
-              <div className="board-table__head"><span>분류</span><span>제목</span><span>작성자</span><span>작성일</span><span>댓글</span><span>조회</span></div>
+              <div className={`board-table__head${hobbyId === null ? ' board-table__head--all' : ''}`}><span>분류</span><span>제목</span><span>작성자</span><span>작성일</span><span>댓글</span><span>조회</span></div>
               {posts.length ? posts.map((post) => (
-                <Link className="board-row" to={`/community/${post.id}`} key={post.id}>
+                <Link className={`board-row${hobbyId === null ? ' board-row--all' : ''}`} to={`/community/${post.id}`} key={post.id}>
                   <span><b className="badge">{typeLabel[post.type]}</b>{hobbyId === null && <b className="badge badge--soft">{post.hobbyName}</b>}</span>
                   <strong>{post.title} <em>[{post.commentCount}]</em></strong>
                   <span>{post.author.nickname}</span><span>{formatDate(post.createdAt)}</span><span>{post.commentCount}</span><span>{post.viewCount}</span>

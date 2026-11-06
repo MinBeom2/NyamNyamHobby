@@ -681,6 +681,14 @@ strong, b { font-weight: 700; }
 .report-modal textarea { width: 100%; min-height: 80px; margin-top: 10px; padding: 11px; border: 1px solid var(--color-line); border-radius: 8px; resize: vertical; }
 .report-modal > div { display: flex; justify-content: flex-end; gap: 8px; margin-top: 15px; }
 .report-modal > .button { width: 100%; margin-top: 14px; }
+.delete-confirm-modal { width: min(390px, calc(100% - 48px)); padding: 28px; border: 1px solid var(--color-line); border-radius: var(--radius-lg); color: var(--color-ink); background: var(--color-surface); box-shadow: 0 22px 60px rgb(20 37 43 / 24%); }
+.delete-confirm-modal::backdrop { background: rgb(18 36 42 / 42%); backdrop-filter: blur(2px); -webkit-backdrop-filter: blur(2px); }
+.delete-confirm-modal h2 { margin: 0 0 12px; font-size: var(--type-title-s); line-height: var(--type-title-s-line); }
+.delete-confirm-modal p { margin: 0; color: var(--color-muted); font-size: var(--type-body-m); line-height: var(--type-body-m-line); }
+.delete-confirm-modal blockquote { max-height: 160px; margin: 16px 0 0; padding: 12px; overflow-y: auto; border-radius: var(--radius-sm); background: var(--color-bg); font-size: var(--type-body-m); white-space: pre-wrap; overflow-wrap: anywhere; }
+.delete-confirm-modal .delete-confirm-modal__error { margin-top: 12px; color: var(--color-ink); }
+.delete-confirm-modal > div { margin-top: 24px; display: flex; justify-content: flex-end; gap: 10px; }
+.delete-confirm-modal .button { min-height: 40px; }
 .write-page { width: min(760px, calc(100% - 48px)); }
 .write-page h1 { margin-bottom: 20px; font-size: var(--type-title-l); }
 .write-page form > label, .write-grid label { display: flex; flex-direction: column; gap: 8px; margin-bottom: 17px; font-size: 12px; font-weight: 700; }
@@ -1184,7 +1192,7 @@ strong, b { font-weight: 700; }
 
 /* Keep long content and dialogs reachable on short screens and mobile browsers. */
 .signup-required-backdrop, .modal-backdrop, .explore-restart-backdrop, .profile-modal-backdrop { overflow-y: auto; }
-.signup-required-modal, .report-modal, .explore-restart-modal, .profile-modal, .hobby-start-error-modal {
+.signup-required-modal, .report-modal, .explore-restart-modal, .profile-modal, .hobby-start-error-modal, .delete-confirm-modal {
   max-height: calc(100dvh - 48px);
   overflow-y: auto;
 }

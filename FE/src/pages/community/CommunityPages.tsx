@@ -9,6 +9,7 @@ import { AppHeader } from '../../shared/ui/AppHeader';
 import { Button } from '../../shared/ui/Button';
 import { getOnboardingOptions, userQueryKeys } from '../../features/user/api/userApi';
 import { communityWriteSchema, type CommunityWriteFormValues } from '../../features/community/model/communityWriteSchema';
+import { DeleteConfirmModal, type DeleteTarget } from '../../features/community/ui/DeleteConfirmModal';
 import {
   communityQueryKeys,
   createComment,
@@ -101,12 +102,13 @@ export function CommunityDetailPage() {
   const [reply, setReply] = useState('');
   const [linkCopied, setLinkCopied] = useState(false);
   const [reportTarget, setReportTarget] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null);
 
   const likeMutation = useMutation({
     mutationFn: () => post?.isLiked ? unlikePost(post.id) : likePost(postNumber),
     onSuccess: (result) => queryClient.setQueryData(communityQueryKeys.post(postNumber), (current: typeof post) => current ? { ...current, ...result } : current),
   });
-  const deleteMutation = useMutation({ mutationFn: () => deletePost(postNumber), onSuccess: () => navigateToCommunity() });
+  const deleteMutation = useMutation({ mutationFn: (postId: number) => deletePost(postId), onSuccess: () => navigateToCommunity() });
   const createCommentMutation = useMutation({
     mutationFn: ({ content, parentId }: { content: string; parentId: number | null }) => createComment(postNumber, { content, parentId }),
     onSuccess: () => {
@@ -167,7 +169,7 @@ export function CommunityDetailPage() {
         <article className="post-detail">
           <header>
             <div className="post-detail__heading"><span className="badge">{typeLabel[post.type]}</span><span className="badge badge--soft">{post.hobby.name}</span><h1>{post.title}</h1><p>{post.author.nickname} · {formatDate(post.createdAt)} · 조회 {post.viewCount}</p></div>
-            {post.isMine && <div className="post-detail__controls"><button type="button" onClick={() => navigate(`/community/${post.id}/edit`)}>수정</button><button type="button" disabled={deleteMutation.isPending} onClick={() => deleteMutation.mutate()}>삭제</button></div>}
+            {post.isMine && <div className="post-detail__controls"><button type="button" onClick={() => navigate(`/community/${post.id}/edit`)}>수정</button><button type="button" disabled={deleteMutation.isPending} onClick={() => setDeleteTarget({ type: 'post', id: post.id, content: post.title })}>삭제</button></div>}
           </header>
           {post.imageUrls.length > 0 && (
             <div className="post-images">
@@ -209,7 +211,7 @@ export function CommunityDetailPage() {
                         <button type="button" onClick={() => { setReplyTarget((current) => current === item.id ? null : item.id); setReply(''); }}><MessageSquareReply aria-hidden="true" /> 답글</button>
                         <button className={item.isLiked ? 'active' : ''} type="button" disabled={commentLikeMutation.isPending} onClick={() => commentLikeMutation.mutate(item)}><Heart aria-hidden="true" fill={item.isLiked ? 'currentColor' : 'none'} /> 좋아요 {item.likeCount}</button>
                         <button type="button" onClick={() => setReportTarget(`${item.author?.nickname ?? '사용자'}님의 댓글`)}><Flag aria-hidden="true" /> 신고</button>
-                        {item.isMine && <button type="button" disabled={deleteCommentMutation.isPending} onClick={() => deleteCommentMutation.mutate(item.id)}><Trash2 aria-hidden="true" /> 삭제</button>}
+                        {item.isMine && <button type="button" disabled={deleteCommentMutation.isPending} onClick={() => setDeleteTarget({ type: 'comment', id: item.id, content: item.content ?? '' })}><Trash2 aria-hidden="true" /> 삭제</button>}
                       </div>
                       {replyTarget === item.id && (
                         <form className="reply-form" onSubmit={(event) => submitReply(event, item.id)}>
@@ -226,7 +228,7 @@ export function CommunityDetailPage() {
                             {!replyItem.isDeleted && <div className="comment-item__actions">
                               <button className={replyItem.isLiked ? 'active' : ''} type="button" disabled={commentLikeMutation.isPending} onClick={() => commentLikeMutation.mutate(replyItem)}><Heart aria-hidden="true" fill={replyItem.isLiked ? 'currentColor' : 'none'} /> 좋아요 {replyItem.likeCount}</button>
                               <button type="button" onClick={() => setReportTarget(`${replyItem.author?.nickname ?? '사용자'}님의 답글`)}><Flag aria-hidden="true" /> 신고</button>
-                              {replyItem.isMine && <button type="button" disabled={deleteCommentMutation.isPending} onClick={() => deleteCommentMutation.mutate(replyItem.id)}><Trash2 aria-hidden="true" /> 삭제</button>}
+                              {replyItem.isMine && <button type="button" disabled={deleteCommentMutation.isPending} onClick={() => setDeleteTarget({ type: 'reply', id: replyItem.id, content: replyItem.content ?? '' })}><Trash2 aria-hidden="true" /> 삭제</button>}
                             </div>}
                           </div>
                         </div>
@@ -239,6 +241,13 @@ export function CommunityDetailPage() {
           </div>
         </section>
         {reportTarget && <ReportModal target={reportTarget} onClose={() => setReportTarget(null)} />}
+        {deleteTarget && <DeleteConfirmModal
+          target={deleteTarget}
+          onClose={() => setDeleteTarget(null)}
+          onConfirm={() => deleteTarget.type === 'post'
+            ? deleteMutation.mutateAsync(deleteTarget.id)
+            : deleteCommentMutation.mutateAsync(deleteTarget.id)}
+        />}
       </main>
     </div>
   );

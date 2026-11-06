@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { setWheelInterceptor } from '../../../shared/scroll/smoothScroll';
 import type { PlaceDto } from '../api/placeApi';
 
 type KakaoLatLng = object;
@@ -75,9 +76,23 @@ export function KakaoPlaceMap({ places, selectedPlace, regionName, onSelect }: K
     const container = containerRef.current;
     if (!container) return;
 
-    const preventPageScroll = (event: WheelEvent) => event.preventDefault();
-    container.addEventListener('wheel', preventPageScroll, { passive: false });
-    return () => container.removeEventListener('wheel', preventPageScroll);
+    const preventPageScroll = (event: WheelEvent) => {
+      if (event.target instanceof Node && container.contains(event.target)) {
+        event.preventDefault();
+      }
+    };
+    const releaseWheelInterceptor = setWheelInterceptor(({ event }) => {
+      if (event.type === 'wheel' && event.target instanceof Node && container.contains(event.target)) {
+        if (event.cancelable) event.preventDefault();
+        return false;
+      }
+      return true;
+    });
+    document.addEventListener('wheel', preventPageScroll, { capture: true, passive: false });
+    return () => {
+      document.removeEventListener('wheel', preventPageScroll, true);
+      releaseWheelInterceptor();
+    };
   }, []);
 
   useEffect(() => {

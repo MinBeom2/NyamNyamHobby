@@ -29,22 +29,52 @@ function renderPlaces(path: string, availableHobbies = hobbies) {
 }
 
 describe('place search hobby selection', () => {
-  it.each([[3, '요가'], [12, '도자기']])('selects hobby %s from the incoming URL on the first render', (hobbyId, name) => {
+  it.each([[1, '클라이밍'], [3, '요가'], [12, '도자기']])('selects hobby %s from the incoming URL on the first render', (hobbyId, name) => {
     const html = renderPlaces(`/places?hobbyId=${hobbyId}`);
-    expect(html).toContain(`<button class="active" type="button">${name}</button>`);
-    expect(html).not.toContain('<button class="active" type="button">클라이밍</button>');
+    expect(html).toContain(`aria-pressed="true">${name}</button>`);
+    expect(html.match(/aria-pressed="true"/g)).toHaveLength(1);
+    expect(html).toContain(`· ${name}</h2>`);
   });
 
-  it.each(['/places', '/places?hobbyId=invalid', '/places?hobbyId=9999'])('keeps the general search default for %s', (path) => {
-    expect(renderPlaces(path)).toContain('<button class="active" type="button">클라이밍</button>');
+  it('asks for a hobby when entering from the general place menu', () => {
+    const html = renderPlaces('/places');
+    expect(html).not.toContain('aria-pressed="true"');
+    expect(html).toContain('장소를 찾을 취미를 선택해 주세요.');
+    expect(html).not.toContain('조건에 맞는 장소가 없어요');
   });
 
-  it('falls back to the first available hobby when climbing is unavailable', () => {
-    expect(renderPlaces('/places', hobbies.slice(1))).toContain('<button class="active" type="button">요가</button>');
+  it.each(['invalid', '9999', '', '0', '-1', '1.5'])('does not replace an invalid hobby %s with another hobby', (hobbyId) => {
+    const html = renderPlaces(`/places?hobbyId=${hobbyId}`);
+    expect(html).not.toContain('aria-pressed="true"');
+    expect(html).toContain('선택한 취미를 찾을 수 없어요. 다른 취미를 선택해 주세요.');
   });
 
-  it('waits for the hobby list before selecting a hobby', () => {
-    expect(renderPlaces('/places?hobbyId=3', [])).not.toContain('<button class="active"');
+  it('does not automatically select the first hobby when climbing is unavailable', () => {
+    expect(renderPlaces('/places', hobbies.slice(1))).not.toContain('aria-pressed="true"');
+  });
+
+  it('shows an empty hobby list without selecting a different hobby', () => {
+    const html = renderPlaces('/places?hobbyId=3', []);
+    expect(html).not.toContain('aria-pressed="true"');
+    expect(html).toContain('검색할 수 있는 취미가 없어요');
+    expect(html).not.toContain('조건에 맞는 장소가 없어요');
+  });
+
+  it('waits for the hobby list without showing an invalid hobby or empty search result', () => {
+    const client = new QueryClient();
+    try {
+      const html = renderToStaticMarkup(
+        <QueryClientProvider client={client}>
+          <MemoryRouter initialEntries={['/places?hobbyId=3']}><PlaceSearchPage /></MemoryRouter>
+        </QueryClientProvider>,
+      );
+      expect(html).toContain('취미 목록을 불러오고 있어요.');
+      expect(html).not.toContain('aria-pressed="true"');
+      expect(html).not.toContain('선택한 취미를 찾을 수 없어요');
+      expect(html).not.toContain('조건에 맞는 장소가 없어요');
+    } finally {
+      client.clear();
+    }
   });
 });
 

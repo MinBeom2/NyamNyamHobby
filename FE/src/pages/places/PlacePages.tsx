@@ -29,11 +29,7 @@ export function PlaceSearchPage() {
   const hobbiesQuery = useQuery({ queryKey: placeQueryKeys.hobbies, queryFn: getPlaceHobbies });
   const hobbies = hobbiesQuery.data?.content ?? [];
   const requestedHobbyId = Number(searchParams.get('hobbyId'));
-  const hobbyId = (
-    hobbies.find((hobby) => hobby.id === requestedHobbyId)
-    ?? hobbies.find((hobby) => hobby.name === '클라이밍')
-    ?? hobbies[0]
-  )?.id;
+  const hobbyId = hobbies.find((hobby) => hobby.id === requestedHobbyId)?.id;
   const placesQuery = useQuery({
     queryKey: placeQueryKeys.list(regionId, hobbyId),
     queryFn: () => getPlaces(regionId, hobbyId),
@@ -85,7 +81,7 @@ export function PlaceSearchPage() {
       <label>시·군·구<select value={regionId ?? ''} onChange={(event) => setRegionId(Number(event.target.value))} disabled={!regionsQuery.data?.length}>
         {regionsQuery.data?.map((region) => <option value={region.id} key={region.id}>{region.sigungu}</option>)}
       </select></label>
-      <div className="place-hobbies">{hobbies.map((hobby) => <button className={hobbyId === hobby.id ? 'active' : ''} type="button" onClick={() => setSearchParams((current) => {
+      <div className="place-hobbies">{hobbies.map((hobby) => <button className={hobbyId === hobby.id ? 'active' : ''} type="button" aria-pressed={hobbyId === hobby.id} onClick={() => setSearchParams((current) => {
         const next = new URLSearchParams(current);
         next.set('hobbyId', String(hobby.id));
         return next;
@@ -94,10 +90,12 @@ export function PlaceSearchPage() {
     {sidosQuery.isError || regionsQuery.isError || hobbiesQuery.isError ? <p className="place-query-message" role="alert">장소 검색 조건을 불러오지 못했어요. 잠시 후 다시 시도해 주세요.</p> : null}
     <div className="place-layout">
       <section className="place-results">
-        <h2>장소 {placesQuery.isLoading ? '불러오는 중' : `${places.length}곳`} · {selectedHobby?.name ?? ''}</h2>
+        <h2>{selectedHobby ? `장소 ${placesQuery.isLoading ? '불러오는 중' : `${places.length}곳`} · ${selectedHobby.name}` : '장소'}</h2>
+        {hobbiesQuery.isPending ? <div className="mini-empty" role="status">취미 목록을 불러오고 있어요.</div> : null}
+        {!hobbiesQuery.isPending && !hobbiesQuery.isError && hobbyId === undefined ? <div className="mini-empty"><Search /><b>{hobbies.length === 0 ? '검색할 수 있는 취미가 없어요' : searchParams.has('hobbyId') ? '선택한 취미를 찾을 수 없어요. 다른 취미를 선택해 주세요.' : '장소를 찾을 취미를 선택해 주세요.'}</b></div> : null}
         {placesQuery.isError ? <div className="mini-empty"><Search /><b>장소를 불러오지 못했어요</b></div> : null}
         {placesQuery.isLoading ? <div className="mini-empty" role="status">장소를 불러오고 있어요.</div> : null}
-        {!placesQuery.isLoading && !placesQuery.isError && places.length === 0 ? <div className="mini-empty"><Search /><b>조건에 맞는 장소가 없어요</b></div> : null}
+        {hobbyId !== undefined && regionId !== undefined && !placesQuery.isLoading && !placesQuery.isError && places.length === 0 ? <div className="mini-empty"><Search /><b>조건에 맞는 장소가 없어요</b></div> : null}
         <div className="place-results__list">
           {places.map((place) => <article id={`place-${place.id}`} className={selectedPlaceId === place.id ? 'selected' : ''} key={place.id} onClick={() => setSelectedPlaceId(place.id)}>
             <div className="place-thumb">

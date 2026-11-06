@@ -72,6 +72,15 @@ export function KakaoPlaceMap({ places, selectedPlace, regionName, onSelect }: K
   const mapKey = import.meta.env.VITE_KAKAO_MAP_KEY;
 
   useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const preventPageScroll = (event: WheelEvent) => event.preventDefault();
+    container.addEventListener('wheel', preventPageScroll, { passive: false });
+    return () => container.removeEventListener('wheel', preventPageScroll);
+  }, []);
+
+  useEffect(() => {
     if (!mapKey) {
       setMapStatus('missing-key');
       return;

@@ -220,7 +220,7 @@ export function HobbyPlanPage() {
               <b>{selectedWeek}주차</b>
               <p>조금씩 꾸준히 해내고 있어요.</p>
             </div>
-            <Button to="/places">장소 찾기</Button>
+            <Button to={`/places?hobbyId=${plan.hobbyId}`}>장소 찾기</Button>
           </aside>
         </div>
         <section className="all-plan">

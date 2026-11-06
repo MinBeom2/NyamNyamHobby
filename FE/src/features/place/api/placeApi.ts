@@ -1,4 +1,5 @@
 import { apiRequest } from '../../../shared/api/client';
+import { getHobbies } from '../../hobby/api/hobbyApi';
 
 export type SidoDto = { sido: string; enabled: boolean };
 
@@ -48,8 +49,15 @@ export function getRegions(sido: string) {
   return apiRequest<RegionDto[]>(`/regions?sido=${encodeURIComponent(sido)}`);
 }
 
-export function getPlaceHobbies() {
-  return apiRequest<{ content: PlaceHobbyDto[] }>('/hobbies?size=50&sort=NAME');
+export async function getPlaceHobbies() {
+  const content: PlaceHobbyDto[] = [];
+  let page = 0;
+  while (true) {
+    const response = await getHobbies({ page, size: 50, sort: 'NAME' });
+    content.push(...response.content);
+    if (!response.page.hasNext) return { content };
+    page += 1;
+  }
 }
 
 export function getPlaces(regionId?: number, hobbyId?: number) {

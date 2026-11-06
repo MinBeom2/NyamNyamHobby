@@ -2,8 +2,9 @@ import { Check, ChevronDown, ChevronUp, Clock3, Coins, Gauge, Heart, Image, Sear
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { getHobbies, getHobbyDetail, getHobbyPlanPreview, getHobbyShorts, hobbyQueryKeys, startHobby, type HobbyDifficulty } from '../../features/hobby/api/hobbyApi';
-import { toHobbyCardModel, toHobbyDetailModel, type HobbyCardModel } from '../../features/hobby/model/hobbyAdapter';
+import { getHobbyDetail, getHobbyPlanPreview, getHobbyShorts, hobbyQueryKeys, startHobby, type HobbyDifficulty } from '../../features/hobby/api/hobbyApi';
+import { toHobbyDetailModel, type HobbyCardModel } from '../../features/hobby/model/hobbyAdapter';
+import { useHobbyCatalog } from '../../features/hobby/model/useHobbyCatalog';
 import { HobbyStartErrorModal } from '../../features/hobby/ui/HobbyStartErrorModal';
 import { useAuthStore } from '../../features/auth/model/authStore';
 import { deleteUserHobby, getMyInterests, getUserHobbies, saveUserHobby, userQueryKeys } from '../../features/user/api/userApi';
@@ -29,9 +30,9 @@ export function HobbyInterestSelectPage() {
   const navigate = useNavigate();
   const [keyword, setKeyword] = useState('');
   const [selected, setSelected] = useState<number[]>([]);
-  const hobbiesQuery = useQuery({ queryKey: hobbyQueryKeys.list({ size: 100, sort: 'NAME' }), queryFn: () => getHobbies({ size: 100, sort: 'NAME' }) });
+  const hobbiesQuery = useHobbyCatalog({ sort: 'NAME' });
   const normalizedKeyword = keyword.trim();
-  const allHobbies = useMemo(() => (hobbiesQuery.data?.content ?? []).map(toHobbyCardModel), [hobbiesQuery.data]);
+  const allHobbies = hobbiesQuery.data ?? [];
   const groups = useMemo(() => {
     const grouped = new Map<string, HobbyCardModel[]>();
     allHobbies.filter((hobby) => !normalizedKeyword || `${hobby.name} ${hobby.tags.join(' ')}`.includes(normalizedKeyword)).forEach((hobby) => grouped.set(hobby.category, [...(grouped.get(hobby.category) ?? []), hobby]));
@@ -84,9 +85,9 @@ export function HobbySearchPage() {
     if (mine === 'INTERESTS') return new Set(interestsQuery.data?.map((item) => item.hobbyId));
     return null;
   }, [mine, savedQuery.data, interestsQuery.data]);
-  const params = { keyword: submittedKeyword.length >= 2 ? submittedKeyword : undefined, difficulty: difficultyValues[difficulty], place: placeValues[place], size: 100 };
-  const hobbiesQuery = useQuery({ queryKey: hobbyQueryKeys.list(params), queryFn: () => getHobbies(params) });
-  const allHobbies = useMemo(() => (hobbiesQuery.data?.content ?? []).map(toHobbyCardModel), [hobbiesQuery.data]);
+  const params = { keyword: submittedKeyword.length >= 2 ? submittedKeyword : undefined, difficulty: difficultyValues[difficulty], place: placeValues[place] };
+  const hobbiesQuery = useHobbyCatalog(params);
+  const allHobbies = hobbiesQuery.data ?? [];
   const categories = useMemo(() => ['전체', ...new Set(allHobbies.map((hobby) => hobby.category))], [allHobbies]);
   const hobbies = allHobbies.filter((hobby) => (category === '전체' || hobby.category === category) && (!mineIds || mineIds.has(hobby.id)));
   const reset = () => { setKeyword(''); setSubmittedKeyword(''); setCategory('전체'); setDifficulty('전체'); setPlace('전체'); setMine(null); };

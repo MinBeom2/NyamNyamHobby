@@ -7,6 +7,8 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import { AppHeader } from '../../shared/ui/AppHeader';
 import { Button } from '../../shared/ui/Button';
+import { Pagination } from '../../shared/ui/Pagination';
+import { usePageBounds, usePageSearchParams } from '../../shared/hooks/usePageSearchParams';
 import { getOnboardingOptions, userQueryKeys } from '../../features/user/api/userApi';
 import { communityWriteSchema, type CommunityWriteFormValues } from '../../features/community/model/communityWriteSchema';
 import { DeleteConfirmModal, type DeleteTarget } from '../../features/community/ui/DeleteConfirmModal';
@@ -26,6 +28,7 @@ import {
   uploadPostImage,
   updatePost,
   type CommentDto,
+  type PageDto,
   type PostType,
 } from '../../features/community/api/communityApi';
 
@@ -34,14 +37,17 @@ const categoryType: Record<(typeof categories)[number], PostType | undefined> = 
 const typeLabel: Record<PostType, (typeof categories)[number]> = { REVIEW: '후기', QUESTION: '질문', INFO: '정보 공유', SHARE: '모임' };
 
 export function CommunityListPage() {
-  const [category, setCategory] = useState<(typeof categories)[number]>('전체글');
-  const [keyword, setKeyword] = useState('');
-  const [hobbyId, setHobbyId] = useState<number | null>(null);
+  const { page, searchParams, changePage, changeFilters } = usePageSearchParams();
+  const category = categories.find((item) => categoryType[item] === searchParams.get('type')) ?? '전체글';
+  const keyword = searchParams.get('keyword') ?? '';
+  const rawHobbyId = Number(searchParams.get('hobbyId'));
+  const hobbyId = Number.isSafeInteger(rawHobbyId) && rawHobbyId > 0 ? rawHobbyId : null;
   const optionsQuery = useQuery({ queryKey: userQueryKeys.onboardingOptions(), queryFn: getOnboardingOptions });
   const postsQuery = useQuery({
-    queryKey: communityQueryKeys.posts(hobbyId, categoryType[category], keyword),
-    queryFn: () => getPosts(hobbyId, { type: categoryType[category], keyword }),
+    queryKey: communityQueryKeys.posts(hobbyId, categoryType[category], keyword, page),
+    queryFn: () => getPosts(hobbyId, { type: categoryType[category], keyword, page }),
   });
+  usePageBounds(page, postsQuery.data?.page.totalPages, changePage);
   const posts = postsQuery.data?.content ?? [];
   const hobby = optionsQuery.data?.hobbies.find((item) => item.hobbyId === hobbyId);
 
@@ -53,7 +59,7 @@ export function CommunityListPage() {
           <aside className="board-sidebar">
             <h2>취미 게시판</h2>
             {categories.map((item) => (
-              <button className={category === item ? 'active' : ''} type="button" onClick={() => setCategory(item)} key={item}>
+              <button className={category === item ? 'active' : ''} type="button" onClick={() => changeFilters({ type: categoryType[item] ?? null })} key={item}>
                 {item}
                 <small>{item === category ? postsQuery.data?.page.totalElements ?? 0 : ''}</small>
               </button>
@@ -67,10 +73,10 @@ export function CommunityListPage() {
             </div>
             <div className="board-tools">
               <div>
-                <button aria-pressed={hobbyId === null} className={hobbyId === null ? 'active' : ''} onClick={() => setHobbyId(null)} type="button">전체</button>
-                {(optionsQuery.data?.hobbies ?? []).map((item) => <button aria-pressed={hobbyId === item.hobbyId} className={hobbyId === item.hobbyId ? 'active' : ''} onClick={() => setHobbyId(item.hobbyId)} type="button" key={item.hobbyId}>{item.name}</button>)}
+                <button aria-pressed={hobbyId === null} className={hobbyId === null ? 'active' : ''} onClick={() => changeFilters({ hobbyId: null })} type="button">전체</button>
+                {(optionsQuery.data?.hobbies ?? []).map((item) => <button aria-pressed={hobbyId === item.hobbyId} className={hobbyId === item.hobbyId ? 'active' : ''} onClick={() => changeFilters({ hobbyId: String(item.hobbyId) })} type="button" key={item.hobbyId}>{item.name}</button>)}
               </div>
-              <label><Search /><input value={keyword} onChange={(event) => setKeyword(event.target.value)} placeholder="제목 검색" /></label>
+              <label><Search /><input value={keyword} onChange={(event) => changeFilters({ keyword: event.target.value }, true)} placeholder="제목 검색" /></label>
             </div>
             <div className="board-table">
               <div className={`board-table__head${hobbyId === null ? ' board-table__head--all' : ''}`}><span>분류</span><span>제목</span><span>작성자</span><span>작성일</span><span>댓글</span><span>조회</span></div>
@@ -80,9 +86,11 @@ export function CommunityListPage() {
                   <strong>{post.title} <em>[{post.commentCount}]</em></strong>
                   <span>{post.author.nickname}</span><span>{formatDate(post.createdAt)}</span><span>{post.commentCount}</span><span>{post.viewCount}</span>
                 </Link>
-              )) : <section className="mini-empty"><Search /><b>검색 결과가 없어요</b></section>}
+              )) : postsQuery.isPending ? <section className="mini-empty" role="status">게시글을 불러오고 있어요.</section>
+                : !postsQuery.isError && <section className="mini-empty"><Search /><b>검색 결과가 없어요</b></section>}
             </div>
-            <nav className="pagination" aria-label="페이지 이동"><button type="button">‹</button><button className="active" type="button">1</button><button type="button">2</button><button type="button">3</button><button type="button">›</button></nav>
+            {postsQuery.isError && <p role="alert">게시글을 불러오지 못했어요. <Button variant="text" onClick={() => postsQuery.refetch()}>다시 시도</Button></p>}
+            <Pagination page={page} totalPages={postsQuery.data?.page.totalPages ?? 0} disabled={postsQuery.isFetching} onPageChange={(nextPage) => changePage(nextPage)} />
           </section>
         </div>
       </main>
@@ -93,9 +101,11 @@ export function CommunityListPage() {
 export function CommunityDetailPage() {
   const { postId } = useParams();
   const postNumber = Number(postId);
+  const { page: commentPage, changePage: changeCommentPage } = usePageSearchParams('commentPage');
   const queryClient = useQueryClient();
   const postQuery = useQuery({ queryKey: communityQueryKeys.post(postNumber), queryFn: () => getPost(postNumber), enabled: Number.isFinite(postNumber) });
-  const commentsQuery = useQuery({ queryKey: communityQueryKeys.comments(postNumber), queryFn: () => getComments(postNumber), enabled: Number.isFinite(postNumber) });
+  const commentsQuery = useQuery({ queryKey: communityQueryKeys.comments(postNumber, commentPage), queryFn: () => getComments(postNumber, commentPage), enabled: Number.isFinite(postNumber) });
+  usePageBounds(commentPage, commentsQuery.data?.page.totalPages, changeCommentPage);
   const post = postQuery.data;
   const comments = commentsQuery.data?.content ?? [];
   const [comment, setComment] = useState('');
@@ -105,6 +115,8 @@ export function CommunityDetailPage() {
   const [reportTarget, setReportTarget] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null);
 
+  useEffect(() => { setReplyTarget(null); setReply(''); }, [postNumber, commentPage]);
+
   const likeMutation = useMutation({
     mutationFn: () => post?.isLiked ? unlikePost(post.id) : likePost(postNumber),
     onSuccess: (result) => queryClient.setQueryData(communityQueryKeys.post(postNumber), (current: typeof post) => current ? { ...current, ...result } : current),
@@ -112,31 +124,36 @@ export function CommunityDetailPage() {
   const deleteMutation = useMutation({ mutationFn: (postId: number) => deletePost(postId), onSuccess: () => navigateToCommunity() });
   const createCommentMutation = useMutation({
     mutationFn: ({ content, parentId }: { content: string; parentId: number | null }) => createComment(postNumber, { content, parentId }),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: communityQueryKeys.comments(postNumber) });
-      void queryClient.invalidateQueries({ queryKey: communityQueryKeys.post(postNumber) });
+    onSuccess: async (_created, variables) => {
+      await refreshComments();
+      if (variables.parentId === null) {
+        const updated = queryClient.getQueryData<PageDto<CommentDto>>(communityQueryKeys.comments(postNumber, commentPage));
+        if (updated) changeCommentPage(Math.max(0, updated.page.totalPages - 1));
+      }
     },
   });
   const commentLikeMutation = useMutation({
     mutationFn: (target: CommentDto) => target.isLiked ? unlikeComment(target.id) : likeComment(target.id),
-    onSuccess: () => void queryClient.invalidateQueries({ queryKey: communityQueryKeys.comments(postNumber) }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: communityQueryKeys.commentPages(postNumber) }),
   });
   const deleteCommentMutation = useMutation({
     mutationFn: (commentId: number) => deleteComment(commentId),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: communityQueryKeys.comments(postNumber) });
-      void queryClient.invalidateQueries({ queryKey: communityQueryKeys.post(postNumber) });
-    },
+    onSuccess: () => refreshComments(),
   });
   const navigate = useNavigate();
   const navigateToCommunity = () => navigate('/community', { replace: true });
+
+  async function refreshComments() {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: communityQueryKeys.commentPages(postNumber) }),
+      queryClient.invalidateQueries({ queryKey: communityQueryKeys.post(postNumber), exact: true }),
+    ]);
+  }
 
   if (postQuery.isLoading) return <div className="site-shell"><AppHeader /><main className="page-container empty-state"><h1>게시글을 불러오는 중이에요</h1></main></div>;
   if (!post) {
     return <div className="site-shell"><AppHeader /><main className="page-container empty-state"><h1>게시글을 찾을 수 없어요</h1><Button to="/community">목록으로</Button></main></div>;
   }
-
-  const visibleCommentCount = comments.reduce((count, item) => count + countVisibleComments(item), 0);
 
   function submitComment(event: FormEvent) {
     event.preventDefault();
@@ -192,13 +209,15 @@ export function CommunityDetailPage() {
         </article>
 
         <section className="comments" aria-labelledby="comments-title">
-          <h2 id="comments-title">댓글 {visibleCommentCount}</h2>
+          <h2 id="comments-title">댓글 {post.commentCount}</h2>
           <label className="comments__label" htmlFor="comment-input">댓글</label>
           <form onSubmit={submitComment}>
             <input id="comment-input" value={comment} onChange={(event) => setComment(event.target.value)} placeholder="댓글을 입력하세요 (500자)" maxLength={500} />
             <button type="submit" disabled={createCommentMutation.isPending}>등록</button>
           </form>
 
+          {commentsQuery.isPending && <p role="status">댓글을 불러오고 있어요.</p>}
+          {commentsQuery.isError && <p role="alert">댓글을 불러오지 못했어요. <Button variant="text" onClick={() => commentsQuery.refetch()}>다시 시도</Button></p>}
           <div className="comment-list">
             {comments.map((item) => (
               <article className={item.isDeleted ? 'comment-item comment-item--deleted' : 'comment-item'} key={item.id}>
@@ -240,6 +259,8 @@ export function CommunityDetailPage() {
               </article>
             ))}
           </div>
+          <Pagination page={commentPage} totalPages={commentsQuery.data?.page.totalPages ?? 0} disabled={commentsQuery.isFetching}
+            label="댓글 페이지 이동" onPageChange={(nextPage) => { setReplyTarget(null); setReply(''); changeCommentPage(nextPage); }} />
         </section>
         {reportTarget && <ReportModal target={reportTarget} onClose={() => setReportTarget(null)} />}
         {deleteTarget && <DeleteConfirmModal
@@ -376,9 +397,4 @@ export function CommunityWritePage() {
 function formatDate(value: string) {
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? value : new Intl.DateTimeFormat('ko-KR', { month: '2-digit', day: '2-digit' }).format(date);
-}
-
-function countVisibleComments(comment: CommentDto): number {
-  const current = comment.isDeleted ? 0 : 1;
-  return current + comment.replies.reduce((count, reply) => count + countVisibleComments(reply), 0);
 }

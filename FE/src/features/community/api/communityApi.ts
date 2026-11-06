@@ -48,6 +48,7 @@ export const communityQueryKeys = {
   all: ['community'] as const,
   posts: (hobbyId: number | null, type?: PostType, keyword?: string, page = 0) => ['community', 'posts', hobbyId ?? 'ALL_HOBBIES', type ?? 'ALL', keyword ?? '', page] as const,
   post: (postId: number) => ['community', 'post', postId] as const,
+  commentPages: (postId: number) => ['community', 'post', postId, 'comments'] as const,
   comments: (postId: number, page = 0) => ['community', 'post', postId, 'comments', page] as const,
   myPosts: (page = 0) => ['community', 'my-posts', page] as const,
 };

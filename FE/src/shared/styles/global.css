@@ -679,6 +679,8 @@ strong, b { font-weight: 700; }
 .pagination { display: flex; justify-content: center; gap: 7px; margin-top: 18px; }
 .pagination button { width: 30px; height: 30px; border: 1px solid var(--color-line); border-radius: 50%; color: var(--color-muted); background: #fff; cursor: pointer; }
 .pagination button.active { color: #fff; border-color: var(--color-primary); background: var(--color-primary); }
+.pagination button:disabled { cursor: default; }
+.pagination button:disabled:not(.active) { opacity: .45; }
 .post-detail { padding: 26px; border: 1px solid var(--color-line); border-radius: var(--radius-md); background: #fff; }
 .post-detail header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--color-line); padding-bottom: 17px; }
 .post-detail__heading { display: flex; flex-wrap: wrap; align-items: center; gap: 9px; min-width: 0; }

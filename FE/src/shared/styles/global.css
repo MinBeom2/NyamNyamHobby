@@ -1,3 +1,4 @@
+.map-placeholder { position: relative; height: 440px; min-height: 440px; margin-top: 34px; overflow: hidden; overscroll-behavior: contain; border-radius: var(--radius-md); background: #e8eee8; }
 :root {
   font-family: 'Noto Sans KR', 'Malgun Gothic', sans-serif;
   color: #1d3037;

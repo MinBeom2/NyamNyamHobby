@@ -1,9 +1,10 @@
-import { Check, ChevronDown, Image, Pause, Play, RotateCcw } from 'lucide-react';
+import { CalendarClock, Check, CheckCircle2, ChevronDown, Clock, Image, Pause, Play, RotateCcw } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { activityQueryKeys, getPlan, updatePlanItem, updateUserHobbyStatus, type PlanItemDto } from '../../features/activity/api/activityApi';
 import { getUserHobbies, userQueryKeys, type UserHobbyDto } from '../../features/user/api/userApi';
+import { ApiError } from '../../shared/api/client';
 import { AppHeader } from '../../shared/ui/AppHeader';
 import { Button } from '../../shared/ui/Button';
 
@@ -108,27 +109,41 @@ export function MyHobbiesPage() {
   );
 }
 
-function TodoRow({ todo, onChange }: { todo: PlanItemDto; onChange: (request: { status?: 'TODO' | 'DONE'; memo?: string }) => void }) {
+function TodoRow({
+  todo,
+  disabled,
+  onChange,
+}: {
+  todo: PlanItemDto;
+  disabled: boolean;
+  onChange: (request: { status?: 'TODO' | 'DONE'; memo?: string }) => void;
+}) {
   const [memo, setMemo] = useState(todo.memo ?? '');
   useEffect(() => setMemo(todo.memo ?? ''), [todo.itemId, todo.memo]);
   const done = todo.status === 'DONE';
   return (
-    <label className={`plan-todo ${done ? 'done' : ''}`}>
-      <button type="button" onClick={() => onChange({ status: done ? 'TODO' : 'DONE' })} aria-label={`${todo.title} ${done ? '미완료로 변경' : '완료로 변경'}`}>
+    <article className={`plan-todo ${done ? 'done' : ''} ${disabled ? 'readonly' : ''}`}>
+      <button disabled={disabled} type="button" onClick={() => onChange({ status: done ? 'TODO' : 'DONE' })} aria-label={`${todo.title} ${done ? '미완료로 변경' : '완료로 변경'}`}>
         {done && <Check />}
       </button>
-      <span>
+      <div className="plan-todo__content">
         <b>{todo.title}</b>
-        <small>{todo.description}</small>
-      </span>
+        {todo.description && <small>{todo.description}</small>}
+        <div className="plan-todo__meta">
+          <span><Clock aria-hidden="true" /> 예상 {todo.expectedMinutes}분</span>
+          {todo.supplies && <span>준비물 · {todo.supplies}</span>}
+        </div>
+        {todo.doneCriteria && <p><CheckCircle2 aria-hidden="true" /> 완료 기준 · {todo.doneCriteria}</p>}
+      </div>
       <textarea
         aria-label={`${todo.title} 활동 메모`}
         placeholder="활동하며 느낀 점을 남겨 보세요"
+        disabled={disabled}
         value={memo}
         onChange={(event) => setMemo(event.target.value)}
         onBlur={() => { if (memo !== (todo.memo ?? '')) onChange({ memo }); }}
       />
-    </label>
+    </article>
   );
 }
 
@@ -142,12 +157,17 @@ export function HobbyPlanPage() {
   const [week, setWeek] = useState<number | undefined>();
   const planQuery = useQuery({ queryKey: activityQueryKeys.plan(planId, week), queryFn: () => getPlan(planId, week), enabled: planId > 0 });
   const plan = planQuery.data;
-  const paused = userHobby?.status === 'PAUSED';
+  const paused = (userHobby?.status ?? plan?.hobbyStatus) === 'PAUSED';
 
   useEffect(() => { if (week === undefined && plan?.currentWeek) setWeek(plan.currentWeek); }, [plan?.currentWeek, week]);
   const itemMutation = useMutation({
     mutationFn: ({ itemId, request }: { itemId: number; request: { status?: 'TODO' | 'DONE'; memo?: string } }) => updatePlanItem(planId, itemId, request),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: activityQueryKeys.all }),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: activityQueryKeys.all }),
+        queryClient.invalidateQueries({ queryKey: userQueryKeys.all }),
+      ]);
+    },
   });
   const statusMutation = useMutation({
     mutationFn: (nextStatus: 'PAUSED' | 'IN_PROGRESS') => updateUserHobbyStatus(Number(hobbyId), nextStatus),
@@ -165,6 +185,20 @@ export function HobbyPlanPage() {
   const selectedWeek = plan.selectedWeek ?? week ?? plan.currentWeek;
   const doneCount = plan.weekProgress?.done ?? plan.items.filter((item) => item.status === 'DONE').length;
   const supplies = plan.supplies.length ? plan.supplies : ['별도의 준비물이 없어요.'];
+  const restrictionMessage = plan.canUpdateItems
+    ? null
+    : plan.hobbyStatus === 'PAUSED'
+      ? '일시중지한 계획이에요. 다시 시작하면 체크와 메모를 남길 수 있어요.'
+      : selectedWeek > plan.currentWeek
+        ? `${selectedWeek}주차는 미리보기만 가능해요. 현재 ${plan.currentWeek}주차 활동부터 진행해 주세요.`
+        : '현재 계획 상태에서는 체크와 메모를 변경할 수 없어요.';
+  const overdueNext = plan.overdueItems[0];
+  const nextActivity = overdueNext ?? (selectedWeek === plan.currentWeek ? plan.items.find((item) => item.status === 'TODO') : undefined);
+  const mutationMessage = itemMutation.isPending
+    ? '변경 내용을 저장하고 있어요.'
+    : itemMutation.isError
+      ? itemMutation.error instanceof ApiError ? itemMutation.error.message : '변경 내용을 저장하지 못했어요. 잠시 후 다시 시도해 주세요.'
+      : itemMutation.isSuccess ? '변경 내용을 저장했어요.' : null;
   return (
     <div className="site-shell">
       <AppHeader notificationCount={3} />
@@ -180,6 +214,24 @@ export function HobbyPlanPage() {
           </div>
           <Button variant="secondary" to={`/hobbies/${plan.hobbyId}`}>취미 정보 보기</Button>
         </div>
+        {nextActivity && (
+          <section className="plan-next-activity" aria-labelledby="next-activity-title">
+            <div className="plan-next-activity__icon"><Play aria-hidden="true" /></div>
+            <div>
+              <span>{overdueNext ? `${nextActivity.weekNo}주차에 남은 활동` : '지금 할 다음 활동'}</span>
+              <h2 id="next-activity-title">{nextActivity.title}</h2>
+              <p>{nextActivity.description || '활동 내용을 확인하고 시작해 보세요.'}</p>
+              <div><b><Clock aria-hidden="true" /> 예상 {nextActivity.expectedMinutes}분</b>{nextActivity.doneCriteria && <b><CheckCircle2 aria-hidden="true" /> {nextActivity.doneCriteria}</b>}</div>
+            </div>
+            {overdueNext && selectedWeek !== nextActivity.weekNo && <Button variant="secondary" onClick={() => setWeek(nextActivity.weekNo)}>남은 활동 보기</Button>}
+          </section>
+        )}
+        {plan.overdueCount > 0 && (
+          <section className="plan-overdue" aria-labelledby="overdue-title">
+            <div><CalendarClock aria-hidden="true" /><div><h2 id="overdue-title">이전에 남은 활동 {plan.overdueCount}개</h2><p>부담 갖지 말고 하나부터 이어서 해보세요.</p></div></div>
+            <div>{plan.overdueItems.slice(0, 3).map((item) => <button type="button" key={item.itemId} onClick={() => setWeek(item.weekNo)}><span>{item.weekNo}주차</span>{item.title}<ChevronDown aria-hidden="true" /></button>)}</div>
+          </section>
+        )}
         <div className="plan-layout">
           <section className="plan-main">
             <div className="plan-week-title">
@@ -189,11 +241,16 @@ export function HobbyPlanPage() {
               </div>
               <b>{doneCount}/{plan.weekProgress?.total ?? plan.items.length} 완료</b>
             </div>
+            {restrictionMessage && <p className="plan-readonly-notice" role="status">{restrictionMessage}</p>}
             <div className="plan-todo-list">
               {plan.items.map((todo) => (
-                <TodoRow key={todo.itemId} todo={todo} onChange={(request) => itemMutation.mutate({ itemId: todo.itemId, request })} />
+                <TodoRow key={todo.itemId} todo={todo} disabled={!plan.canUpdateItems || itemMutation.isPending} onChange={(request) => itemMutation.mutate({ itemId: todo.itemId, request })} />
               ))}
             </div>
+            {plan.items.length === 0 && <p className="plan-empty-week">이 주차에 등록된 활동이 없어요.</p>}
+            {mutationMessage && <p className={`plan-save-status ${itemMutation.isError ? 'error' : ''}`} role={itemMutation.isError ? 'alert' : 'status'}>{mutationMessage}</p>}
+            {plan.planCompleted ? <div className="plan-complete-message"><CheckCircle2 /><div><b>3주 계획의 모든 활동을 확인했어요</b><p>완료한 기록을 돌아보고, 이 취미를 어떻게 이어갈지 생각해 보세요.</p></div></div>
+              : plan.weekCompleted && <div className="plan-complete-message"><CheckCircle2 /><div><b>{selectedWeek}주차 활동을 마쳤어요</b><p>{plan.nextWeek ? `${plan.nextWeek}주차 활동은 시작 시점부터 기록할 수 있어요.` : '남은 활동을 확인해 보세요.'}</p></div></div>}
             <div className="plan-actions">
               <Button
                 variant={paused ? 'primary' : 'secondary'}
@@ -232,7 +289,7 @@ export function HobbyPlanPage() {
             <button type="button" className={item.weekNo === selectedWeek ? 'active' : ''} onClick={() => setWeek(item.weekNo)} key={item.weekNo}>
               <span>{item.weekNo}주차</span>
               <b>{item.title}</b>
-              <em>{item.progress.done}/{item.progress.total} 완료</em>
+              <em>{item.status === 'FUTURE' ? '예정 · ' : ''}{item.progress.done}/{item.progress.total} 완료 · {item.expectedMinutes}분</em>
               <ChevronDown />
             </button>
           ))}

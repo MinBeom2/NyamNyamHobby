@@ -3,6 +3,7 @@ import { Navigate } from 'react-router-dom';
 import type { AuthUser } from '../../features/auth/model/authStore';
 import type { ExplorationProgress, ExplorationShort } from '../../features/exploration/model/explorationModel';
 import { useMemberExploration } from '../../features/exploration/hooks/useMemberExploration';
+import { YouTubeShortPlayer } from '../../features/exploration/ui/YouTubeShortPlayer';
 import { ApiError } from '../../shared/api/client';
 import { AppHeader } from '../../shared/ui/AppHeader';
 import { RestartExploreControl } from './RestartExploreControl';
@@ -53,7 +54,7 @@ function MemberTastePanel({ progress }: { progress?: ExplorationProgress }) {
 
 function ServerShortPlayer({ short }: { short: ExplorationShort }) {
   return <section className="short-player short-player--video" aria-label={`${short.hobbyName} 숏폼 영상`}>
-    <iframe key={short.id} className="short-player__video" src={`https://www.youtube-nocookie.com/embed/${encodeURIComponent(short.youtubeVideoId)}?autoplay=1&mute=1&rel=0&playsinline=1`} title={short.title} allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowFullScreen />
+    <YouTubeShortPlayer videoId={short.youtubeVideoId} title={short.title} />
     <div className="short-player__top"><span>{short.hobbyName}</span><small>{short.durationLabel}</small></div>
     <div className="short-player__copy"><div className="short-player__tags">{short.hobbyCategory && <span>#{short.hobbyCategory}</span>}</div><h2>{short.title}</h2></div>
   </section>;

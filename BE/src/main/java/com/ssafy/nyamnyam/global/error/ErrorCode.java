@@ -12,6 +12,7 @@ public enum ErrorCode {
     AUTH_RESEND_COOLDOWN(HttpStatus.BAD_REQUEST, "AUTH_RESEND_COOLDOWN", "인증 메일은 60초에 1회만 재발송할 수 있습니다."),
     UPLOAD_INVALID_FILE(HttpStatus.BAD_REQUEST, "UPLOAD_INVALID_FILE", "JPG, PNG, WEBP 이미지만 올릴 수 있어요."),
     AUTH_PASSWORD_MISMATCH(HttpStatus.BAD_REQUEST, "AUTH_PASSWORD_MISMATCH", "현재 비밀번호가 일치하지 않습니다."),
+    REPORT_SELF(HttpStatus.BAD_REQUEST, "REPORT_SELF", "내가 쓴 글이나 댓글은 신고할 수 없어요."),
 
     // 401 Unauthorized
     COMMON_UNAUTHORIZED(HttpStatus.UNAUTHORIZED, "COMMON_UNAUTHORIZED", "인증이 필요합니다."),
@@ -24,6 +25,7 @@ public enum ErrorCode {
     AUTH_ACCOUNT_LOCKED(HttpStatus.FORBIDDEN, "AUTH_ACCOUNT_LOCKED", "비밀번호 5회 연속 오류로 계정이 5분간 잠겼습니다."),
     AUTH_EMAIL_NOT_VERIFIED(HttpStatus.FORBIDDEN, "AUTH_EMAIL_NOT_VERIFIED", "이메일 인증이 완료되지 않았습니다. 인증 메일을 확인해 주세요."),
     BOARD_FORBIDDEN(HttpStatus.FORBIDDEN, "BOARD_FORBIDDEN", "작성자만 수정하거나 삭제할 수 있어요."),
+    MODERATION_FORBIDDEN(HttpStatus.FORBIDDEN, "MODERATION_FORBIDDEN", "확인할 수 없는 처리 요청입니다."),
 
     // 404 Not Found
     HOBBY_RECOMMENDATION_UNAVAILABLE(HttpStatus.NOT_FOUND, "HOBBY_RECOMMENDATION_UNAVAILABLE", "추천 가능한 공개 취미와 태그 정보를 찾을 수 없습니다."),
@@ -44,6 +46,7 @@ public enum ErrorCode {
     AUTH_EMAIL_DUPLICATED(HttpStatus.CONFLICT, "AUTH_EMAIL_DUPLICATED", "이미 사용 중인 이메일입니다."),
     AUTH_NICKNAME_DUPLICATED(HttpStatus.CONFLICT, "AUTH_NICKNAME_DUPLICATED", "이미 사용 중인 닉네임입니다."),
     AUTH_SOCIAL_ACCOUNT(HttpStatus.CONFLICT, "AUTH_SOCIAL_ACCOUNT", "다른 방법으로 가입된 계정입니다."),
+    REPORT_DUPLICATED(HttpStatus.CONFLICT, "REPORT_DUPLICATED", "이미 신고한 글이나 댓글이에요."),
 
     // 413 Payload Too Large
     UPLOAD_TOO_LARGE(HttpStatus.PAYLOAD_TOO_LARGE, "UPLOAD_TOO_LARGE", "이미지는 5MB 이하만 올릴 수 있어요."),

@@ -50,4 +50,15 @@ public interface CommentRepository extends JpaRepository<Comment, Long> {
 
     @Query("SELECT c.likeCount FROM Comment c WHERE c.id = :id")
     int findLikeCount(@Param("id") Long id);
+
+    /**
+     * 상태를 from일 때만 to로 바꾼다(신고 숨김·복구). 동시에 여러 번 불려도 한 번만 바뀐다.
+     * @return 바꿨으면 1, 이미 다른 상태면 0
+     */
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("UPDATE Comment c SET c.status = :to, c.updatedAt = :now WHERE c.id = :id AND c.status = :from")
+    int changeStatus(@Param("id") Long id,
+                     @Param("from") com.ssafy.nyamnyam.domain.post.entity.CommentStatus from,
+                     @Param("to") com.ssafy.nyamnyam.domain.post.entity.CommentStatus to,
+                     @Param("now") java.time.LocalDateTime now);
 }

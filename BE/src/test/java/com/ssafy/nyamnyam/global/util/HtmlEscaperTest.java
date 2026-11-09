@@ -15,4 +15,14 @@ class HtmlEscaperTest {
         assertThat(HtmlEscaper.escape("평범한 글\n줄바꿈")).isEqualTo("평범한 글\n줄바꿈");
         assertThat(HtmlEscaper.escape(null)).isNull();
     }
+
+    @Test
+    @DisplayName("unescape는 escape를 되돌리고, &amp;lt; 같은 이중 이스케이프도 한 단계만 푼다")
+    void unescape() {
+        String raw = "<script>alert('x') & \"y\"</script>";
+        assertThat(HtmlEscaper.unescape(HtmlEscaper.escape(raw))).isEqualTo(raw);
+        assertThat(HtmlEscaper.unescape("&amp;lt;")).isEqualTo("&lt;");
+        assertThat(HtmlEscaper.unescape("plain")).isEqualTo("plain");
+        assertThat(HtmlEscaper.unescape(null)).isNull();
+    }
 }

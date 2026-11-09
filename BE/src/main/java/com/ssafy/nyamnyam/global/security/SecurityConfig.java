@@ -76,6 +76,9 @@ public class SecurityConfig {
                                 "/api/v1/feeds").permitAll()
                         .requestMatchers(HttpMethod.POST,
                                 "/api/v1/places/collect").permitAll()
+                        // Mattermost 신고 처리 버튼 콜백. 로그인 대신 버튼마다 붙인 HMAC 서명으로 확인한다
+                        .requestMatchers(HttpMethod.POST,
+                                "/api/v1/internal/moderation/actions").permitAll()
                         // 그 외 모든 요청은 인증 필요
                         .anyRequest().authenticated())
                 .oauth2Login(oauth2 -> oauth2

@@ -154,6 +154,19 @@ app:
     kakao-local:
       base-url: ${KAKAO_LOCAL_BASE_URL:https://dapi.kakao.com}
       key: ${KAKAO_LOCAL_API_KEY:${KAKAO_REST_API_KEY:}}
+  # 신고: 관리자 화면 대신 Mattermost로 처리한다.
+  # 매시 정각 새 신고를 대상별 메시지로 보내고, 메시지의 [숨기기]·[유지] 버튼이 /api/v1/internal/moderation/actions 를 부른다.
+  # 웹훅 URL이 비어 있으면 알림을 보내지 않고, 서명 키가 비어 있으면 버튼 없이 알림만 보낸다.
+  report:
+    auto-hide-threshold: 3                                     # 서로 다른 사용자 미처리 신고가 이 수가 되면 바로 숨김
+    digest-cron: "0 0 * * * *"                                 # 매시 정각 (Asia/Seoul)
+    max-targets-per-digest: 30                                 # 한 번에 보낼 대상 수. 넘치면 다음 시간에 이어서
+    notify-immediately: ${REPORT_NOTIFY_IMMEDIATELY:false}     # true면 신고 즉시 전송(로컬 확인용). 서버는 false
+    mattermost-webhook-url: ${REPORT_MATTERMOST_WEBHOOK_URL:}  # 비공개 신고 채널의 수신 웹훅
+    action-secret: ${REPORT_ACTION_SECRET:}                    # 버튼 서명 키(HMAC-SHA256). 32자 이상 임의 문자열
+    # Mattermost가 버튼 클릭을 보낼 백엔드 주소. 로컬에서 터널(cloudflared 등)로 버튼까지 확인할 때만 REPORT_PUBLIC_BASE_URL을 쓴다
+    public-base-url: ${REPORT_PUBLIC_BASE_URL:${UPLOAD_PUBLIC_BASE_URL:http://localhost:8080}}
+    frontend-url: ${FRONTEND_URL:http://localhost:5173}        # 알림의 게시글 링크
   # 레이트 리밋(Redis + Bucket4j 토큰 버킷). 정책별 한도는 global/ratelimit/RateLimitPolicy
   rate-limit:
     enabled: ${RATE_LIMIT_ENABLED:true}   # 로컬 부하 테스트·시연 때 false로 끌 수 있다

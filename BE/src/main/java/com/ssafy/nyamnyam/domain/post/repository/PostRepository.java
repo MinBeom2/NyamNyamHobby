@@ -45,6 +45,15 @@ public interface PostRepository extends JpaRepository<Post, Long>, JpaSpecificat
            "WHERE p.id = :id")
     int addCommentCount(@Param("id") Long id, @Param("delta") int delta);
 
+    /**
+     * 상태를 from일 때만 to로 바꾼다(신고 숨김·복구). 동시에 여러 번 불려도 한 번만 바뀐다.
+     * @return 바꿨으면 1, 이미 다른 상태면 0
+     */
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("UPDATE Post p SET p.status = :to, p.updatedAt = :now WHERE p.id = :id AND p.status = :from")
+    int changeStatus(@Param("id") Long id, @Param("from") PostStatus from, @Param("to") PostStatus to,
+                     @Param("now") java.time.LocalDateTime now);
+
     /** 내가 쓴 활성 게시글 수 */
     long countByUserIdAndStatus(Long userId, PostStatus status);
 

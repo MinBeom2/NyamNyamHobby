@@ -27,4 +27,16 @@ public final class HtmlEscaper {
         }
         return sb.toString();
     }
+
+    /** escape()의 반대. 저장된 글을 HTML이 아닌 곳(Mattermost 알림 등)에 보여 줄 때 쓴다. &amp;는 마지막에 바꿔 이중 해석을 막는다 */
+    public static String unescape(String value) {
+        if (value == null || value.indexOf('&') < 0) {
+            return value;
+        }
+        return value.replace("&lt;", "<")
+                .replace("&gt;", ">")
+                .replace("&quot;", "\"")
+                .replace("&#39;", "'")
+                .replace("&amp;", "&");
+    }
 }

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { communityQueryKeys, getComments, getMyPosts, getPosts } from './communityApi';
+import { communityQueryKeys, createReport, getComments, getMyPosts, getPosts } from './communityApi';
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -29,5 +29,17 @@ describe('community page requests', () => {
     const prefix = communityQueryKeys.commentPages(12);
     for (const page of [0, 1, 4]) expect(communityQueryKeys.comments(12, page).slice(0, -1)).toEqual(prefix);
     expect(communityQueryKeys.comments(13).slice(0, -1)).not.toEqual(prefix);
+  });
+
+  it('sends a report with the backend reason code', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ success: true, data: { reportId: 5 }, error: null }), {
+      status: 201, headers: { 'Content-Type': 'application/json' },
+    }));
+    vi.stubGlobal('fetch', fetchMock);
+    await expect(createReport({ targetType: 'COMMENT', targetId: 7, reason: 'PRIVACY', detail: '전화번호 노출' })).resolves.toEqual({ reportId: 5 });
+    const [path, init] = fetchMock.mock.calls[0];
+    expect(new URL(path, 'http://localhost').pathname).toBe('/api/v1/reports');
+    expect(init.method).toBe('POST');
+    expect(JSON.parse(init.body)).toEqual({ targetType: 'COMMENT', targetId: 7, reason: 'PRIVACY', detail: '전화번호 노출' });
   });
 });

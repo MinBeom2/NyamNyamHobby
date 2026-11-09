@@ -93,3 +93,13 @@ export function uploadPostImage(file: File) {
   body.append('file', file);
   return apiRequest<ImageUploadResponse>('/uploads/images?purpose=POST', { method: 'POST', body });
 }
+
+export type ReportTargetType = 'POST' | 'COMMENT';
+// 명세(3.8)의 reason은 SPAM_OR_AD·INAPPROPRIATE·OFFENSIVE·ETC지만, 팀 결정(11/09)으로 백엔드 구현값을 따른다.
+// 백엔드 V1 reports.reason과 신고 화면 선택지 5개가 1:1이다(스팸·홍보, 욕설·비방, 개인정보 노출, 부적절한 내용, 기타). 명세 갱신 필요.
+export type ReportReason = 'SPAM' | 'ABUSE' | 'PRIVACY' | 'ADULT' | 'ETC';
+export type ReportCreateRequest = { targetType: ReportTargetType; targetId: number; reason: ReportReason; detail?: string };
+
+export function createReport(request: ReportCreateRequest) {
+  return apiRequest<{ reportId: number }>('/reports', { method: 'POST', body: JSON.stringify(request) });
+}

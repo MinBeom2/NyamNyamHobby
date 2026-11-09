@@ -6,6 +6,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import { AppHeader } from '../../shared/ui/AppHeader';
+import { ApiError } from '../../shared/api/client';
 import { Button } from '../../shared/ui/Button';
 import { Pagination } from '../../shared/ui/Pagination';
 import { usePageBounds, usePageSearchParams } from '../../shared/hooks/usePageSearchParams';
@@ -16,6 +17,7 @@ import {
   communityQueryKeys,
   createComment,
   createPost,
+  createReport,
   deleteComment,
   deletePost,
   getComments,
@@ -30,6 +32,8 @@ import {
   type CommentDto,
   type PageDto,
   type PostType,
+  type ReportReason,
+  type ReportTargetType,
 } from '../../features/community/api/communityApi';
 
 const categories = ['전체글', '후기', '질문', '정보 공유', '모임'] as const;
@@ -112,7 +116,7 @@ export function CommunityDetailPage() {
   const [replyTarget, setReplyTarget] = useState<number | null>(null);
   const [reply, setReply] = useState('');
   const [linkCopied, setLinkCopied] = useState(false);
-  const [reportTarget, setReportTarget] = useState<string | null>(null);
+  const [reportTarget, setReportTarget] = useState<ReportModalTarget | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null);
 
   useEffect(() => { setReplyTarget(null); setReply(''); }, [postNumber, commentPage]);
@@ -204,7 +208,7 @@ export function CommunityDetailPage() {
               <button className={post.isLiked ? 'active' : ''} type="button" disabled={likeMutation.isPending} onClick={() => likeMutation.mutate()}><Heart aria-hidden="true" fill={post.isLiked ? 'currentColor' : 'none'} /> 좋아요 {post.likeCount}</button>
               <button type="button" onClick={copyPostLink}><Link2 aria-hidden="true" /> {linkCopied ? '복사했어요' : '링크 복사'}</button>
             </div>
-            <button type="button" onClick={() => setReportTarget('게시글')}><Flag aria-hidden="true" /> 신고</button>
+            {!post.isMine && <button type="button" onClick={() => setReportTarget({ type: 'POST', id: post.id, label: '게시글' })}><Flag aria-hidden="true" /> 신고</button>}
           </footer>
         </article>
 
@@ -230,7 +234,7 @@ export function CommunityDetailPage() {
                       <div className="comment-item__actions">
                         <button type="button" onClick={() => { setReplyTarget((current) => current === item.id ? null : item.id); setReply(''); }}><MessageSquareReply aria-hidden="true" /> 답글</button>
                         <button className={item.isLiked ? 'active' : ''} type="button" disabled={commentLikeMutation.isPending} onClick={() => commentLikeMutation.mutate(item)}><Heart aria-hidden="true" fill={item.isLiked ? 'currentColor' : 'none'} /> 좋아요 {item.likeCount}</button>
-                        <button type="button" onClick={() => setReportTarget(`${item.author?.nickname ?? '사용자'}님의 댓글`)}><Flag aria-hidden="true" /> 신고</button>
+                        {!item.isMine && <button type="button" onClick={() => setReportTarget({ type: 'COMMENT', id: item.id, label: `${item.author?.nickname ?? '사용자'}님의 댓글` })}><Flag aria-hidden="true" /> 신고</button>}
                         {item.isMine && <button type="button" disabled={deleteCommentMutation.isPending} onClick={() => setDeleteTarget({ type: 'comment', id: item.id, content: item.content ?? '' })}><Trash2 aria-hidden="true" /> 삭제</button>}
                       </div>
                       {replyTarget === item.id && (
@@ -247,7 +251,7 @@ export function CommunityDetailPage() {
                             <p>{replyItem.isDeleted ? '삭제된 댓글입니다.' : replyItem.content}</p>
                             {!replyItem.isDeleted && <div className="comment-item__actions">
                               <button className={replyItem.isLiked ? 'active' : ''} type="button" disabled={commentLikeMutation.isPending} onClick={() => commentLikeMutation.mutate(replyItem)}><Heart aria-hidden="true" fill={replyItem.isLiked ? 'currentColor' : 'none'} /> 좋아요 {replyItem.likeCount}</button>
-                              <button type="button" onClick={() => setReportTarget(`${replyItem.author?.nickname ?? '사용자'}님의 답글`)}><Flag aria-hidden="true" /> 신고</button>
+                              {!replyItem.isMine && <button type="button" onClick={() => setReportTarget({ type: 'COMMENT', id: replyItem.id, label: `${replyItem.author?.nickname ?? '사용자'}님의 답글` })}><Flag aria-hidden="true" /> 신고</button>}
                               {replyItem.isMine && <button type="button" disabled={deleteCommentMutation.isPending} onClick={() => setDeleteTarget({ type: 'reply', id: replyItem.id, content: replyItem.content ?? '' })}><Trash2 aria-hidden="true" /> 삭제</button>}
                             </div>}
                           </div>
@@ -275,18 +279,45 @@ export function CommunityDetailPage() {
   );
 }
 
-function ReportModal({ target, onClose }: { target: string; onClose: () => void }) {
-  const [reason, setReason] = useState('스팸·홍보');
-  const [submitted, setSubmitted] = useState(false);
+type ReportModalTarget = { type: ReportTargetType; id: number; label: string };
+
+const REPORT_REASONS: { value: ReportReason; label: string }[] = [
+  { value: 'SPAM', label: '스팸·홍보' },
+  { value: 'ABUSE', label: '욕설·비방' },
+  { value: 'PRIVACY', label: '개인정보 노출' },
+  { value: 'ADULT', label: '부적절한 내용' },
+  { value: 'ETC', label: '기타' },
+];
+
+function reportErrorMessage(error: unknown) {
+  if (error instanceof ApiError && error.message.trim()) return error.message;
+  return '신고하지 못했어요. 다시 시도해 주세요.';
+}
+
+function ReportModal({ target, onClose }: { target: ReportModalTarget; onClose: () => void }) {
+  const [reason, setReason] = useState<ReportReason>('SPAM');
+  const [detail, setDetail] = useState('');
+  const reportMutation = useMutation({
+    mutationFn: () => createReport({ targetType: target.type, targetId: target.id, reason, detail: detail.trim() || undefined }),
+  });
 
   return (
     <div className="modal-backdrop" role="presentation" onMouseDown={onClose}>
       <section className="report-modal" role="dialog" aria-modal="true" aria-labelledby="report-title" onMouseDown={(event) => event.stopPropagation()}>
-        <h2 id="report-title">{target} 신고하기</h2>
-        {submitted ? (
+        <h2 id="report-title">{target.label} 신고하기</h2>
+        {reportMutation.isSuccess ? (
           <><p>신고가 접수됐어요. 확인 후 필요한 조치를 진행할게요.</p><Button onClick={onClose}>확인</Button></>
         ) : (
-          <><p>신고 사유를 선택해 주세요.</p>{['스팸·홍보', '욕설·비방', '개인정보 노출', '부적절한 내용', '기타'].map((item) => <label key={item}><input checked={reason === item} onChange={() => setReason(item)} name="report" type="radio" />{item}</label>)}<textarea placeholder="상세 사유를 입력해 주세요 (300자)" maxLength={300} /><div><Button variant="secondary" onClick={onClose}>취소</Button><Button onClick={() => setSubmitted(true)}>신고하기</Button></div></>
+          <>
+            <p>신고 사유를 선택해 주세요.</p>
+            {REPORT_REASONS.map((item) => <label key={item.value}><input checked={reason === item.value} onChange={() => setReason(item.value)} name="report" type="radio" />{item.label}</label>)}
+            <textarea value={detail} onChange={(event) => setDetail(event.target.value)} placeholder="상세 사유를 입력해 주세요 (300자)" maxLength={300} />
+            {reportMutation.isError && <p className="status-error" role="alert">{reportErrorMessage(reportMutation.error)}</p>}
+            <div>
+              <Button variant="secondary" onClick={onClose}>취소</Button>
+              <Button disabled={reportMutation.isPending} onClick={() => reportMutation.mutate()}>{reportMutation.isPending ? '신고하는 중' : '신고하기'}</Button>
+            </div>
+          </>
         )}
       </section>
     </div>
